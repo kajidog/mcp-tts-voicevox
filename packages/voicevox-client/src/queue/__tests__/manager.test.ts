@@ -42,7 +42,7 @@ const mockApi = {
   synthesize: jest.fn(),
 } as unknown as VoicevoxApi;
 
-// sound-playのモック
+// child_processのモック（将来の拡張用に残しておく）
 const mockPlayPromises: Record<
   string,
   {
@@ -52,20 +52,20 @@ const mockPlayPromises: Record<
   }
 > = {};
 
-// sound-playのモックを修正
-jest.mock("sound-play", () => {
-  return {
-    play: jest.fn().mockImplementation((file: string) => {
-      const handlers: any = {};
-      const promise = new Promise<void>((resolve, reject) => {
-        handlers.resolve = resolve;
-        handlers.reject = reject;
-      });
-      mockPlayPromises[file] = { promise, ...handlers };
-      return promise;
-    }),
-  };
-});
+// child_processのモック
+jest.mock("child_process", () => ({
+  spawn: jest.fn().mockImplementation((_command: string, _args: string[]) => {
+    const mockProcess = {
+      on: jest.fn().mockImplementation((event: string, callback: Function) => {
+        if (event === "close") {
+          // 成功を模倣
+          setTimeout(() => callback(0), 10);
+        }
+      }),
+    };
+    return mockProcess;
+  }),
+}));
 
 // fs/promises のモックに変更
 jest.mock("fs/promises", () => ({
@@ -73,17 +73,23 @@ jest.mock("fs/promises", () => ({
   writeFile: jest.fn().mockResolvedValue(undefined),
 }));
 
+// fs のモック
+jest.mock("fs", () => ({
+  existsSync: jest.fn().mockReturnValue(true),
+}));
+
+// os のモック
+jest.mock("os", () => ({
+  platform: jest.fn().mockReturnValue("linux"),
+  tmpdir: jest.fn().mockReturnValue("/tmp"),
+}));
+
 // テスト実行前にモック関数を取得できるように変更
 let mockFsUnlink: jest.Mock;
-let mockFsWriteFile: jest.Mock;
-let mockSoundPlay: jest.Mock;
 
 beforeAll(async () => {
   const fsPromises = await import("fs/promises");
   mockFsUnlink = fsPromises.unlink as jest.Mock;
-  mockFsWriteFile = fsPromises.writeFile as jest.Mock;
-  const soundPlay = await import("sound-play");
-  mockSoundPlay = (soundPlay.default as any).play as jest.Mock;
 });
 
 describe("VoicevoxQueueManager", () => {
