@@ -12,9 +12,9 @@ const TextSegmentSchema = z.object({
 });
 
 const TextInputSchema = z
-  .union([z.array(z.string()), z.array(TextSegmentSchema)])
+  .string()
   .describe(
-    'Array of strings ["Hello", "World"] or objects [{"text": "Hello"}, {"text": "World", "speaker": 3}] for individual speaker control. For faster playback start, make the first element short.'
+    'Text string with line breaks and optional speaker prefix "1:Hello\\n2:World". For faster playback start, make the first element short.'
   );
 
 const CommonParametersSchema = {
@@ -28,7 +28,7 @@ const CommonParametersSchema = {
 // サーバー初期化
 export const server = new McpServer({
   name: "MCP TTS Voicevox",
-  version: "0.1.1",
+  version: "0.1.2",
   description:
     "A Voicevox server that converts text to speech for playback and saving.",
 });
@@ -62,25 +62,24 @@ const parseAudioQuery = (query: string, speedScale?: number): AudioQuery => {
   return audioQuery;
 };
 
+const parseStringInput = (input: string): Array<{ text: string; speaker?: number }> => {
+  const lines = input.split('\n').filter(line => line.trim());
+  return lines.map(line => {
+    const match = line.match(/^(\d+):(.*)$/);
+    if (match) {
+      return { text: match[2].trim(), speaker: parseInt(match[1], 10) };
+    }
+    return { text: line };
+  });
+};
+
 const processTextInput = async (
-  text: string[] | Array<{ text: string; speaker?: number }>,
+  text: string,
   speaker?: number,
   speedScale?: number
 ) => {
-  if (!Array.isArray(text) || text.length === 0) {
-    throw new Error("Invalid text format. Provide non-empty array.");
-  }
-
-  if (typeof text[0] === "string") {
-    return await voicevoxClient.speak(text as string[], speaker, speedScale);
-  } else if (typeof text[0] === "object" && "text" in text[0]) {
-    const segments = text as Array<{ text: string; speaker?: number }>;
-    return await voicevoxClient.speak(segments, speaker, speedScale);
-  }
-
-  throw new Error(
-    "Invalid text format. Provide array of strings or objects with 'text' property."
-  );
+  const segments = parseStringInput(text);
+  return await voicevoxClient.speak(segments, speaker, speedScale);
 };
 
 // ツール定義

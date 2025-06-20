@@ -54,6 +54,7 @@ This is a VOICEVOX MCP (Model Context Protocol) server that provides text-to-spe
 
 2. **MCP Server Implementation** (`src/server.ts`):
    - **MCP Tools**: `speak`, `generate_query`, `synthesize_file`, `stop_speaker`, `get_speakers`, `get_speaker_detail`
+   - **Text Input Processing**: String-only format with line breaks and speaker prefix support ("1:Hello\n2:World")
    - **Zod Validation**: Schema-based parameter validation
    - **External Dependency**: Uses `@kajidog/voicevox-client` for functionality
 
