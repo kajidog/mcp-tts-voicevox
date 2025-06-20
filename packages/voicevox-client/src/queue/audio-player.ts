@@ -69,7 +69,8 @@ export class AudioPlayer {
           const linuxPlayers = ["aplay", "paplay", "play", "ffplay"];
           command = linuxPlayers.find(player => {
             try {
-              spawn("which", [player], { stdio: "ignore" });
+              const { execSync } = require("child_process");
+              execSync(`which ${player}`, { stdio: "ignore" });
               return true;
             } catch {
               return false;
