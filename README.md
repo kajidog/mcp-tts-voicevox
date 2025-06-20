@@ -62,7 +62,7 @@ MCP サーバーは以下のツールを提供します：
 
 **パラメータ:**
 
-- `text`: 文字列配列、またはテキストと話者ペアの配列
+- `text`: 文字列（改行区切りで複数テキスト、話者指定は「1:テキスト」形式）
 - `speaker` (オプション): 話者 ID
 - `speedScale` (オプション): 再生速度
 - `query` (オプション): 事前生成済みクエリ
@@ -71,13 +71,13 @@ MCP サーバーは以下のツールを提供します：
 
 ```javascript
 // シンプルなテキスト
-{ "text": ["こんにちは", "今日はいい天気ですね"] }
+{ "text": "こんにちは\n今日はいい天気ですね" }
 
 // 話者指定
-{ "text": ["こんにちは", "今日はいい天気ですね"], "speaker": 3 }
+{ "text": "こんにちは\n今日はいい天気ですね", "speaker": 3 }
 
 // セグメント別話者指定
-{ "text": [{"text": "こんにちは", "speaker": 1}, {"text": "今日はいい天気ですね", "speaker": 3}] }
+{ "text": "1:こんにちは\n3:今日はいい天気ですね" }
 ```
 
 #### `generate_query` - クエリ生成
@@ -156,7 +156,7 @@ const speakResponse = await fetch("http://localhost:3000/mcp", {
     params: {
       name: "speak",
       arguments: {
-        text: ["こんにちは、対話形式で音声を再生します"],
+        text: "こんにちは、対話形式で音声を再生します",
         speaker: 1,
         speedScale: 1.0,
       },
@@ -185,11 +185,7 @@ const conversationResponse = await fetch("http://localhost:3000/mcp", {
     params: {
       name: "speak",
       arguments: {
-        text: [
-          { text: "こんにちは！", speaker: 1 },
-          { text: "お元気ですか？", speaker: 3 },
-          { text: "とても元気です！", speaker: 1 },
-        ],
+        text: "1:こんにちは！\n3:お元気ですか？\n1:とても元気です！",
       },
     },
     id: 3,
@@ -232,7 +228,7 @@ async function sendSpeakRequest() {
       params: {
         name: "speak",
         arguments: {
-          text: ["SSEを使用した音声再生です"],
+          text: "SSEを使用した音声再生です",
           speaker: 1,
         },
       },
