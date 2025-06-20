@@ -6,7 +6,7 @@ VOICEVOX を使用した音声合成 MCP サーバー
 
 - **キュー管理機能** - 複数の音声合成リクエストを効率的に処理
 - **プリフェッチ** - 次の音声を事前に生成し、再生をスムーズに
-- **クロスプラットフォーム対応** - Windows、macOS で動作
+- **クロスプラットフォーム対応** - Windows、macOS、Linux で動作
 - **Stdio 対応** - 標準入出力による MCP プロトコル通信（Claude Desktop 等で推奨）
 - **SSE 対応** - Server-Sent Events によるリアルタイム対話形式音声再生
 - **StreamableHTTP 対応** - ストリーミング形式での HTTP 通信による高速音声合成
@@ -251,7 +251,7 @@ async function sendSpeakRequest() {
 
 ### [@kajidog/voicevox-client](https://www.npmjs.com/package/@kajidog/voicevox-client) (独立パッケージ)
 - **汎用ライブラリ** - VOICEVOXエンジンとの通信機能を提供
-- **クロスプラットフォーム** - Node.js とブラウザ環境の両方で動作
+- **クロスプラットフォーム** - Node.js（Windows、macOS、Linux）とブラウザ環境の両方で動作
 - **キュー管理** - 複数の音声合成リクエストを効率的に処理
 - **プリフェッチ機能** - 次の音声を事前に生成し、再生をスムーズに
 
@@ -396,6 +396,14 @@ SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用し
 
 4. **音声が再生されない**
    - システムの音声出力デバイスを確認
+   - プラットフォーム固有の音声再生ツールの確認：
+     - **Linux**: `aplay`, `paplay`, `play`, `ffplay` のいずれかがインストールされているか確認
+       ```bash
+       # 利用可能な音声プレイヤーの確認
+       which aplay paplay play ffplay
+       ```
+     - **macOS**: `afplay` (標準でインストール済み)
+     - **Windows**: PowerShell (標準でインストール済み)
    - VOICEVOX エンジンの動作確認：
      ```bash
      curl -X POST "http://localhost:50021/audio_query?text=テスト&speaker=1"

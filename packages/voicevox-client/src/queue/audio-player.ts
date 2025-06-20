@@ -1,27 +1,8 @@
 import { handleError } from "../error";
 import { isBrowser, isTestEnvironment } from "../utils";
-
-// sound-playは動的インポートで読み込み
-let soundPlay: any = null;
-
-// ブラウザではない場合のみ読み込みを試行
-if (!isBrowser()) {
-  // 非同期で読み込み試行
-  (async () => {
-    try {
-      // 動的インポートを試みる
-      soundPlay = await import("sound-play").catch(() => {
-        // 通常のimportが失敗した場合、requireを試す（古いNode.js環境向け）
-        return require("sound-play");
-      });
-    } catch (error) {
-      console.warn(
-        "sound-play module could not be loaded. Audio playback may not work. Please ensure it is installed correctly.",
-        error
-      );
-    }
-  })();
-}
+import { spawn } from "child_process";
+import * as os from "os";
+import * as fs from "fs";
 
 /**
  * 音声再生クラス
@@ -41,19 +22,7 @@ export class AudioPlayer {
         return this.playAudioInBrowser(filePath);
       } else {
         // Node.js環境での再生
-        if (!soundPlay) {
-          // モジュールが読み込めなかった場合、もう一度読み込みを試みる
-          try {
-            soundPlay = await import("sound-play").catch(() =>
-              require("sound-play")
-            );
-          } catch (err) {
-            throw new Error(
-              "sound-play module is not available. Please ensure it is installed with 'npm install sound-play'"
-            );
-          }
-        }
-        await soundPlay.play(filePath);
+        return this.playAudioInNodejs(filePath);
       }
     } catch (error) {
       // エラー発生時はハンドリングして再スロー
@@ -62,6 +31,82 @@ export class AudioPlayer {
         error
       );
     }
+  }
+
+  /**
+   * Node.js環境での音声再生
+   * @param filePath 再生する音声ファイルのパス
+   */
+  private async playAudioInNodejs(filePath: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      // ファイルの存在確認
+      if (!fs.existsSync(filePath)) {
+        reject(new Error(`音声ファイルが見つかりません: ${filePath}`));
+        return;
+      }
+
+      // プラットフォームに応じて音声再生コマンドを選択
+      const platform = os.platform();
+      let command: string;
+      let args: string[];
+
+      switch (platform) {
+        case "darwin": // macOS
+          command = "afplay";
+          args = [filePath];
+          break;
+        case "win32": // Windows
+          command = "powershell";
+          // ファイルパスをエスケープしてPowerShellコマンドを作成
+          const escapedPath = filePath.replace(/'/g, "''");
+          args = [
+            "-c",
+            `Add-Type -AssemblyName presentationCore; $player = New-Object system.windows.media.mediaplayer; $player.open('${escapedPath}'); $player.Volume = 0.5; $player.Play(); Start-Sleep 1; Start-Sleep -s $player.NaturalDuration.TimeSpan.TotalSeconds; Exit;`
+          ];
+          break;
+        case "linux": // Linux
+          // 利用可能なプレイヤーを順番に試す
+          const linuxPlayers = ["aplay", "paplay", "play", "ffplay"];
+          command = linuxPlayers.find(player => {
+            try {
+              const { execSync } = require("child_process");
+              execSync(`which ${player}`, { stdio: "ignore" });
+              return true;
+            } catch {
+              return false;
+            }
+          }) || "aplay"; // デフォルトはaplay
+          args = command === "ffplay" ? ["-nodisp", "-autoexit", filePath] : [filePath];
+          break;
+        default:
+          reject(new Error(`サポートされていないプラットフォームです: ${platform}`));
+          return;
+      }
+
+      // 音声再生プロセスを実行
+      const spawnOptions: any = {
+        stdio: "ignore" // 標準出力を無視
+      };
+      
+      // WindowsでPowerShellを使用する場合、ウィンドウを非表示にする
+      if (platform === "win32") {
+        spawnOptions.windowsHide = true;
+      }
+      
+      const audioProcess = spawn(command, args, spawnOptions);
+
+      audioProcess.on("close", (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`音声再生プロセスがエラーで終了しました (終了コード: ${code})`));
+        }
+      });
+
+      audioProcess.on("error", (error) => {
+        reject(new Error(`音声再生プロセスの起動に失敗しました: ${error.message}`));
+      });
+    });
   }
 
   /**
