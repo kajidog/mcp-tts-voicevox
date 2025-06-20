@@ -1,6 +1,6 @@
 {
   "name": "@kajidog/voicevox-client",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "VOICEVOX client library for text-to-speech synthesis with queue management",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
