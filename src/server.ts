@@ -12,9 +12,13 @@ const TextSegmentSchema = z.object({
 });
 
 const TextInputSchema = z
-  .union([z.array(z.string()), z.array(TextSegmentSchema)])
+  .union([
+    z.string().describe("Text with optional speaker prefix (e.g., '1:Hello\\n2:World')"),
+    z.array(z.string()),
+    z.array(TextSegmentSchema)
+  ])
   .describe(
-    'Array of strings ["Hello", "World"] or objects [{"text": "Hello"}, {"text": "World", "speaker": 3}] for individual speaker control. For faster playback start, make the first element short.'
+    'Text string with line breaks and optional speaker prefix "1:Hello\\n2:World", array of strings ["Hello", "World"], or objects [{"text": "Hello"}, {"text": "World", "speaker": 3}] for individual speaker control. For faster playback start, make the first element short.'
   );
 
 const CommonParametersSchema = {
@@ -62,11 +66,28 @@ const parseAudioQuery = (query: string, speedScale?: number): AudioQuery => {
   return audioQuery;
 };
 
+const parseStringInput = (input: string): Array<{ text: string; speaker?: number }> => {
+  const lines = input.split('\n').filter(line => line.trim());
+  return lines.map(line => {
+    const match = line.match(/^(\d+):(.*)$/);
+    if (match) {
+      return { text: match[2].trim(), speaker: parseInt(match[1], 10) };
+    }
+    return { text: line };
+  });
+};
+
 const processTextInput = async (
-  text: string[] | Array<{ text: string; speaker?: number }>,
+  text: string | string[] | Array<{ text: string; speaker?: number }>,
   speaker?: number,
   speedScale?: number
 ) => {
+  // Handle string input with line breaks and optional speaker prefix
+  if (typeof text === "string") {
+    const segments = parseStringInput(text);
+    return await voicevoxClient.speak(segments, speaker, speedScale);
+  }
+
   if (!Array.isArray(text) || text.length === 0) {
     throw new Error("Invalid text format. Provide non-empty array.");
   }
