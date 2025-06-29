@@ -66,6 +66,9 @@ MCP サーバーは以下のツールを提供します：
 - `speaker` (オプション): 話者 ID
 - `speedScale` (オプション): 再生速度
 - `query` (オプション): 事前生成済みクエリ
+- `immediate` (オプション): 即座に再生開始するか（デフォルト: true）
+- `waitForStart` (オプション): 再生開始まで待機するか（デフォルト: false）
+- `waitForEnd` (オプション): 再生終了まで待機するか（デフォルト: false）
 
 **使用例:**
 
@@ -78,6 +81,18 @@ MCP サーバーは以下のツールを提供します：
 
 // セグメント別話者指定
 { "text": "1:こんにちは\n3:今日はいい天気ですね" }
+
+// 再生オプション指定
+{ 
+  "text": "音声の再生が完了するまで待機します", 
+  "waitForEnd": true 
+}
+
+// キューに追加するが自動再生しない
+{ 
+  "text": "手動で再生開始するまで待機", 
+  "immediate": false 
+}
 ```
 
 #### `generate_query` - クエリ生成
@@ -367,6 +382,21 @@ SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用し
 - `VOICEVOX_URL`: VOICEVOX エンジンの URL（デフォルト: `http://localhost:50021`）
 - `VOICEVOX_DEFAULT_SPEAKER`: デフォルト話者 ID（デフォルト: `1`）
 - `VOICEVOX_DEFAULT_SPEED_SCALE`: デフォルト再生速度（デフォルト: `1.0`）
+
+### 再生オプション設定
+
+- `VOICEVOX_DEFAULT_IMMEDIATE`: キュー追加時に即座に再生開始するか（デフォルト: `true`）
+- `VOICEVOX_DEFAULT_WAIT_FOR_START`: 再生開始まで待機するか（デフォルト: `false`）
+- `VOICEVOX_DEFAULT_WAIT_FOR_END`: 再生終了まで待機するか（デフォルト: `false`）
+
+これらのオプションにより、音声再生の挙動を細かく制御できます：
+
+```bash
+# 例: 再生開始と終了の両方を待機する設定
+export VOICEVOX_DEFAULT_WAIT_FOR_START=true
+export VOICEVOX_DEFAULT_WAIT_FOR_END=true
+npx @kajidog/mcp-tts-voicevox
+```
 
 ### サーバー設定
 

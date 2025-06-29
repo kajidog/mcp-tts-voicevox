@@ -2,8 +2,56 @@ import { Hono } from "hono";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
-import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { server } from "./server";
+import type { IncomingMessage, ServerResponse } from "http";
+
+// Helper functions to convert between Hono and Node.js request/response
+const toReqRes = (request: Request): { req: IncomingMessage; res: ServerResponse } => {
+  // Create a mock IncomingMessage and ServerResponse
+  const req = {
+    headers: Object.fromEntries(request.headers.entries()),
+    method: request.method,
+    url: request.url,
+  } as unknown as IncomingMessage;
+  
+  const res: any = {
+    statusCode: 200,
+    headers: {} as any,
+    setHeader: function(name: string, value: string) {
+      this.headers[name] = value;
+    },
+    writeHead: function(statusCode: number, headers?: any) {
+      this.statusCode = statusCode;
+      if (headers) {
+        Object.assign(this.headers, headers);
+      }
+    },
+    write: function(chunk: any) {
+      if (!this._body) this._body = [];
+      this._body.push(chunk);
+    },
+    end: function(chunk?: any) {
+      if (chunk) this.write(chunk);
+      this._ended = true;
+    },
+    _body: [],
+    _ended: false,
+  };
+  
+  return { req, res };
+};
+
+const toFetchResponse = (res: any): Response => {
+  // Convert ServerResponse back to Fetch Response
+  const body = res._body ? Buffer.concat(res._body.map((b: any) => 
+    Buffer.isBuffer(b) ? b : Buffer.from(b)
+  )) : null;
+  
+  return new Response(body, {
+    status: res.statusCode || 200,
+    headers: res.headers || {},
+  });
+};
 
 // 型定義
 interface ErrorResponse {

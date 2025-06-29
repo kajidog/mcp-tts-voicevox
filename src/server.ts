@@ -25,10 +25,25 @@ const CommonParametersSchema = {
     .describe("Playback speed (optional, default from environment)"),
 };
 
+const PlaybackOptionsSchema = {
+  immediate: z
+    .boolean()
+    .optional()
+    .describe("Start playback immediately (optional, default: true)"),
+  waitForStart: z
+    .boolean()
+    .optional()
+    .describe("Wait for playback to start (optional, default: false)"),
+  waitForEnd: z
+    .boolean()
+    .optional()
+    .describe("Wait for playback to end (optional, default: false)"),
+};
+
 // サーバー初期化
 export const server = new McpServer({
   name: "MCP TTS Voicevox",
-  version: "0.1.2",
+  version: "0.1.3",
   description:
     "A Voicevox server that converts text to speech for playback and saving.",
 });
@@ -62,9 +77,13 @@ const parseAudioQuery = (query: string, speedScale?: number): AudioQuery => {
   return audioQuery;
 };
 
-const parseStringInput = (input: string): Array<{ text: string; speaker?: number }> => {
-  const lines = input.split('\n').filter(line => line.trim());
-  return lines.map(line => {
+const parseStringInput = (
+  input: string
+): Array<{ text: string; speaker?: number }> => {
+  // \n と \\n の両方に対応するため、まず \\n を \n に変換してから分割
+  const normalizedInput = input.replace(/\\n/g, "\n");
+  const lines = normalizedInput.split("\n").filter((line) => line.trim());
+  return lines.map((line) => {
     const match = line.match(/^(\d+):(.*)$/);
     if (match) {
       return { text: match[2].trim(), speaker: parseInt(match[1], 10) };
@@ -76,10 +95,20 @@ const parseStringInput = (input: string): Array<{ text: string; speaker?: number
 const processTextInput = async (
   text: string,
   speaker?: number,
-  speedScale?: number
+  speedScale?: number,
+  playbackOptions?: {
+    immediate?: boolean;
+    waitForStart?: boolean;
+    waitForEnd?: boolean;
+  }
 ) => {
   const segments = parseStringInput(text);
-  return await voicevoxClient.speak(segments, speaker, speedScale);
+  return await voicevoxClient.speak(
+    segments,
+    speaker,
+    speedScale,
+    playbackOptions
+  );
 };
 
 // ツール定義
@@ -89,20 +118,50 @@ server.tool(
   {
     text: TextInputSchema,
     ...CommonParametersSchema,
+    ...PlaybackOptionsSchema,
     query: z.string().optional().describe("Voice synthesis query"),
   },
-  async ({ text, speaker, query, speedScale }) => {
+  async ({
+    text,
+    speaker,
+    query,
+    speedScale,
+    immediate,
+    waitForStart,
+    waitForEnd,
+  }) => {
     try {
+      // 環境変数からデフォルトの再生オプションを取得
+      const defaultImmediate =
+        process.env.VOICEVOX_DEFAULT_IMMEDIATE === "true";
+      const defaultWaitForStart =
+        process.env.VOICEVOX_DEFAULT_WAIT_FOR_START === "true";
+      const defaultWaitForEnd =
+        process.env.VOICEVOX_DEFAULT_WAIT_FOR_END === "true";
+
+      const playbackOptions = {
+        immediate: immediate ?? defaultImmediate ?? true,
+        waitForStart: waitForStart ?? defaultWaitForStart ?? false,
+        waitForEnd: waitForEnd ?? defaultWaitForEnd ?? false,
+      };
+
       if (query) {
         const audioQuery = parseAudioQuery(query, speedScale);
         const result = await voicevoxClient.enqueueAudioGeneration(
           audioQuery,
-          speaker
+          speaker,
+          speedScale,
+          playbackOptions
         );
         return createSuccessResponse(result);
       }
 
-      const result = await processTextInput(text, speaker, speedScale);
+      const result = await processTextInput(
+        text,
+        speaker,
+        speedScale,
+        playbackOptions
+      );
       return createSuccessResponse(result);
     } catch (error) {
       return createErrorResponse(error);
@@ -201,8 +260,8 @@ server.tool(
   async () => {
     try {
       const speakers = await voicevoxClient.getSpeakers();
-      const result = speakers.flatMap((speaker) =>
-        speaker.styles.map((style) => ({
+      const result = speakers.flatMap((speaker: any) =>
+        speaker.styles.map((style: any) => ({
           uuid: speaker.speaker_uuid,
           speaker: style.id,
           name: `${speaker.name}:${style.name}`,
@@ -225,7 +284,7 @@ server.tool(
     try {
       const allSpeakers = await voicevoxClient.getSpeakers();
       const targetSpeaker = allSpeakers.find(
-        (speaker) => speaker.speaker_uuid === uuid
+        (speaker: any) => speaker.speaker_uuid === uuid
       );
 
       if (!targetSpeaker) {
@@ -234,7 +293,7 @@ server.tool(
         );
       }
 
-      const styles = targetSpeaker.styles.map((style) => ({
+      const styles = targetSpeaker.styles.map((style: any) => ({
         id: style.id,
         name: style.name,
         type: style.type || "normal",

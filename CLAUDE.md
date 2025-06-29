@@ -119,9 +119,17 @@ This is a VOICEVOX MCP (Model Context Protocol) server that provides text-to-spe
 
 ### Environment Variables
 
+**Core Settings:**
 - `VOICEVOX_URL`: VOICEVOX engine URL (default: http://localhost:50021)
 - `VOICEVOX_DEFAULT_SPEAKER`: Default speaker ID (default: 1)
 - `VOICEVOX_DEFAULT_SPEED_SCALE`: Default playback speed (default: 1.0)
+
+**Playback Options (new):**
+- `VOICEVOX_DEFAULT_IMMEDIATE`: Start playback immediately when queued (default: true)
+- `VOICEVOX_DEFAULT_WAIT_FOR_START`: Wait for playback to start (default: false)
+- `VOICEVOX_DEFAULT_WAIT_FOR_END`: Wait for playback to end (default: false)
+
+**Server Configuration:**
 - `MCP_HTTP_MODE`: Enable HTTP server mode (set to "true")
 - `MCP_HTTP_PORT`: HTTP server port (default: 3000)
 - `MCP_HTTP_HOST`: HTTP server host (default: 0.0.0.0)

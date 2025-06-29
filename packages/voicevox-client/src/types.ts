@@ -8,6 +8,8 @@ export interface VoicevoxConfig {
   defaultSpeaker: number;
   /** デフォルトの再生速度 */
   defaultSpeedScale?: number;
+  /** デフォルトの再生オプション */
+  defaultPlaybackOptions?: PlaybackOptions;
 }
 
 /**
@@ -162,4 +164,16 @@ export interface Speaker {
 export interface SpeechSegment {
   text: string;
   speaker?: number;
+}
+
+/**
+ * 音声再生オプション
+ */
+export interface PlaybackOptions {
+  /** 即座に再生を開始するかどうか（デフォルト: true） */
+  immediate?: boolean;
+  /** 再生開始まで待機するかどうか（デフォルト: false） */
+  waitForStart?: boolean;
+  /** 再生終了まで待機するかどうか（デフォルト: false） */
+  waitForEnd?: boolean;
 }
