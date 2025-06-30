@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { VoicevoxApi } from "../api";
-import { AudioQuery } from "../types";
+import { AudioQuery, PlaybackOptions } from "../types";
 import {
   QueueItem,
   QueueItemStatus,
@@ -24,6 +24,7 @@ export class VoicevoxQueueManager implements QueueManager {
   private isPaused: boolean = false;
   private prefetchSize: number = 2;
   private currentPlayingItem: QueueItem | null = null;
+  private immediatePlayIntervals: Set<NodeJS.Timeout> = new Set();
 
   // 依存コンポーネント
   private api: VoicevoxApi;
@@ -31,6 +32,7 @@ export class VoicevoxQueueManager implements QueueManager {
   private eventManager: EventManager;
   private audioGenerator: AudioGenerator;
   private audioPlayer: AudioPlayer;
+  private immediatePlayer: AudioPlayer; // 即時再生用の専用プレイヤー
 
   /**
    * コンストラクタ
@@ -46,10 +48,84 @@ export class VoicevoxQueueManager implements QueueManager {
     this.eventManager = new EventManager();
     this.audioGenerator = new AudioGenerator(this.api, this.fileManager);
     this.audioPlayer = new AudioPlayer();
+    this.immediatePlayer = new AudioPlayer(); // 即時再生用プレイヤー
   }
 
   /**
-   * キューに新しいテキストを追加
+   * キューに新しいテキストを追加（オプション付き）
+   */
+  async enqueueTextWithOptions(
+    text: string, 
+    speaker: number, 
+    options?: PlaybackOptions
+  ): Promise<{ item: QueueItem; promises: { start?: Promise<void>; end?: Promise<void> } }> {
+    const playbackPromiseResolvers: any = {};
+    const promises: { start?: Promise<void>; end?: Promise<void> } = {};
+
+    // 待機オプションに応じてPromiseを作成
+    if (options?.waitForStart) {
+      promises.start = new Promise<void>((resolve) => {
+        playbackPromiseResolvers.startResolve = resolve;
+      });
+    }
+    if (options?.waitForEnd) {
+      promises.end = new Promise<void>((resolve) => {
+        playbackPromiseResolvers.endResolve = resolve;
+      });
+    }
+
+    const item: QueueItem = {
+      id: uuidv4(),
+      text: text,
+      speaker,
+      status: QueueItemStatus.PENDING,
+      createdAt: new Date(),
+      options: options || {},
+      playbackPromiseResolvers,
+    };
+
+    this.queue.push(item);
+    this.eventManager.emitEvent(QueueEventType.ITEM_ADDED, item);
+
+    try {
+      // 非同期で音声生成を開始
+      this.updateItemStatus(item, QueueItemStatus.GENERATING);
+      const query = await this.audioGenerator.generateQuery(text, speaker);
+      item.query = query;
+      await this.audioGenerator.generateAudioFromQuery(
+        item,
+        this.updateItemStatus.bind(this)
+      );
+
+      // immediateオプションがtrueの場合は即座に再生
+      if (options?.immediate === true) {
+        // 即時再生の処理
+        this.playImmediately(item);
+      } else if (options?.immediate !== false) {
+        // immediateが未設定またはfalse以外の場合は通常のキュー処理
+        this.processQueue();
+      }
+
+      return { item, promises };
+    } catch (error) {
+      // エラー発生時の処理
+      item.error = error instanceof Error ? error : new Error(String(error));
+      this.updateItemStatus(item, QueueItemStatus.ERROR);
+      this.eventManager.emitEvent(QueueEventType.ERROR, item);
+
+      // エラー発生時はキューからアイテムを削除
+      const itemIndex = this.queue.findIndex((i) => i.id === item.id);
+      if (itemIndex !== -1) {
+        this.queue.splice(itemIndex, 1);
+      }
+      this.eventManager.emitEvent(QueueEventType.ITEM_REMOVED, item);
+
+      throw error; // エラーを再スロー
+    }
+  }
+
+  /**
+   * キューに新しいテキストを追加（従来の互換性維持）
    */
   async enqueueText(text: string, speaker: number): Promise<QueueItem> {
     const item: QueueItem = {
@@ -91,7 +167,63 @@ export class VoicevoxQueueManager implements QueueManager {
   }
 
   /**
-   * キューに音声合成用クエリを追加
+   * キューに音声合成用クエリを追加（オプション付き）
+   */
+  public async enqueueQueryWithOptions(
+    query: AudioQuery,
+    speaker: number,
+    options?: PlaybackOptions
+  ): Promise<{ item: QueueItem; promises: { start?: Promise<void>; end?: Promise<void> } }> {
+    const playbackPromiseResolvers: any = {};
+    const promises: { start?: Promise<void>; end?: Promise<void> } = {};
+
+    // 待機オプションに応じてPromiseを作成
+    if (options?.waitForStart) {
+      promises.start = new Promise<void>((resolve) => {
+        playbackPromiseResolvers.startResolve = resolve;
+      });
+    }
+    if (options?.waitForEnd) {
+      promises.end = new Promise<void>((resolve) => {
+        playbackPromiseResolvers.endResolve = resolve;
+      });
+    }
+
+    const item: QueueItem = {
+      id: uuidv4(),
+      text: "（クエリから生成）",
+      speaker,
+      status: QueueItemStatus.PENDING,
+      createdAt: new Date(),
+      query,
+      options: options || {},
+      playbackPromiseResolvers,
+    };
+
+    this.queue.push(item);
+    this.eventManager.emitEvent(QueueEventType.ITEM_ADDED, item);
+
+    // 非同期で音声生成を開始
+    this.audioGenerator
+      .generateAudioFromQuery(item, this.updateItemStatus.bind(this))
+      .catch((e) => {
+        console.error("Unhandled error during generateAudioFromQuery:", e);
+      });
+
+    // immediateオプションがtrueの場合は即座に再生
+    if (options?.immediate === true) {
+      // 即時再生の処理
+      this.playImmediately(item);
+    } else if (options?.immediate !== false) {
+      // immediateが未設定またはfalse以外の場合は通常のキュー処理
+      this.processQueue();
+    }
+
+    return { item, promises };
+  }
+
+  /**
+   * キューに音声合成用クエリを追加（従来の互換性維持）
    * @param query 音声合成用クエリ
    * @param speaker 話者ID
    * @returns 作成されたキューアイテム
@@ -266,6 +398,69 @@ export class VoicevoxQueueManager implements QueueManager {
   }
 
   /**
+   * 即時再生処理
+   * キューを経由せず直接音声を再生
+   * @param item 再生するアイテム
+   */
+  private async playImmediately(item: QueueItem): Promise<void> {
+    // 音声ファイルが生成されるまで待機
+    const checkInterval = setInterval(async () => {
+      if (item.status === QueueItemStatus.READY && item.tempFile) {
+        clearInterval(checkInterval);
+        this.immediatePlayIntervals.delete(checkInterval);
+        
+        // 再生開始の通知
+        if (item.playbackPromiseResolvers?.startResolve) {
+          item.playbackPromiseResolvers.startResolve();
+        }
+        
+        try {
+          // 即時再生用プレイヤーで再生
+          this.updateItemStatus(item, QueueItemStatus.PLAYING);
+          await this.immediatePlayer.playAudio(item.tempFile);
+          
+          // 再生完了
+          this.updateItemStatus(item, QueueItemStatus.DONE);
+          this.eventManager.emitEvent(QueueEventType.ITEM_COMPLETED, item);
+          
+          // 再生終了の通知
+          if (item.playbackPromiseResolvers?.endResolve) {
+            item.playbackPromiseResolvers.endResolve();
+          }
+          
+          // 一時ファイルを削除
+          if (item.tempFile) {
+            await this.fileManager.deleteTempFile(item.tempFile);
+          }
+          
+          // キューから削除
+          const itemIndex = this.queue.findIndex((i) => i.id === item.id);
+          if (itemIndex !== -1) {
+            this.queue.splice(itemIndex, 1);
+          }
+        } catch (error) {
+          console.error(`Error playing audio immediately:`, error);
+          this.updateItemStatus(item, QueueItemStatus.ERROR);
+          item.error = error instanceof Error ? error : new Error(String(error));
+          this.eventManager.emitEvent(QueueEventType.ERROR, item);
+          
+          // エラー時もキューから削除
+          const itemIndex = this.queue.findIndex((i) => i.id === item.id);
+          if (itemIndex !== -1) {
+            this.queue.splice(itemIndex, 1);
+          }
+        }
+      } else if (item.status === QueueItemStatus.ERROR) {
+        clearInterval(checkInterval);
+        this.immediatePlayIntervals.delete(checkInterval);
+        // エラー時の処理は既に音声生成時に行われているはず
+      }
+    }, 50); // 50msごとにチェック
+    
+    this.immediatePlayIntervals.add(checkInterval);
+  }
+
+  /**
    * キュー処理実行
    * キューにある音声の生成と再生を処理
    */
@@ -308,6 +503,11 @@ export class VoicevoxQueueManager implements QueueManager {
     this.currentPlayingItem = nextItem;
     this.updateItemStatus(nextItem, QueueItemStatus.PLAYING);
 
+    // 再生開始の通知（waitForStartオプション対応）
+    if (nextItem.playbackPromiseResolvers?.startResolve) {
+      nextItem.playbackPromiseResolvers.startResolve();
+    }
+
     try {
       if (!nextItem.tempFile) {
         throw new Error("再生対象の一時ファイルが見つかりません");
@@ -318,6 +518,11 @@ export class VoicevoxQueueManager implements QueueManager {
       // 再生完了
       this.updateItemStatus(nextItem, QueueItemStatus.DONE);
       this.eventManager.emitEvent(QueueEventType.ITEM_COMPLETED, nextItem);
+
+      // 再生終了の通知（waitForEndオプション対応）
+      if (nextItem.playbackPromiseResolvers?.endResolve) {
+        nextItem.playbackPromiseResolvers.endResolve();
+      }
 
       // キューから削除
       const itemIndex = this.queue.findIndex((i) => i.id === nextItem.id);
@@ -452,6 +657,12 @@ export class VoicevoxQueueManager implements QueueManager {
         this.fileManager.deleteTempFile(item.tempFile);
       }
     });
+
+    // 即時再生用のインターバルをクリア
+    this.immediatePlayIntervals.forEach((interval) => {
+      clearInterval(interval);
+    });
+    this.immediatePlayIntervals.clear();
 
     // キューをクリア
     this.queue = [];

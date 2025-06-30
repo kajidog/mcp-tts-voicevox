@@ -1,4 +1,4 @@
-import { AudioQuery } from "../types";
+import { AudioQuery, PlaybackOptions } from "../types";
 
 /**
  * キューアイテムの状態
@@ -26,6 +26,11 @@ export interface QueueItem {
   tempFile?: string; // 一時ファイルパス
   query?: AudioQuery; // 音声合成用クエリ
   error?: Error; // エラー情報
+  options?: PlaybackOptions; // 再生オプション
+  playbackPromiseResolvers?: {
+    startResolve?: () => void;
+    endResolve?: () => void;
+  }; // 待機処理用Promise resolver
 }
 
 /**

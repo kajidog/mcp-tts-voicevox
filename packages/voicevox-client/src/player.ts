@@ -1,4 +1,4 @@
-import { AudioQuery } from "./types";
+import { AudioQuery, PlaybackOptions } from "./types";
 import { VoicevoxQueueManager, QueueEventType, QueueItemStatus } from "./queue";
 import { handleError } from "./error";
 import { VoicevoxApi } from "./api";
@@ -53,7 +53,24 @@ export class VoicevoxPlayer {
   }
 
   /**
-   * テキストをキューに追加
+   * テキストをキューに追加（オプション付き）
+   * @param text 合成するテキスト
+   * @param speaker 話者ID
+   * @param options 再生オプション
+   */
+  public async enqueueWithOptions(
+    text: string, 
+    speaker: number = 1, 
+    options?: PlaybackOptions
+  ): Promise<{ start?: Promise<void>; end?: Promise<void> }> {
+    return withErrorHandling(async () => {
+      const { promises } = await this.queueManager.enqueueTextWithOptions(text, speaker, options);
+      return promises;
+    }, "テキストのキュー追加中にエラーが発生しました");
+  }
+
+  /**
+   * テキストをキューに追加（従来の互換性維持）
    * @param text 合成するテキスト
    * @param speaker 話者ID
    */
@@ -64,7 +81,24 @@ export class VoicevoxPlayer {
   }
 
   /**
-   * クエリを使ってキューに追加
+   * クエリを使ってキューに追加（オプション付き）
+   * @param query 音声合成用クエリ
+   * @param speaker 話者ID
+   * @param options 再生オプション
+   */
+  public async enqueueWithQueryOptions(
+    query: AudioQuery,
+    speaker: number = 1,
+    options?: PlaybackOptions
+  ): Promise<{ start?: Promise<void>; end?: Promise<void> }> {
+    return withErrorHandling(async () => {
+      const { promises } = await this.queueManager.enqueueQueryWithOptions(query, speaker, options);
+      return promises;
+    }, "クエリのキュー追加中にエラーが発生しました");
+  }
+
+  /**
+   * クエリを使ってキューに追加（従来の互換性維持）
    * @param query 音声合成用クエリ
    * @param speaker 話者ID
    */
@@ -74,6 +108,22 @@ export class VoicevoxPlayer {
   ): Promise<void> {
     return withErrorHandling(async () => {
       await this.queueManager.enqueueQuery(query, speaker);
+    }, "クエリのキュー追加中にエラーが発生しました");
+  }
+
+  /**
+   * クエリを使ってキューに追加（オプション付き）
+   * @param query 音声合成用クエリ
+   * @param speaker 話者ID
+   * @param options 再生オプション
+   */
+  public async enqueueQueryWithOptions(
+    query: AudioQuery,
+    speaker: number = 1,
+    options?: PlaybackOptions
+  ): Promise<{ item: any; promises: { start?: Promise<void>; end?: Promise<void> } }> {
+    return withErrorHandling(async () => {
+      return await this.queueManager.enqueueQueryWithOptions(query, speaker, options);
     }, "クエリのキュー追加中にエラーが発生しました");
   }
 
