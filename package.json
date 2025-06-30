@@ -1,6 +1,6 @@
 {
   "name": "@kajidog/mcp-tts-voicevox",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "VOICEVOX integration for MCP - Text-to-Speech server using VOICEVOX engine",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -70,6 +70,7 @@
     "@hono/node-server": "^1.14.2",
     "@kajidog/voicevox-client": "0.2.0",
     "@modelcontextprotocol/sdk": "^1.8.0",
+    "fetch-to-node": "^2.1.0",
     "hono": "^4.7.10",
     "zod": "^3.22.4"
   },
