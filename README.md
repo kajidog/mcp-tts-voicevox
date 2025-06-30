@@ -7,7 +7,7 @@ VOICEVOX を使用した音声合成 MCP サーバー
 - **高度な再生制御** - キュー管理・即時再生・同期/非同期制御による柔軟な音声処理
 - **プリフェッチ** - 次の音声を事前に生成し、再生をスムーズに
 - **クロスプラットフォーム対応** - Windows、macOS、Linux で動作
-- **Stdio/HTTP 対応** - Claude Desktop（Stdio）や Web API（HTTP）に対応
+- **Stdio/HTTP 対応** - Stdio や SSE、StreamableHttp に対応
 - **複数話者対応** - セグメント単位での個別話者指定が可能
 - **テキスト自動分割** - 長文の自動分割による安定した音声合成
 - **独立したクライアントライブラリ** - [`@kajidog/voicevox-client`](https://www.npmjs.com/package/@kajidog/voicevox-client) として別パッケージで提供
@@ -143,7 +143,7 @@ $env:MCP_HTTP_MODE='true'; npx @kajidog/mcp-tts-voicevox
 ### @kajidog/mcp-tts-voicevox (このパッケージ)
 
 - **MCP サーバー** - Claude Desktop 等の MCP クライアントと通信
-- **HTTP サーバー** - REST API 提供
+- **HTTP サーバー** - SSE/StreamableHTTP によるリモート MCP 通信
 
 ### [@kajidog/voicevox-client](https://www.npmjs.com/package/@kajidog/voicevox-client) (独立パッケージ)
 
