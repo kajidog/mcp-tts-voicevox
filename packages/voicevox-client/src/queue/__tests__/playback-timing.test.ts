@@ -177,6 +177,10 @@ describe("VoicevoxQueueManager - 再生タイミングテスト", () => {
 
   describe("エラーハンドリング", () => {
     it("音声生成エラー時に適切にPromiseが拒否される", async () => {
+      // console.errorをモックして抑制
+      const originalConsoleError = console.error;
+      console.error = jest.fn();
+      
       // APIエラーを発生させる
       (mockApi.generateQuery as jest.Mock).mockRejectedValue(new Error("API Error"));
 
@@ -188,6 +192,9 @@ describe("VoicevoxQueueManager - 再生タイミングテスト", () => {
       await expect(
         queueManager.enqueueTextWithOptions("テスト音声", 1, options)
       ).rejects.toThrow("API Error");
+      
+      // console.errorを元に戻す
+      console.error = originalConsoleError;
     });
   });
 

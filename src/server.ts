@@ -43,7 +43,7 @@ const PlaybackOptionsSchema = {
 // サーバー初期化
 export const server = new McpServer({
   name: "MCP TTS Voicevox",
-  version: "0.1.3",
+  version: "0.2.0",
   description:
     "A Voicevox server that converts text to speech for playback and saving.",
 });
@@ -133,16 +133,16 @@ server.tool(
     try {
       // 環境変数からデフォルトの再生オプションを取得
       const defaultImmediate =
-        process.env.VOICEVOX_DEFAULT_IMMEDIATE === "true";
+        process.env.VOICEVOX_DEFAULT_IMMEDIATE !== "false";
       const defaultWaitForStart =
         process.env.VOICEVOX_DEFAULT_WAIT_FOR_START === "true";
       const defaultWaitForEnd =
         process.env.VOICEVOX_DEFAULT_WAIT_FOR_END === "true";
 
       const playbackOptions = {
-        immediate: immediate ?? defaultImmediate ?? true,
-        waitForStart: waitForStart ?? defaultWaitForStart ?? false,
-        waitForEnd: waitForEnd ?? defaultWaitForEnd ?? false,
+        immediate: immediate ?? defaultImmediate,
+        waitForStart: waitForStart ?? defaultWaitForStart,
+        waitForEnd: waitForEnd ?? defaultWaitForEnd,
       };
 
       if (query) {

@@ -167,13 +167,13 @@ export interface SpeechSegment {
 }
 
 /**
- * 音声再生オプション
+ * 音声再生のオプション
  */
 export interface PlaybackOptions {
-  /** 即座に再生を開始するかどうか（デフォルト: true） */
+  /** 即座に再生を開始するかどうか */
   immediate?: boolean;
-  /** 再生開始まで待機するかどうか（デフォルト: false） */
+  /** 再生開始まで待機するかどうか */
   waitForStart?: boolean;
-  /** 再生終了まで待機するかどうか（デフォルト: false） */
+  /** 再生終了まで待機するかどうか */
   waitForEnd?: boolean;
 }

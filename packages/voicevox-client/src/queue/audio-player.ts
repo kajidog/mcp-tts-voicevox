@@ -57,54 +57,68 @@ export class AudioPlayer {
           break;
         case "win32": // Windows
           command = "powershell";
-          // ファイルパスをエスケープしてPowerShellコマンドを作成
-          const escapedPath = filePath.replace(/'/g, "''");
+          // より簡単で確実なPowerShellコマンドを使用
+          const escapedPath = filePath
+            .replace(/\\/g, "\\\\")
+            .replace(/"/g, '\\"');
           args = [
             "-c",
-            `Add-Type -AssemblyName presentationCore; $player = New-Object system.windows.media.mediaplayer; $player.open('${escapedPath}'); $player.Volume = 0.5; $player.Play(); Start-Sleep 1; Start-Sleep -s $player.NaturalDuration.TimeSpan.TotalSeconds; Exit;`
+            `Add-Type -AssemblyName presentationCore; $player = New-Object system.windows.media.mediaplayer; $player.open('${escapedPath}'); $player.Volume = 0.5; $player.Play(); Start-Sleep 1; Start-Sleep -s $player.NaturalDuration.TimeSpan.TotalSeconds; Exit;`,
           ];
           break;
         case "linux": // Linux
           // 利用可能なプレイヤーを順番に試す
           const linuxPlayers = ["aplay", "paplay", "play", "ffplay"];
-          command = linuxPlayers.find(player => {
-            try {
-              const { execSync } = require("child_process");
-              execSync(`which ${player}`, { stdio: "ignore" });
-              return true;
-            } catch {
-              return false;
-            }
-          }) || "aplay"; // デフォルトはaplay
-          args = command === "ffplay" ? ["-nodisp", "-autoexit", filePath] : [filePath];
+          command =
+            linuxPlayers.find((player) => {
+              try {
+                const { execSync } = require("child_process");
+                execSync(`which ${player}`, { stdio: "ignore" });
+                return true;
+              } catch {
+                return false;
+              }
+            }) || "aplay"; // デフォルトはaplay
+          args =
+            command === "ffplay"
+              ? ["-nodisp", "-autoexit", filePath]
+              : [filePath];
           break;
         default:
-          reject(new Error(`サポートされていないプラットフォームです: ${platform}`));
+          reject(
+            new Error(`サポートされていないプラットフォームです: ${platform}`)
+          );
           return;
       }
 
       // 音声再生プロセスを実行
       const spawnOptions: any = {
-        stdio: "ignore" // 標準出力を無視
+        stdio: "ignore", // 標準出力を無視
       };
-      
+
       // WindowsでPowerShellを使用する場合、ウィンドウを非表示にする
       if (platform === "win32") {
         spawnOptions.windowsHide = true;
       }
-      
+
       const audioProcess = spawn(command, args, spawnOptions);
 
       audioProcess.on("close", (code) => {
         if (code === 0) {
           resolve();
         } else {
-          reject(new Error(`音声再生プロセスがエラーで終了しました (終了コード: ${code})`));
+          reject(
+            new Error(
+              `音声再生プロセスがエラーで終了しました (終了コード: ${code})`
+            )
+          );
         }
       });
 
       audioProcess.on("error", (error) => {
-        reject(new Error(`音声再生プロセスの起動に失敗しました: ${error.message}`));
+        reject(
+          new Error(`音声再生プロセスの起動に失敗しました: ${error.message}`)
+        );
       });
     });
   }

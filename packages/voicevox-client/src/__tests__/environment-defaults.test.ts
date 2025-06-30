@@ -124,7 +124,7 @@ describe("VoicevoxClient - 環境変数デフォルト値テスト", () => {
       expect(defaultOptions.waitForEnd).toBe(true);
     });
 
-    it("環境変数が設定されていない場合、undefined になる", async () => {
+    it("環境変数が設定されていない場合、デフォルト値が使用される", async () => {
       delete process.env.VOICEVOX_DEFAULT_IMMEDIATE;
       delete process.env.VOICEVOX_DEFAULT_WAIT_FOR_START;
       delete process.env.VOICEVOX_DEFAULT_WAIT_FOR_END;
@@ -138,9 +138,9 @@ describe("VoicevoxClient - 環境変数デフォルト値テスト", () => {
       
       const defaultOptions = (client as any).defaultPlaybackOptions;
       
-      expect(defaultOptions.immediate).toBeUndefined();
-      expect(defaultOptions.waitForStart).toBeUndefined();
-      expect(defaultOptions.waitForEnd).toBeUndefined();
+      expect(defaultOptions.immediate).toBe(true);  // デフォルト値
+      expect(defaultOptions.waitForStart).toBe(false);  // デフォルト値
+      expect(defaultOptions.waitForEnd).toBe(false);  // デフォルト値
     });
   });
 
@@ -195,7 +195,7 @@ describe("VoicevoxClient - 環境変数デフォルト値テスト", () => {
   });
 
   describe("無効な環境変数値の処理", () => {
-    it("true/false 以外の値は undefined として扱われる", async () => {
+    it("true/false 以外の値は無視され、デフォルト値が使用される", async () => {
       process.env.VOICEVOX_DEFAULT_IMMEDIATE = "invalid";
       process.env.VOICEVOX_DEFAULT_WAIT_FOR_START = "1";
       process.env.VOICEVOX_DEFAULT_WAIT_FOR_END = "yes";
@@ -209,12 +209,12 @@ describe("VoicevoxClient - 環境変数デフォルト値テスト", () => {
       
       const defaultOptions = (client as any).defaultPlaybackOptions;
       
-      expect(defaultOptions.immediate).toBeUndefined();
-      expect(defaultOptions.waitForStart).toBeUndefined();
-      expect(defaultOptions.waitForEnd).toBeUndefined();
+      expect(defaultOptions.immediate).toBe(true);  // デフォルト値
+      expect(defaultOptions.waitForStart).toBe(false);  // デフォルト値
+      expect(defaultOptions.waitForEnd).toBe(false);  // デフォルト値
     });
 
-    it("空文字列は undefined として扱われる", async () => {
+    it("空文字列は無視され、デフォルト値が使用される", async () => {
       process.env.VOICEVOX_DEFAULT_IMMEDIATE = "";
       process.env.VOICEVOX_DEFAULT_WAIT_FOR_START = "";
 
@@ -227,8 +227,8 @@ describe("VoicevoxClient - 環境変数デフォルト値テスト", () => {
       
       const defaultOptions = (client as any).defaultPlaybackOptions;
       
-      expect(defaultOptions.immediate).toBeUndefined();
-      expect(defaultOptions.waitForStart).toBeUndefined();
+      expect(defaultOptions.immediate).toBe(true);  // デフォルト値
+      expect(defaultOptions.waitForStart).toBe(false);  // デフォルト値
     });
   });
 });

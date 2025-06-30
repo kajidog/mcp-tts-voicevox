@@ -112,6 +112,22 @@ export class VoicevoxPlayer {
   }
 
   /**
+   * クエリを使ってキューに追加（オプション付き）
+   * @param query 音声合成用クエリ
+   * @param speaker 話者ID
+   * @param options 再生オプション
+   */
+  public async enqueueQueryWithOptions(
+    query: AudioQuery,
+    speaker: number = 1,
+    options?: PlaybackOptions
+  ): Promise<{ item: any; promises: { start?: Promise<void>; end?: Promise<void> } }> {
+    return withErrorHandling(async () => {
+      return await this.queueManager.enqueueQueryWithOptions(query, speaker, options);
+    }, "クエリのキュー追加中にエラーが発生しました");
+  }
+
+  /**
    * テキストから音声合成用クエリを生成
    * キューマネージャーの内部機能を使用
    * @param text 合成するテキスト

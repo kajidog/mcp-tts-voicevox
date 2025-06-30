@@ -34,9 +34,13 @@ export class VoicevoxClient {
     
     // 設定から再生オプションを取得し、環境変数でオーバーライド
     const envOptions = getPlaybackOptionsFromEnv();
-    this.defaultPlaybackOptions = {};
+    this.defaultPlaybackOptions = {
+      immediate: true,  // デフォルト値
+      waitForStart: false,  // デフォルト値
+      waitForEnd: false  // デフォルト値
+    };
     
-    // 設定オブジェクトの値を最初に設定
+    // 設定オブジェクトの値で上書き
     if (config.defaultPlaybackOptions) {
       Object.assign(this.defaultPlaybackOptions, config.defaultPlaybackOptions);
     }
@@ -215,6 +219,39 @@ export class VoicevoxClient {
       return `音声生成キューに追加しました: ${textSummary}`;
     } catch (error) {
       return formatError("音声生成中にエラーが発生しました", error);
+    }
+  }
+
+  /**
+   * テキストを音声に変換して再生します（オプション付き）
+   * @param text 変換するテキスト
+   * @param options 再生オプション
+   * @returns 音声再生のPromise
+   */
+  public async speakWithOptions(
+    text: string,
+    options?: PlaybackOptions & { speaker?: number; speedScale?: number }
+  ): Promise<{ promises: { start?: Promise<void>; end?: Promise<void> } }> {
+    try {
+      const speaker = options?.speaker ?? this.defaultSpeaker;
+      const speedScale = options?.speedScale ?? this.defaultSpeedScale;
+      
+      // オプションから speaker と speedScale を除外
+      const playbackOptions: PlaybackOptions = {
+        immediate: options?.immediate,
+        waitForStart: options?.waitForStart,
+        waitForEnd: options?.waitForEnd
+      };
+      
+      // 音声クエリを生成
+      const query = await this.generateQuery(text, speaker, speedScale);
+      
+      // オプション付きでキューに追加
+      const result = await this.player.enqueueQueryWithOptions(query, speaker, playbackOptions);
+      
+      return { promises: result.promises };
+    } catch (error) {
+      throw handleError("音声生成中にエラーが発生しました", error);
     }
   }
 

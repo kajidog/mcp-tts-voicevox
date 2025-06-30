@@ -363,11 +363,18 @@ describe("VoicevoxQueueManager", () => {
       );
     });
 
+    // console.errorをモックして抑制
+    const originalConsoleError = console.error;
+    console.error = jest.fn();
+    
     // キューに追加（エラーが発生するはずなのでtry-catchで囲む）
     try {
       await queueManager.enqueueText(text, speaker);
     } catch (error) {
       // エラーは期待通りなので無視
+    } finally {
+      // console.errorを元に戻す
+      console.error = originalConsoleError;
     }
 
     // GENERATINGに変わるのを待つ

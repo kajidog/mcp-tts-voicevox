@@ -4,13 +4,10 @@ VOICEVOX を使用した音声合成 MCP サーバー
 
 ## 特徴
 
-- **キュー管理機能** - 複数の音声合成リクエストを効率的に処理
+- **高度な再生制御** - キュー管理・即時再生・同期/非同期制御による柔軟な音声処理
 - **プリフェッチ** - 次の音声を事前に生成し、再生をスムーズに
 - **クロスプラットフォーム対応** - Windows、macOS、Linux で動作
-- **Stdio 対応** - 標準入出力による MCP プロトコル通信（Claude Desktop 等で推奨）
-- **SSE 対応** - Server-Sent Events によるリアルタイム対話形式音声再生
-- **StreamableHTTP 対応** - ストリーミング形式での HTTP 通信による高速音声合成
-- **対話形式音声再生** - チャット形式でのリアルタイム音声合成・再生機能
+- **Stdio/HTTP 対応** - Claude Desktop（Stdio）や Web API（HTTP）に対応
 - **複数話者対応** - セグメント単位での個別話者指定が可能
 - **テキスト自動分割** - 長文の自動分割による安定した音声合成
 - **独立したクライアントライブラリ** - [`@kajidog/voicevox-client`](https://www.npmjs.com/package/@kajidog/voicevox-client) として別パッケージで提供
@@ -52,11 +49,9 @@ MCP_HTTP_MODE=true npx @kajidog/mcp-tts-voicevox
 $env:MCP_HTTP_MODE='true'; npx @kajidog/mcp-tts-voicevox
 ```
 
-### MCP ツール一覧
+## MCP ツール
 
-MCP サーバーは以下のツールを提供します：
-
-#### `speak` - テキスト読み上げ
+### `speak` - テキスト読み上げ
 
 テキストを音声に変換して再生します。
 
@@ -65,7 +60,6 @@ MCP サーバーは以下のツールを提供します：
 - `text`: 文字列（改行区切りで複数テキスト、話者指定は「1:テキスト」形式）
 - `speaker` (オプション): 話者 ID
 - `speedScale` (オプション): 再生速度
-- `query` (オプション): 事前生成済みクエリ
 - `immediate` (オプション): 即座に再生開始するか（デフォルト: true）
 - `waitForStart` (オプション): 再生開始まで待機するか（デフォルト: false）
 - `waitForEnd` (オプション): 再生終了まで待機するか（デフォルト: false）
@@ -77,222 +71,89 @@ MCP サーバーは以下のツールを提供します：
 { "text": "こんにちは\n今日はいい天気ですね" }
 
 // 話者指定
-{ "text": "こんにちは\n今日はいい天気ですね", "speaker": 3 }
+{ "text": "こんにちは", "speaker": 3 }
 
 // セグメント別話者指定
 { "text": "1:こんにちは\n3:今日はいい天気ですね" }
 
-// 再生オプション指定
-{ 
-  "text": "音声の再生が完了するまで待機します", 
-  "waitForEnd": true 
+// 即座に再生（キューを迂回）
+{
+  "text": "緊急メッセージです",
+  "immediate": true,
+  "waitForEnd": true
+}
+
+// 再生終了まで待機（同期処理）
+{
+  "text": "この音声の再生が完了するまで次の処理を待機",
+  "waitForEnd": true
 }
 
 // キューに追加するが自動再生しない
-{ 
-  "text": "手動で再生開始するまで待機", 
-  "immediate": false 
+{
+  "text": "手動で再生開始するまで待機",
+  "immediate": false
 }
 ```
 
-#### `generate_query` - クエリ生成
+### 高度な再生制御機能
 
-音声合成用クエリを生成します。
+#### 即時再生（`immediate: true`）
 
-**パラメータ:**
+キューを迂回して音声を即座に再生：
 
-- `text`: 合成するテキスト
-- `speaker` (オプション): 話者 ID
-- `speedScale` (オプション): 再生速度
+- **通常のキューと並行動作**: 既存のキュー再生を妨げません
+- **複数同時再生**: 複数の即時再生を同時に実行可能
+- **緊急通知に最適**: 重要なメッセージを優先的に再生
 
-#### `synthesize_file` - ファイル生成
+#### 同期再生制御（`waitForEnd: true`）
 
-音声ファイルを生成し、パスを返します。
+再生完了まで待機して処理を同期化：
 
-**パラメータ:**
-
-- `text` (オプション): 合成するテキスト
-- `query` (オプション): 事前生成済みクエリ
-- `output`: 出力ファイルパス
-- `speaker` (オプション): 話者 ID
-- `speedScale` (オプション): 再生速度
-
-#### `stop_speaker` - 再生停止
-
-現在の音声合成キューをクリアします。
-
-#### `get_speakers` - 話者一覧取得
-
-利用可能な話者一覧を取得します。
-
-#### `get_speaker_detail` - 話者詳細取得
-
-指定した UUID の話者詳細情報を取得します。
-
-**パラメータ:**
-
-- `uuid`: 話者 UUID
-
-### 対話形式音声再生の使用例
-
-#### StreamableHTTP を使用した対話形式再生
+- **順次処理**: 音声再生後に次の処理を実行
+- **タイミング制御**: 音声と他の処理の連携が可能
+- **UI 同期**: 画面表示と音声のタイミングを合わせる
 
 ```javascript
-// セッション初期化
-const response = await fetch("http://localhost:3000/mcp", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    jsonrpc: "2.0",
-    method: "initialize",
-    params: {
-      protocolVersion: "2024-11-05",
-      capabilities: {},
-    },
-    id: 1,
-  }),
-});
-
-const sessionData = await response.json();
-const sessionId = response.headers.get("mcp-session-id");
-
-// 音声合成・再生リクエスト
-const speakResponse = await fetch("http://localhost:3000/mcp", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "mcp-session-id": sessionId,
-  },
-  body: JSON.stringify({
-    jsonrpc: "2.0",
-    method: "tools/call",
-    params: {
-      name: "speak",
-      arguments: {
-        text: "こんにちは、対話形式で音声を再生します",
-        speaker: 1,
-        speedScale: 1.0,
-      },
-    },
-    id: 2,
-  }),
-});
-
-const result = await speakResponse.json();
-console.log("結果:", result);
-```
-
-#### 複数話者を使用した対話例
-
-```javascript
-// 複数話者での会話例
-const conversationResponse = await fetch("http://localhost:3000/mcp", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "mcp-session-id": sessionId,
-  },
-  body: JSON.stringify({
-    jsonrpc: "2.0",
-    method: "tools/call",
-    params: {
-      name: "speak",
-      arguments: {
-        text: "1:こんにちは！\n3:お元気ですか？\n1:とても元気です！",
-      },
-    },
-    id: 3,
-  }),
-});
-```
-
-#### SSE を使用した対話形式再生（レガシー）
-
-```javascript
-// SSE接続の確立
-const eventSource = new EventSource("http://localhost:3000/sse");
-let sessionId = null;
-
-eventSource.onopen = function (event) {
-  console.log("SSE接続が確立されました");
-};
-
-eventSource.onmessage = function (event) {
-  const data = JSON.parse(event.data);
-
-  if (data.type === "session") {
-    sessionId = data.sessionId;
-    console.log("セッションID:", sessionId);
-
-    // 音声合成リクエストを送信
-    sendSpeakRequest();
-  }
-};
-
-async function sendSpeakRequest() {
-  await fetch(`http://localhost:3000/messages?sessionId=${sessionId}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      method: "tools/call",
-      params: {
-        name: "speak",
-        arguments: {
-          text: "SSEを使用した音声再生です",
-          speaker: 1,
-        },
-      },
-      id: 1,
-    }),
-  });
+// 例1: 緊急メッセージを即座に再生し、完了まで待機
+{
+  "text": "緊急！すぐに確認してください",
+  "immediate": true,
+  "waitForEnd": true
 }
+
+// 例2: ステップバイステップの音声ガイド
+{
+  "text": "手順1: ファイルを開いてください",
+  "waitForEnd": true
+}
+// 上記の音声が完了してから次の処理が実行される
 ```
 
+### その他のツール
+
+- `generate_query` - 音声合成用クエリを生成
+- `synthesize_file` - 音声ファイルを生成
+- `stop_speaker` - 再生停止・キュークリア
+- `get_speakers` - 話者一覧取得
+- `get_speaker_detail` - 話者詳細取得
 
 ## パッケージ構成
 
-このプロジェクトは以下の2つのパッケージで構成されています：
-
 ### @kajidog/mcp-tts-voicevox (このパッケージ)
-- **MCPサーバー** - Claude Desktop等のMCPクライアントと通信するサーバー
-- **Node.js専用** - デスクトップ環境やCLI環境での使用を想定
-- **ツール提供** - `speak`, `generate_query`, `synthesize_file` 等のMCPツール
-- **HTTPサーバー** - SSE/StreamableHTTP対応のWebサーバー
+
+- **MCP サーバー** - Claude Desktop 等の MCP クライアントと通信
+- **HTTP サーバー** - REST API 提供
 
 ### [@kajidog/voicevox-client](https://www.npmjs.com/package/@kajidog/voicevox-client) (独立パッケージ)
-- **汎用ライブラリ** - VOICEVOXエンジンとの通信機能を提供
-- **クロスプラットフォーム** - Node.js（Windows、macOS、Linux）とブラウザ環境の両方で動作
-- **キュー管理** - 複数の音声合成リクエストを効率的に処理
-- **プリフェッチ機能** - 次の音声を事前に生成し、再生をスムーズに
 
-### 使い分けガイド
-
-**MCPサーバーを使用する場合 (`@kajidog/mcp-tts-voicevox`)**:
-- Claude Desktop でTTSツールを使いたい
-- コマンドラインからMCPサーバーを起動したい
-- Webアプリケーション向けのHTTP APIが必要
-
-**クライアントライブラリを使用する場合 (`@kajidog/voicevox-client`)**:
-- 独自のNode.jsアプリケーションにTTS機能を組み込みたい
-- ブラウザアプリケーションでVOICEVOXを使いたい
-- MCPプロトコルを使わずに直接VOICEVOX機能を利用したい
-
-詳細な使用方法は [`@kajidog/voicevox-client` のドキュメント](https://www.npmjs.com/package/@kajidog/voicevox-client) を参照してください。
+- **汎用ライブラリ** - VOICEVOX エンジンとの通信機能
+- **クロスプラットフォーム** - Node.js、ブラウザ環境対応
+- **高度な再生制御** - 即時再生・同期再生・キュー管理機能
 
 ## MCP 設定例
 
 ### Claude Desktop での設定
-
-**⚠️ 重要: Claude Desktop の通信モードについて**
-
-Claude Desktop は現在 **Stdio モードのみ** をサポートしており、SSE/HTTP モードは直接サポートされていません。
-
-#### 推奨設定（Stdio モード）
 
 `claude_desktop_config.json` ファイルに以下の設定を追加：
 
@@ -301,7 +162,7 @@ Claude Desktop は現在 **Stdio モードのみ** をサポートしており�
   "mcpServers": {
     "tts-mcp": {
       "command": "npx",
-      "args": ["-y", "@kajidog/mcp-tts-voicevox"],
+      "args": ["-y", "@kajidog/mcp-tts-voicevox"]
     }
   }
 }
@@ -338,6 +199,8 @@ SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用し
    $env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voicevox
    ```
 
+````
+
 ### AivisSpeech での設定例
 
 ```json
@@ -353,7 +216,7 @@ SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用し
     }
   }
 }
-```
+````
 
 ### HTTP モードでの設定
 
@@ -389,21 +252,30 @@ SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用し
 - `VOICEVOX_DEFAULT_WAIT_FOR_START`: 再生開始まで待機するか（デフォルト: `false`）
 - `VOICEVOX_DEFAULT_WAIT_FOR_END`: 再生終了まで待機するか（デフォルト: `false`）
 
-これらのオプションにより、音声再生の挙動を細かく制御できます：
+**使用例:**
 
 ```bash
-# 例: 再生開始と終了の両方を待機する設定
+# 例1: 全ての音声再生で完了まで待機（同期処理）
+export VOICEVOX_DEFAULT_WAIT_FOR_END=true
+npx @kajidog/mcp-tts-voicevox
+
+# 例2: 再生開始と終了の両方を待機
 export VOICEVOX_DEFAULT_WAIT_FOR_START=true
 export VOICEVOX_DEFAULT_WAIT_FOR_END=true
 npx @kajidog/mcp-tts-voicevox
+
+# 例3: 手動制御（自動再生無効）
+export VOICEVOX_DEFAULT_IMMEDIATE=false
+npx @kajidog/mcp-tts-voicevox
 ```
+
+これらのオプションにより、アプリケーションの要件に応じて音声再生の挙動を細かく制御できます。
 
 ### サーバー設定
 
 - `MCP_HTTP_MODE`: HTTP サーバーモードの有効化（`true` で有効）
 - `MCP_HTTP_PORT`: HTTP サーバーのポート番号（デフォルト: `3000`）
 - `MCP_HTTP_HOST`: HTTP サーバーのホスト（デフォルト: `0.0.0.0`）
-- `NODE_ENV`: 開発モード（`development` で有効）
 
 ## トラブルシューティング
 
@@ -415,29 +287,17 @@ npx @kajidog/mcp-tts-voicevox
    curl http://localhost:50021/speakers
    ```
 
-2. **ポートが既に使用されている (EADDRINUSE エラー)**
+2. **音声が再生されない**
 
-   - 別のポート番号を使用するか、既存のプロセスを終了してください
-
-3. **MCP クライアントで認識されない**
-
-   - パッケージのインストールを確認：`npm list -g @kajidog/mcp-tts-voicevox`
-   - 設定ファイルの JSON 構文を確認
-
-4. **音声が再生されない**
    - システムの音声出力デバイスを確認
    - プラットフォーム固有の音声再生ツールの確認：
-     - **Linux**: `aplay`, `paplay`, `play`, `ffplay` のいずれかがインストールされているか確認
-       ```bash
-       # 利用可能な音声プレイヤーの確認
-       which aplay paplay play ffplay
-       ```
+     - **Linux**: `aplay`, `paplay`, `play`, `ffplay` のいずれかが必要
      - **macOS**: `afplay` (標準でインストール済み)
      - **Windows**: PowerShell (標準でインストール済み)
-   - VOICEVOX エンジンの動作確認：
-     ```bash
-     curl -X POST "http://localhost:50021/audio_query?text=テスト&speaker=1"
-     ```
+
+3. **MCP クライアントで認識されない**
+   - パッケージのインストールを確認：`npm list -g @kajidog/mcp-tts-voicevox`
+   - 設定ファイルの JSON 構文を確認
 
 ## ライセンス
 
