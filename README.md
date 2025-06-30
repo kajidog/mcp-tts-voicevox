@@ -283,10 +283,9 @@ WSL環境から WindowsホストのMCPサーバーに接続する場合の設定
 
 ### 1. Windowsホストでの設定
 
-**PowerShellでAivisSpeechとMCPサーバーを起動:**
+**AivisSpeechとPowerShellでMCPサーバーを起動:**
 
 ```powershell
-# 環境変数の設定とMCPサーバー起動
 $env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; $env:VOICEVOX_URL='http://127.0.0.1:10101'; $env:VOICEVOX_DEFAULT_SPEAKER='888753764'; npx @kajidog/mcp-tts-voicevox
 ```
 
