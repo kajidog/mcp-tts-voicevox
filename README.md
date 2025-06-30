@@ -6,7 +6,7 @@ VOICEVOX を使用した音声合成 MCP サーバー
 
 - **高度な再生制御** - キュー管理・即時再生・同期/非同期制御による柔軟な音声処理
 - **プリフェッチ** - 次の音声を事前に生成し、再生をスムーズに
-- **クロスプラットフォーム対応** - Windows、macOS、Linux で動作
+- **クロスプラットフォーム対応** - Windows、macOS、Linux で動作（WSL環境での音声再生にも対応）
 - **Stdio/HTTP 対応** - Stdio や SSE、StreamableHttp に対応
 - **複数話者対応** - セグメント単位での個別話者指定が可能
 - **テキスト自動分割** - 長文の自動分割による安定した音声合成
@@ -276,6 +276,57 @@ npx @kajidog/mcp-tts-voicevox
 - `MCP_HTTP_MODE`: HTTP サーバーモードの有効化（`true` で有効）
 - `MCP_HTTP_PORT`: HTTP サーバーのポート番号（デフォルト: `3000`）
 - `MCP_HTTP_HOST`: HTTP サーバーのホスト（デフォルト: `0.0.0.0`）
+
+## WSL（Windows Subsystem for Linux）での使用
+
+WSL環境から WindowsホストのMCPサーバーに接続する場合の設定方法です。
+
+### 1. Windowsホストでの設定
+
+**PowerShellでAivisSpeechとMCPサーバーを起動:**
+
+```powershell
+# 環境変数の設定とMCPサーバー起動
+$env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; $env:VOICEVOX_URL='http://127.0.0.1:10101'; $env:VOICEVOX_DEFAULT_SPEAKER='888753764'; npx @kajidog/mcp-tts-voicevox
+```
+
+### 2. WSL環境での設定
+
+**WindowsホストのIPアドレスを確認:**
+
+```bash
+# WSLからWindowsホストのIPアドレスを取得
+ip route show | grep default | awk '{print $3}'
+```
+
+通常は `172.x.x.1` の形式になります。
+
+** Claude Code の .mcp.json の設定例:**
+
+```json
+{
+  "mcpServers": {
+    "tts": {
+      "type": "sse",
+      "url": "http://172.29.176.1:3000/sse"
+    }
+  }
+}
+```
+
+**重要なポイント:**
+- WSL内では `localhost` や `127.0.0.1` はWSL内部を指すため、Windowsホストのサービスにはアクセスできません
+- WSLのゲートウェイIP（通常 `172.x.x.1`）を使用してWindowsホストにアクセスします
+- Windowsのファイアウォールでポートがブロックされていないことを確認してください
+
+**接続テスト:**
+
+```bash
+# WSL内でWindowsホストのMCPサーバーへの接続確認
+curl http://172.29.176.1:3000
+```
+
+正常な場合は `404 Not Found` が返されます（ルートパスが存在しないため）。
 
 ## トラブルシューティング
 

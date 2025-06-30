@@ -135,12 +135,11 @@ class TransportManager {
     // エラーハンドリング
     transport.onerror = console.error.bind(console);
 
-    // クリーンアップ
-    res.on("close", () => {
+    // クリーンアップ - SSEServerTransportの終了時に処理
+    transport.onclose = () => {
       console.log(`SSE connection closed for session: ${transport.sessionId}`);
       this.sseTransports.delete(transport.sessionId);
-      transport.close();
-    });
+    };
 
     // サーバー接続
     await server.connect(transport);
@@ -177,7 +176,7 @@ class TransportManager {
       sessionIdGenerator: () => {
         const newSessionId = `session-${Date.now()}-${Math.random()
           .toString(36)
-          .substr(2, 9)}`;
+          .substring(2, 11)}`;
         console.log(`Generated new session ID: ${newSessionId}`);
         return newSessionId;
       },
@@ -260,7 +259,7 @@ class RouteHandlers {
   async handleSSE(c: any) {
     console.log("Received GET SSE request for SSE connection (legacy)");
 
-    const { req, res } = toReqRes(c.req.raw);
+    const { res } = toReqRes(c.req.raw);
 
     try {
       await this.transportManager.createSSETransport(res);

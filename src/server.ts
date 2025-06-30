@@ -43,7 +43,7 @@ const PlaybackOptionsSchema = {
 // サーバー初期化
 export const server = new McpServer({
   name: "MCP TTS Voicevox",
-  version: "0.2.1",
+  version: "0.2.2",
   description:
     "A Voicevox server that converts text to speech for playback and saving.",
 });
