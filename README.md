@@ -218,26 +218,6 @@ SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用し
 }
 ````
 
-### HTTP モードでの設定
-
-```json
-{
-  "mcpServers": {
-    "tts-mcp-http": {
-      "command": "npx",
-      "args": ["-y", "@kajidog/mcp-tts-voicevox"],
-      "env": {
-        "MCP_HTTP_MODE": "true",
-        "MCP_HTTP_PORT": "3000",
-        "MCP_HTTP_HOST": "0.0.0.0",
-        "VOICEVOX_URL": "http://localhost:50021",
-        "VOICEVOX_DEFAULT_SPEAKER": "1"
-      }
-    }
-  }
-}
-```
-
 ## 環境変数
 
 ### VOICEVOX 設定
