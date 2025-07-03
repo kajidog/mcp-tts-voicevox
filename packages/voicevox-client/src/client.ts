@@ -3,6 +3,7 @@ import { AudioQuery, SpeechSegment, VoicevoxConfig, PlaybackOptions } from "./ty
 import { splitText, isBrowser, downloadBlob } from "./utils";
 import { handleError, formatError } from "./error";
 import { VoicevoxApi } from "./api";
+import { SharedQueueManager } from "./shared-queue-manager";
 
 /**
  * 環境変数から再生オプションを読み取る関数
@@ -26,6 +27,8 @@ export class VoicevoxClient {
   private readonly defaultSpeedScale: number;
   private readonly defaultPlaybackOptions: PlaybackOptions;
   private readonly maxSegmentLength: number;
+  private sharedQueueManager: SharedQueueManager | null = null;
+  private engineName: string = 'default';
 
   constructor(config: VoicevoxConfig) {
     this.validateConfig(config);
@@ -154,6 +157,13 @@ export class VoicevoxClient {
   ): Promise<string> {
     try {
       const speed = this.getSpeedScale(speedScale);
+      
+      // 共有キューが設定されている場合はそちらを使用
+      if (this.sharedQueueManager) {
+        return this.speakWithSharedQueue(input, speaker, speed, options);
+      }
+
+      // 従来の内部キューを使用
       const queueManager = this.player.getQueueManager();
 
       // 入力を統一フォーマットに変換
@@ -537,6 +547,13 @@ export class VoicevoxClient {
   ): Promise<string> {
     try {
       const speed = this.getSpeedScale(speedScale);
+      
+      // 共有キューが設定されている場合はそちらを使用
+      if (this.sharedQueueManager) {
+        return this.enqueueAudioGenerationWithSharedQueue(input, speaker, speed, options);
+      }
+
+      // 従来の内部キューを使用
       const queueManager = this.player.getQueueManager();
 
       // AudioQueryの場合
@@ -685,5 +702,172 @@ export class VoicevoxClient {
     } catch (error) {
       throw handleError("スピーカー情報取得中にエラーが発生しました", error);
     }
+  }
+
+  /**
+   * 共有キューを使用した音声合成
+   * @private
+   */
+  private async speakWithSharedQueue(
+    input: string | string[] | SpeechSegment[],
+    speaker?: number,
+    speedScale?: number,
+    options?: PlaybackOptions
+  ): Promise<string> {
+    if (!this.sharedQueueManager) {
+      throw new Error("Shared queue manager is not set");
+    }
+
+    // 入力を統一フォーマットに変換
+    const segments = this.normalizeInput(input, speaker);
+
+    if (segments.length === 0) {
+      return "テキストが空です";
+    }
+
+    const promises: Array<Promise<void>> = [];
+
+    // 各セグメントを共有キューに追加
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      const speakerId = this.getSpeakerId(segment.speaker);
+      
+      // 最初のセグメント以外は immediate: false に設定
+      const segmentOptions = {
+        ...this.defaultPlaybackOptions,
+        ...options,
+        immediate: i === 0 ? (options?.immediate ?? this.defaultPlaybackOptions.immediate) : false
+      };
+
+      const { promises: segmentPromises } = await this.sharedQueueManager.enqueueTextWithOptions(
+        segment.text,
+        speakerId,
+        this.engineName,
+        this.api,
+        segmentOptions
+      );
+
+      if (segmentPromises.start) promises.push(segmentPromises.start);
+      if (segmentPromises.end) promises.push(segmentPromises.end);
+    }
+
+    // 待機オプションに応じて処理
+    if (promises.length > 0) {
+      await Promise.all(promises);
+    }
+
+    const textSummary = segments.map((s) => s.text).join(" ");
+    return `音声生成キューに追加しました: ${textSummary}`;
+  }
+
+  /**
+   * 共有キューを使用した音声生成キュー追加
+   * @private
+   */
+  private async enqueueAudioGenerationWithSharedQueue(
+    input: string | string[] | SpeechSegment[] | AudioQuery,
+    speaker?: number,
+    speedScale?: number,
+    options?: PlaybackOptions
+  ): Promise<string> {
+    if (!this.sharedQueueManager) {
+      throw new Error("Shared queue manager is not set");
+    }
+
+    // AudioQueryの場合
+    if (
+      typeof input === "object" &&
+      !Array.isArray(input) &&
+      "accent_phrases" in input
+    ) {
+      const speakerId = this.getSpeakerId(speaker);
+      const query = { ...input, speedScale: speedScale || input.speedScale };
+      
+      const { promises } = await this.sharedQueueManager.enqueueQueryWithOptions(
+        query, 
+        speakerId, 
+        this.engineName, 
+        this.api, 
+        options
+      );
+      
+      // 待機オプションに応じて処理
+      const waitPromises: Array<Promise<void>> = [];
+      if (promises.start) waitPromises.push(promises.start);
+      if (promises.end) waitPromises.push(promises.end);
+      if (waitPromises.length > 0) {
+        await Promise.all(waitPromises);
+      }
+      
+      return `クエリをキューに追加しました`;
+    }
+
+    // テキスト系の場合
+    const segments = this.normalizeInput(
+      input as string | string[] | SpeechSegment[],
+      speaker
+    );
+
+    if (segments.length === 0) {
+      return "テキストが空です";
+    }
+
+    const promises: Array<Promise<void>> = [];
+
+    // 各セグメントを共有キューに追加
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      const speakerId = this.getSpeakerId(segment.speaker);
+      
+      // 最初のセグメント以外は immediate: false に設定
+      const segmentOptions = {
+        ...this.defaultPlaybackOptions,
+        ...options,
+        immediate: i === 0 ? (options?.immediate ?? this.defaultPlaybackOptions.immediate) : false
+      };
+
+      const { promises: segmentPromises } = await this.sharedQueueManager.enqueueTextWithOptions(
+        segment.text,
+        speakerId,
+        this.engineName,
+        this.api,
+        segmentOptions
+      );
+
+      if (segmentPromises.start) promises.push(segmentPromises.start);
+      if (segmentPromises.end) promises.push(segmentPromises.end);
+    }
+
+    // 待機オプションに応じて処理
+    if (promises.length > 0) {
+      await Promise.all(promises);
+    }
+
+    return `テキストをキューに追加しました`;
+  }
+
+  /**
+   * 共有キューマネージャーを設定する
+   * 設定後は音声再生に共有キューを使用する
+   * @param sharedQueueManager 共有キューマネージャーインスタンス
+   * @param engineName このクライアントのエンジン名
+   */
+  public setSharedQueue(sharedQueueManager: SharedQueueManager, engineName: string): void {
+    this.sharedQueueManager = sharedQueueManager;
+    this.engineName = engineName;
+  }
+
+  /**
+   * 共有キューが設定されているかどうかを確認
+   */
+  public hasSharedQueue(): boolean {
+    return this.sharedQueueManager !== null;
+  }
+
+  /**
+   * 内部APIインスタンスを取得（共有キュー用）
+   */
+  public getApi(): VoicevoxApi {
+    return this.api;
   }
 }

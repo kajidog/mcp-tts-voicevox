@@ -14,8 +14,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run build` - Build TypeScript to dist/ and fix permissions
 - `npm run build:clean` - Clean build (remove dist/ and rebuild)
 - `npm run lint` - Run TypeScript type checking (use this for validation)
-- `npm test` - Run Jest test suite for both main package and voicevox-client
+- `npm test` - Run Jest test suite for all packages
 - `npm run test:sound` - Test sound playback functionality
+- Run a single test file: `npm test -- path/to/test.test.ts`
+- Run tests in watch mode: `npm test -- --watch`
+- Run tests with coverage: `npm test -- --coverage`
 
 ### Production
 - `npm start` - Run built server in stdio mode
@@ -28,24 +31,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `cd packages/voicevox-client && npm test` - Run tests for voicevox-client
 - `cd packages/voicevox-client && npm run lint` - Run TypeScript checking for voicevox-client
 - `cd packages/voicevox-client && npm pack` - Package for publishing
+- `cd packages/voicevox-client && npm run prepublishOnly` - Run lint before publishing
+
+### Working with packages/voice-engine-manager
+- `cd packages/voice-engine-manager && npm run build` - Build the voice-engine-manager package
+- `cd packages/voice-engine-manager && npm test` - Run tests for voice-engine-manager
+- `cd packages/voice-engine-manager && npm run lint` - Run TypeScript checking for voice-engine-manager
+- `cd packages/voice-engine-manager && npm run build:clean` - Clean build the package
+- `cd packages/voice-engine-manager && npm run prepublishOnly` - Run lint before publishing
 
 ## Architecture
 
-This is a VOICEVOX MCP (Model Context Protocol) server that provides text-to-speech capabilities. The project is structured as two separate packages with distinct responsibilities:
+This is a multi-engine TTS MCP (Model Context Protocol) server that provides text-to-speech capabilities supporting VOICEVOX and AivisSpeech engines. The project is structured as three separate packages with distinct responsibilities:
 
 ### Package Architecture
 
 1. **@kajidog/mcp-tts-voicevox** (src/ directory):
-   - **MCP Server Only**: Pure MCP protocol implementation
+   - **Multi-Engine MCP Server**: Pure MCP protocol implementation with multiple TTS engine support
    - **Node.js Environment**: Stdio and HTTP server modes
    - **Claude Desktop Integration**: Primary use case
-   - **No Library Functions**: Removed client re-exports
+   - **Engine Management**: Uses `@kajidog/voice-engine-manager` for multi-engine orchestration
 
 2. **@kajidog/voicevox-client** (packages/voicevox-client/):
    - **Standalone Library**: Independent VOICEVOX client
    - **Complete Implementation**: Full audio synthesis and queue management
    - **Cross-platform**: Node.js environments (browser support removed)
    - **Published Package**: Available on npm as `@kajidog/voicevox-client`
+
+3. **@kajidog/voice-engine-manager** (packages/voice-engine-manager/):
+   - **Engine Orchestration**: Unified interface for multiple TTS engines (VOICEVOX, AivisSpeech)
+   - **Process Management**: Automatic engine startup and health monitoring
+   - **Priority-based Selection**: Smart engine selection with priority and health awareness
+   - **Configuration Management**: Runtime configuration updates and filtering
 
 ### Core MCP Server Components (src/)
 
@@ -56,10 +73,12 @@ This is a VOICEVOX MCP (Model Context Protocol) server that provides text-to-spe
    - **No Library Exports**: Pure MCP server functionality
 
 2. **MCP Server Implementation** (`src/server.ts`):
-   - **MCP Tools**: `speak`, `generate_query`, `synthesize_file`, `stop_speaker`, `get_speakers`, `get_speaker_detail`
-   - **Text Input Processing**: String-only format with line breaks and speaker prefix support ("1:Hello\n2:World")
-   - **Zod Validation**: Schema-based parameter validation
-   - **External Dependency**: Uses `@kajidog/voicevox-client` for functionality
+   - **Multi-Engine MCP Tools**: `speak`, `generate_query`, `synthesize_file`, `stop_speaker`, `get_speakers`, `start_engine`, `get_engine_status`
+   - **Speaker Format**: New `name-{id}` format (e.g., `main-1`, `aivis-2`) with backward compatibility for numeric IDs
+   - **Text Input Processing**: String-only format with line breaks and speaker prefix support ("main-1:Hello\n2:World")
+   - **Engine Management**: Uses VoiceEngineManager with DDD architecture
+   - **Client Caching**: Per-engine VoicevoxClient instances are cached for performance
+   - **Enhanced Error Handling**: Context-aware error messages with tool names
 
 3. **Server Modes**:
    - **Stdio Mode** (`src/stdio.ts`): Standard MCP protocol for Claude Desktop
@@ -81,20 +100,36 @@ This is a VOICEVOX MCP (Model Context Protocol) server that provides text-to-spe
    - `src/player.ts`: Audio playback coordination
    - `src/error.ts`: Error handling and types
 
-3. **Audio Playback Architecture**:
-   - **Cross-platform**: Uses platform-specific command-line tools for audio playback
-   - **macOS**: `afplay` command
-   - **Windows**: PowerShell `MediaPlayer` with proper timing and hidden windows
-   - **Linux**: Auto-detection of available players (`aplay`, `paplay`, `play`, `ffplay`)
-   - **Browser**: Native HTML5 Audio API with blob URLs
-   - **No external dependencies**: Removed `sound-play` dependency for lighter footprint
+### VoiceEngineManager Package (packages/voice-engine-manager/)
+
+1. **DDD Architecture**:
+   - **IEngine Interface**: Contract for all TTS engines
+   - **BaseEngine Abstract Class**: Common functionality for engines
+   - **VoiceEngineManager**: DI-based engine orchestration
+   - **ProcessManager**: Shared process management logic
+   - **ExecutableFinder**: Cross-platform executable discovery
+
+2. **Key Components**:
+   - `src/manager.ts`: VoiceEngineManager with dependency injection
+   - `src/engine-factory.ts`: Factory pattern for backward compatibility
+   - `src/types.ts`: Core domain types and interfaces
+   - `src/engines/`: Concrete engine implementations
+   - `src/process-manager.ts`: Process lifecycle management
+   - `src/utils/executable-finder.ts`: Auto-discovery of TTS applications
+
+3. **Engine Auto-Discovery**:
+   - **boot_command: "auto"**: Automatically finds and launches TTS applications
+   - **Platform-specific paths**: Searches default installation directories
+   - **Fallback to PATH**: Uses system PATH if not found in default locations
+   - **Supported platforms**: Windows, macOS, Linux with specific paths for each
 
 ### Development Workflow
 
 **For MCP Server Development** (src/):
 - Work only with MCP protocol and server functionality
-- Use `@kajidog/voicevox-client` as external dependency
+- Use `@kajidog/voicevox-client` and `@kajidog/voice-engine-manager` as external dependencies
 - Focus on Claude Desktop integration and HTTP API
+- New speaker format: `name-{id}` (e.g., `main-1`) with backward compatibility for numeric IDs
 
 **For VoicevoxClient Development** (packages/voicevox-client/):
 - Complete VOICEVOX functionality implementation
@@ -103,23 +138,52 @@ This is a VOICEVOX MCP (Model Context Protocol) server that provides text-to-spe
 - Always run `npm run lint` and `npm test` before committing changes
 - Audio playback changes require testing the mock implementations
 
+**For VoiceEngineManager Development** (packages/voice-engine-manager/):
+- Multi-engine orchestration and process management
+- Health monitoring and configuration management
+- Extensible architecture for adding new TTS engines
+- Independent testing with mocked child processes and HTTP requests
+
 ### Development Environment Setup
 
 **Required for full functionality**:
-1. **VOICEVOX Engine**: Download and run from https://voicevox.hiroshiba.jp/
-2. **Node.js 18+**: Required for both packages
+1. **TTS Engines**: Download and run engines
+   - **VOICEVOX**: https://voicevox.hiroshiba.jp/ (default: http://localhost:50021)
+   - **AivisSpeech**: https://aivis-project.com/ (default: http://localhost:10101)
+2. **Node.js 18+**: Required for all packages
 3. **Platform-specific audio tools**:
    - **macOS**: `afplay` (built-in)
    - **Windows**: PowerShell (built-in)
    - **Linux**: `aplay`, `paplay`, `play`, or `ffplay`
 
-**Testing without VOICEVOX Engine**:
-- Tests use mocked API responses and don't require actual VOICEVOX engine
+**Testing without TTS Engines**:
+- Tests use mocked API responses and don't require actual engines
 - `npm test` runs completely offline with mocked dependencies
+- Multi-engine tests use mocked child processes and HTTP requests
 
 ### Environment Variables
 
-**Core Settings:**
+**Multi-Engine Configuration (New):**
+
+**Dot-notation Environment Variables (Recommended):**
+```bash
+# VOICEVOX engine
+VOICEVOX_ENGINES.main.type=voicevox
+VOICEVOX_ENGINES.main.url=http://localhost:50021
+VOICEVOX_ENGINES.main.priority=1
+
+# AivisSpeech engine  
+VOICEVOX_ENGINES.aivis.type=aivisspeech
+VOICEVOX_ENGINES.aivis.url=http://localhost:10101
+VOICEVOX_ENGINES.aivis.priority=2
+```
+
+**Legacy JSON Array (Backward Compatibility):**
+```bash
+VOICEVOX_ENGINES='[{"name":"main","type":"voicevox","url":"http://localhost:50021","priority":1},{"name":"aivis","type":"aivisspeech","url":"http://localhost:10101","priority":2}]'
+```
+
+**Legacy Single-Engine Settings (Backward Compatibility):**
 - `VOICEVOX_URL`: VOICEVOX engine URL (default: http://localhost:50021)
 - `VOICEVOX_DEFAULT_SPEAKER`: Default speaker ID (default: 1)
 - `VOICEVOX_DEFAULT_SPEED_SCALE`: Default playback speed (default: 1.0)
@@ -139,6 +203,7 @@ This is a VOICEVOX MCP (Model Context Protocol) server that provides text-to-spe
 
 **Main Package**:
 - `@kajidog/voicevox-client`: VOICEVOX functionality
+- `@kajidog/voice-engine-manager`: Multi-engine orchestration
 - `@modelcontextprotocol/sdk`: MCP protocol implementation
 - `hono`: HTTP server framework
 - `zod`: Schema validation
@@ -148,13 +213,18 @@ This is a VOICEVOX MCP (Model Context Protocol) server that provides text-to-spe
 - `uuid`: Unique ID generation
 - Built-in command-line audio playback (cross-platform, no external dependencies)
 
+**VoiceEngineManager Package**:
+- `axios`: HTTP client for engine health checks
+- Built-in child process management (no external dependencies)
+
 ### Testing
 
-- **Main Package**: MCP server functionality tests
+- **Main Package**: MCP server functionality tests with multi-engine support
 - **VoicevoxClient Package**: Comprehensive queue management and audio processing tests
+- **VoiceEngineManager Package**: Multi-engine orchestration, health monitoring, and process management tests
 - **Cross-platform Mocking**: Audio playback tests use mocked `child_process.spawn`, `fs`, and `os` modules
 - **Test Isolation**: Each test suite runs independently with proper cleanup
-- **Both packages tested**: Jest runs tests for both src/ and packages/voicevox-client/
+- **All packages tested**: Jest runs tests for src/, packages/voicevox-client/, and packages/voice-engine-manager/
 
 ### Audio Playback Development Notes
 
@@ -168,6 +238,58 @@ This is a VOICEVOX MCP (Model Context Protocol) server that provides text-to-spe
 ### Important Separation
 
 The architecture enforces clear separation:
-- **src/**: MCP server only, no library functions
+- **src/**: Multi-engine MCP server only, orchestrates multiple TTS engines
 - **packages/voicevox-client/**: Complete VOICEVOX library
-- **Users choose**: MCP server for Claude Desktop, or library for custom applications
+- **packages/voice-engine-manager/**: Engine orchestration and process management
+- **Users choose**: MCP server for Claude Desktop, or individual libraries for custom applications
+
+### Multi-Engine Speaker Format
+
+**New Format**: `name-{id}` (e.g., `main-1`, `aivis-2`, `voicevox-3`)
+- Engine name followed by dash and speaker ID
+- Used in all MCP tools: speak, generate_query, synthesize_file, get_speakers
+
+**Backward Compatibility**: Numeric IDs (e.g., `1`, `2`, `3`)
+- Automatically mapped to default engine (highest priority)
+- Legacy format continues to work seamlessly
+
+**Environment Variable Priority**:
+1. Dot-notation variables (`VOICEVOX_ENGINES.name.param`) - Multi-engine configuration (recommended)
+2. `VOICEVOX_ENGINES` (JSON array) - Multi-engine configuration (legacy)
+3. `VOICEVOX_URL` - Single engine (backward compatibility)
+4. Default: Single VOICEVOX engine at http://localhost:50021
+
+**Dot-notation Parameters**:
+- `type`: Engine type (`voicevox` or `aivisspeech`) - **Required**
+- `url`: Engine URL (defaults based on type if omitted)
+- `priority`: Priority (lower number = higher priority, default: 1)
+- `default_speaker`: Default speaker ID
+- `boot_command`: Boot command (`auto` for auto-discovery, custom command, or `deny`, default: `deny`)
+- `speed_scale`, `pitch_scale`, `intonation_scale`, `volume_scale`: Audio processing parameters
+
+### Common Issues and Solutions
+
+1. **Failed Tests in ExecutableFinder**: The tests mock file system access. Actual functionality works correctly.
+2. **Engine Not Starting with auto**: Ensure the TTS application is installed in default location or available in PATH.
+3. **Multiple Engine Priority**: Lower numbers have higher priority (1 > 2 > 3).
+4. **WSL Audio Issues**: Ensure Windows host is running the MCP server, not WSL directly.
+
+### Recent Architecture Changes
+
+**DDD Refactoring (latest)**:
+- Migrated from monolithic Manager class to DDD with dependency injection
+- Added IEngine interface and BaseEngine abstract class for extensibility
+- Implemented VoiceEngineManager with DI support
+- Created EngineFactory for backward compatibility
+- Added ExecutableFinder for cross-platform auto-discovery
+
+**Key Benefits**:
+- Easy addition of new TTS engines by implementing IEngine
+- Testable architecture with proper separation of concerns
+- Backward compatible with existing Manager API
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

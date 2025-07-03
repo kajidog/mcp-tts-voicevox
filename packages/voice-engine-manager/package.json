@@ -1,20 +1,12 @@
 {
-  "name": "@kajidog/voicevox-client",
-  "version": "0.2.1",
-  "description": "VOICEVOX client library for text-to-speech synthesis with queue management",
+  "name": "@kajidog/voice-engine-manager",
+  "version": "0.0.1",
+  "description": "Voice engine manager for multiple TTS engines (VOICEVOX, AivisSpeech)",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
-  "browser": {
-    "fs": false,
-    "path": false,
-    "os": false,
-    "child_process": false,
-    "process": false
-  },
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "browser": "./dist/index.js",
       "require": "./dist/index.js",
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
@@ -36,11 +28,13 @@
   ],
   "keywords": [
     "voicevox",
+    "aivisspeech",
     "tts",
     "text-to-speech",
     "audio",
     "synthesis",
-    "queue"
+    "manager",
+    "engine"
   ],
   "author": {
     "name": "kajidog",
@@ -49,12 +43,12 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kajidog/mcp-tts-voicevox.git",
-    "directory": "packages/voicevox-client"
+    "directory": "packages/voice-engine-manager"
   },
   "bugs": {
     "url": "https://github.com/kajidog/mcp-tts-voicevox/issues"
   },
-  "homepage": "https://github.com/kajidog/mcp-tts-voicevox/tree/main/packages/voicevox-client#readme",
+  "homepage": "https://github.com/kajidog/mcp-tts-voicevox/tree/main/packages/voice-engine-manager#readme",
   "license": "ISC",
   "publishConfig": {
     "access": "public"
@@ -63,23 +57,16 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "axios": "^1.8.4",
-    "uuid": "^11.1.0"
+    "axios": "^1.8.4"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/node": "^20.19.2",
-    "@types/uuid": "^10.0.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.3.1",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
     "typescript": ">=4.5.0"
-  },
-  "browserslist": [
-    "> 1%",
-    "last 2 versions",
-    "not dead"
-  ]
+  }
 }

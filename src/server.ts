@@ -1,315 +1,113 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
-import { VoicevoxClient, AudioQuery } from "@kajidog/voicevox-client";
+import { VoicevoxClient, SharedQueueManager } from "../packages/voicevox-client/dist/index.js";
+import { 
+  VoiceEngineManager,
+  EngineFactory,
+} from "@kajidog/voice-engine-manager";
 
-// 型定義
-const TextSegmentSchema = z.object({
-  text: z.string().describe("Text content to synthesize"),
-  speaker: z
-    .number()
-    .optional()
-    .describe("Speaker ID for this specific text segment"),
-});
+// 設定とユーティリティのインポート
+import { parseEngineConfigs } from "./config/engine-config";
 
-const TextInputSchema = z
-  .string()
-  .describe(
-    'Text string with line breaks and optional speaker prefix "1:Hello\\n2:World". For faster playback start, make the first element short.'
-  );
-
-const CommonParametersSchema = {
-  speaker: z.number().optional().describe("Default speaker ID (optional)"),
-  speedScale: z
-    .number()
-    .optional()
-    .describe("Playback speed (optional, default from environment)"),
-};
-
-const PlaybackOptionsSchema = {
-  immediate: z
-    .boolean()
-    .optional()
-    .describe("Start playback immediately (optional, default: true)"),
-  waitForStart: z
-    .boolean()
-    .optional()
-    .describe("Wait for playback to start (optional, default: false)"),
-  waitForEnd: z
-    .boolean()
-    .optional()
-    .describe("Wait for playback to end (optional, default: false)"),
-};
+// ツールハンドラーのインポート
+import {
+  speakToolSchema,
+  speakToolHandler,
+  generateQueryToolSchema,
+  generateQueryToolHandler,
+  synthesizeFileToolSchema,
+  synthesizeFileToolHandler,
+  stopSpeakerToolSchema,
+  stopSpeakerToolHandler,
+  getSpeakersToolHandler,
+  startEngineToolSchema,
+  startEngineToolHandler,
+  getEngineStatusToolSchema,
+  getEngineStatusToolHandler,
+} from "./tools";
 
 // サーバー初期化
 export const server = new McpServer({
   name: "MCP TTS Voicevox",
   version: "0.2.2",
   description:
-    "A Voicevox server that converts text to speech for playback and saving.",
+    "A multi-engine voice synthesis server supporting VOICEVOX and AivisSpeech.",
 });
 
-// Voicevoxクライアント初期化
-const voicevoxClient = new VoicevoxClient({
-  url: process.env.VOICEVOX_URL ?? "http://localhost:50021",
-  defaultSpeaker: Number(process.env.VOICEVOX_DEFAULT_SPEAKER || "1"),
-  defaultSpeedScale: Number(process.env.VOICEVOX_DEFAULT_SPEED_SCALE || "1.0"),
-});
+// エンジン設定の読み込み
+const engineConfigs = parseEngineConfigs();
 
-// ユーティリティ関数
-const createErrorResponse = (error: unknown) => ({
-  content: [
-    {
-      type: "text" as const,
-      text: `エラー: ${error instanceof Error ? error.message : String(error)}`,
-    },
-  ],
-});
+// 新しいDDDアーキテクチャを使用したエンジンマネージャー初期化
+const factory = new EngineFactory();
+const engines = engineConfigs.map(config => factory.createEngine(config));
+const engineManager = new VoiceEngineManager(engines);
 
-const createSuccessResponse = (text: string) => ({
-  content: [{ type: "text" as const, text }],
-});
+// 共有キューマネージャーを作成
+const sharedQueueManager = new SharedQueueManager();
 
-const parseAudioQuery = (query: string, speedScale?: number): AudioQuery => {
-  const audioQuery = JSON.parse(query) as AudioQuery;
-  if (speedScale !== undefined) {
-    audioQuery.speedScale = speedScale;
-  }
-  return audioQuery;
+// エンジンごとのクライアントキャッシュ
+const clientCache = new Map<string, VoicevoxClient>();
+
+// デフォルトエンジンの決定（優先度順）
+const sortedEngines = [...engineConfigs].sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+const defaultEngineName = sortedEngines[0]?.name || 'main';
+
+// 共通の依存関係オブジェクト
+const toolDependencies = {
+  engineManager,
+  clientCache,
+  defaultEngineName,
+  sharedQueueManager,
 };
 
-const parseStringInput = (
-  input: string
-): Array<{ text: string; speaker?: number }> => {
-  // \n と \\n の両方に対応するため、まず \\n を \n に変換してから分割
-  const normalizedInput = input.replace(/\\n/g, "\n");
-  const lines = normalizedInput.split("\n").filter((line) => line.trim());
-  return lines.map((line) => {
-    const match = line.match(/^(\d+):(.*)$/);
-    if (match) {
-      return { text: match[2].trim(), speaker: parseInt(match[1], 10) };
-    }
-    return { text: line };
-  });
-};
-
-const processTextInput = async (
-  text: string,
-  speaker?: number,
-  speedScale?: number,
-  playbackOptions?: {
-    immediate?: boolean;
-    waitForStart?: boolean;
-    waitForEnd?: boolean;
-  }
-) => {
-  const segments = parseStringInput(text);
-  return await voicevoxClient.speak(
-    segments,
-    speaker,
-    speedScale,
-    playbackOptions
-  );
-};
-
-// ツール定義
+// MCPツールの登録
 server.tool(
   "speak",
   "Convert text to speech and play it",
-  {
-    text: TextInputSchema,
-    ...CommonParametersSchema,
-    ...PlaybackOptionsSchema,
-    query: z.string().optional().describe("Voice synthesis query"),
-  },
-  async ({
-    text,
-    speaker,
-    query,
-    speedScale,
-    immediate,
-    waitForStart,
-    waitForEnd,
-  }) => {
-    try {
-      // 環境変数からデフォルトの再生オプションを取得
-      const defaultImmediate =
-        process.env.VOICEVOX_DEFAULT_IMMEDIATE !== "false";
-      const defaultWaitForStart =
-        process.env.VOICEVOX_DEFAULT_WAIT_FOR_START === "true";
-      const defaultWaitForEnd =
-        process.env.VOICEVOX_DEFAULT_WAIT_FOR_END === "true";
-
-      const playbackOptions = {
-        immediate: immediate ?? defaultImmediate,
-        waitForStart: waitForStart ?? defaultWaitForStart,
-        waitForEnd: waitForEnd ?? defaultWaitForEnd,
-      };
-
-      if (query) {
-        const audioQuery = parseAudioQuery(query, speedScale);
-        const result = await voicevoxClient.enqueueAudioGeneration(
-          audioQuery,
-          speaker,
-          speedScale,
-          playbackOptions
-        );
-        return createSuccessResponse(result);
-      }
-
-      const result = await processTextInput(
-        text,
-        speaker,
-        speedScale,
-        playbackOptions
-      );
-      return createSuccessResponse(result);
-    } catch (error) {
-      return createErrorResponse(error);
-    }
-  }
+  speakToolSchema,
+  speakToolHandler(toolDependencies)
 );
 
 server.tool(
   "generate_query",
   "Generate a query for voice synthesis",
-  {
-    text: z.string().describe("Text for voice synthesis"),
-    ...CommonParametersSchema,
-  },
-  async ({ text, speaker, speedScale }) => {
-    try {
-      const query = await voicevoxClient.generateQuery(
-        text,
-        speaker,
-        speedScale
-      );
-      return createSuccessResponse(JSON.stringify(query));
-    } catch (error) {
-      return createErrorResponse(error);
-    }
-  }
+  generateQueryToolSchema,
+  generateQueryToolHandler(toolDependencies)
 );
 
 server.tool(
   "synthesize_file",
   "Generate an audio file and return its absolute path",
-  {
-    text: z
-      .string()
-      .optional()
-      .describe(
-        "Text for voice synthesis (if both query and text provided, query takes precedence)"
-      ),
-    query: z.string().optional().describe("Voice synthesis query"),
-    output: z.string().describe("Output path for the audio file"),
-    ...CommonParametersSchema,
-  },
-  async ({ text, query, speaker, output, speedScale }) => {
-    try {
-      if (query) {
-        const audioQuery = parseAudioQuery(query, speedScale);
-        const filePath = await voicevoxClient.generateAudioFile(
-          audioQuery,
-          output,
-          speaker
-        );
-        return createSuccessResponse(filePath);
-      }
-
-      if (text) {
-        const filePath = await voicevoxClient.generateAudioFile(
-          text,
-          output,
-          speaker,
-          speedScale
-        );
-        return createSuccessResponse(filePath);
-      }
-
-      throw new Error(
-        "queryパラメータとtextパラメータのどちらかを指定してください"
-      );
-    } catch (error) {
-      return createErrorResponse(error);
-    }
-  }
+  synthesizeFileToolSchema,
+  synthesizeFileToolHandler(toolDependencies)
 );
 
 server.tool(
   "stop_speaker",
   "Stop the current speaker",
-  {
-    random_string: z
-      .string()
-      .describe("Dummy parameter for no-parameter tools"),
-  },
-  async () => {
-    try {
-      await voicevoxClient.clearQueue();
-      return createSuccessResponse("スピーカーを停止しました");
-    } catch (error) {
-      return createErrorResponse(error);
-    }
-  }
+  stopSpeakerToolSchema,
+  stopSpeakerToolHandler(toolDependencies)
 );
 
 server.tool(
   "get_speakers",
-  "Get a list of available speakers",
+  "Get a list of available speakers from all online engines",
   {},
-  async () => {
-    try {
-      const speakers = await voicevoxClient.getSpeakers();
-      const result = speakers.flatMap((speaker: any) =>
-        speaker.styles.map((style: any) => ({
-          uuid: speaker.speaker_uuid,
-          speaker: style.id,
-          name: `${speaker.name}:${style.name}`,
-        }))
-      );
-      return createSuccessResponse(JSON.stringify(result));
-    } catch (error) {
-      return createErrorResponse(error);
-    }
-  }
+  getSpeakersToolHandler(toolDependencies)
 );
 
+// エンジン管理ツール（環境変数に設定がある場合のみ登録）
+if (engineConfigs.length > 0) {
+  server.tool(
+    "start_engine",
+    "Start voice engine(s)",
+    startEngineToolSchema,
+    startEngineToolHandler(toolDependencies)
+  );
+}
+
 server.tool(
-  "get_speaker_detail",
-  "Get detail of a speaker by id",
-  {
-    uuid: z.string().describe("Speaker UUID (speaker uuid)"),
-  },
-  async ({ uuid }) => {
-    try {
-      const allSpeakers = await voicevoxClient.getSpeakers();
-      const targetSpeaker = allSpeakers.find(
-        (speaker: any) => speaker.speaker_uuid === uuid
-      );
-
-      if (!targetSpeaker) {
-        throw new Error(
-          `指定されたUUID ${uuid} のスピーカーが見つかりませんでした`
-        );
-      }
-
-      const styles = targetSpeaker.styles.map((style: any) => ({
-        id: style.id,
-        name: style.name,
-        type: style.type || "normal",
-      }));
-
-      const simplifiedInfo = {
-        uuid: targetSpeaker.speaker_uuid,
-        name: targetSpeaker.name,
-        version: targetSpeaker.version,
-        supported_features: targetSpeaker.supported_features,
-        styles: styles,
-      };
-
-      return createSuccessResponse(JSON.stringify(simplifiedInfo));
-    } catch (error) {
-      return createErrorResponse(error);
-    }
-  }
+  "get_engine_status",
+  "Get engine status information",
+  getEngineStatusToolSchema,
+  getEngineStatusToolHandler(toolDependencies)
 );

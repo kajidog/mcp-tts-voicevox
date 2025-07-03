@@ -1,5 +1,11 @@
 import { AudioQuery, PlaybackOptions } from "../types";
 
+// Forward declaration to avoid circular dependency
+export interface VoicevoxApiLike {
+  generateQuery(text: string, speaker: number): Promise<AudioQuery>;
+  synthesize(query: AudioQuery, speaker: number): Promise<ArrayBuffer>;
+}
+
 /**
  * キューアイテムの状態
  */
@@ -31,6 +37,8 @@ export interface QueueItem {
     startResolve?: () => void;
     endResolve?: () => void;
   }; // 待機処理用Promise resolver
+  engineName?: string; // どのエンジンで生成するか（共有キュー用）
+  apiInstance?: VoicevoxApiLike; // 使用するAPIインスタンス（共有キュー用）
 }
 
 /**

@@ -103,6 +103,13 @@ describe("VoicevoxQueueManager", () => {
     queueManager = new VoicevoxQueueManager(mockApi, 2);
   });
 
+  afterEach(async () => {
+    // テスト後にキューをクリアして非同期処理を停止
+    await queueManager.clearQueue();
+    // クリーンアップ処理を実行
+    queueManager.cleanup();
+  });
+
   it("テキストをキューに追加できること", async () => {
     const text = "テストテキスト";
     const speaker = 1;
