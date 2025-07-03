@@ -4,6 +4,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 
 import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { server } from "./server";
+import { logger } from "./utils/logger";
 
 // 型定義
 interface ErrorResponse {
@@ -105,7 +106,7 @@ class TransportManager {
   ): Promise<StreamableHTTPServerTransport | null> {
     // 既存セッションの再利用
     if (sessionId && this.streamableTransports.has(sessionId)) {
-      console.log(`Reusing existing session: ${sessionId}`);
+      logger.debug(`Reusing existing session: ${sessionId}`);
       return this.streamableTransports.get(sessionId)!;
     }
 
@@ -116,7 +117,7 @@ class TransportManager {
       typeof requestBody === "object" &&
       requestBody.method === "initialize"
     ) {
-      console.log("Creating new StreamableHTTP session");
+      logger.debug("Creating new StreamableHTTP session");
       return this.createStreamableTransport();
     }
 
@@ -133,11 +134,11 @@ class TransportManager {
     this.sseTransports.set(transport.sessionId, transport);
 
     // エラーハンドリング
-    transport.onerror = console.error.bind(console);
+    transport.onerror = (error: any) => logger.error("SSE transport error:", { error });
 
     // クリーンアップ - SSEServerTransportの終了時に処理
     transport.onclose = () => {
-      console.log(`SSE connection closed for session: ${transport.sessionId}`);
+      logger.debug(`SSE connection closed for session: ${transport.sessionId}`);
       this.sseTransports.delete(transport.sessionId);
     };
 
@@ -177,18 +178,18 @@ class TransportManager {
         const newSessionId = `session-${Date.now()}-${Math.random()
           .toString(36)
           .substring(2, 11)}`;
-        console.log(`Generated new session ID: ${newSessionId}`);
+        logger.debug(`Generated new session ID: ${newSessionId}`);
         return newSessionId;
       },
       onsessioninitialized: (sessionId) => {
-        console.log(`Session initialized: ${sessionId}`);
+        logger.debug(`Session initialized: ${sessionId}`);
         this.streamableTransports.set(sessionId, transport);
       },
     });
 
     // クリーンアップハンドラー
     transport.onclose = () => {
-      console.log(`Transport closed for session: ${transport.sessionId}`);
+      logger.debug(`Transport closed for session: ${transport.sessionId}`);
       if (transport.sessionId) {
         this.streamableTransports.delete(transport.sessionId);
       }
@@ -208,7 +209,7 @@ class RouteHandlers {
    * StreamableHTTP エンドポイントハンドラー
    */
   async handleStreamableHTTP(c: any) {
-    console.log(`Received ${c.req.method} request for StreamableHTTP`);
+    logger.debug(`Received ${c.req.method} request for StreamableHTTP`);
 
     const { req, res } = toReqRes(c.req.raw);
 
@@ -221,7 +222,7 @@ class RouteHandlers {
         try {
           body = await c.req.json();
         } catch (e) {
-          console.log("No JSON body or invalid JSON");
+          logger.debug("No JSON body or invalid JSON");
         }
       }
 
@@ -233,7 +234,7 @@ class RouteHandlers {
         );
 
       if (!transport) {
-        console.log(
+        logger.debug(
           "Invalid request - no session ID and not an initialize request"
         );
         return c.json(ErrorResponseBuilder.badRequest(), { status: 400 });
@@ -248,7 +249,7 @@ class RouteHandlers {
       await transport.handleRequest(req, res, body);
       return toFetchResponse(res);
     } catch (e) {
-      console.error("StreamableHTTP connection error:", e);
+      logger.error("StreamableHTTP connection error:", { error: e });
       return c.json(ErrorResponseBuilder.internalError(), { status: 500 });
     }
   }
@@ -257,7 +258,7 @@ class RouteHandlers {
    * SSE エンドポイントハンドラー（レガシー）
    */
   async handleSSE(c: any) {
-    console.log("Received GET SSE request for SSE connection (legacy)");
+    logger.debug("Received GET SSE request for SSE connection (legacy)");
 
     const { res } = toReqRes(c.req.raw);
 
@@ -265,7 +266,7 @@ class RouteHandlers {
       await this.transportManager.createSSETransport(res);
       return toFetchResponse(res);
     } catch (e) {
-      console.error("SSE connection error:", e);
+      logger.error("SSE connection error:", { error: e });
       return c.json(ErrorResponseBuilder.internalError(), { status: 500 });
     }
   }
@@ -274,7 +275,7 @@ class RouteHandlers {
    * SSE メッセージエンドポイントハンドラー（レガシー）
    */
   async handleSSEMessage(c: any) {
-    console.log("Received POST message request (legacy SSE)");
+    logger.debug("Received POST message request (legacy SSE)");
 
     const { req, res } = toReqRes(c.req.raw);
     const sessionId = c.req.query("sessionId");
@@ -293,7 +294,7 @@ class RouteHandlers {
       await transport.handlePostMessage(req, res, body);
       return toFetchResponse(res);
     } catch (e) {
-      console.error("Message handling error:", e);
+      logger.error("Message handling error:", { error: e });
       return c.json(ErrorResponseBuilder.internalError(), { status: 500 });
     }
   }

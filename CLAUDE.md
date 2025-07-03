@@ -199,6 +199,12 @@ VOICEVOX_ENGINES='[{"name":"main","type":"voicevox","url":"http://localhost:5002
 - `MCP_HTTP_HOST`: HTTP server host (default: 0.0.0.0)
 - `NODE_ENV`: Set to "development" for dev mode
 
+**Logger Configuration:**
+- `LOG_LEVEL`: Set logging level (DEBUG, INFO, WARN, ERROR, SILENT) (default: INFO)
+- `LOG_COLOR`: Enable/disable colored output (default: "true" when TTY detected)
+- `LOG_TIMESTAMP`: Enable/disable timestamps in logs (default: "true")
+- `LOG_FORMAT`: Set log format to "json" for structured JSON logs (default: plain text)
+
 ### Dependencies
 
 **Main Package**:

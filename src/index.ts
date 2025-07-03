@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // MCP TTS Voicevox エントリーポイント
 
+import { logger } from "./utils/logger";
+
 // 型定義
 interface ServerConfig {
   port: number;
@@ -80,11 +82,11 @@ class ServerConfigManager {
 class HttpServerManager {
   static async start(config: ServerConfig): Promise<void> {
     try {
-      console.error("Starting HTTP server with config:", config);
+      logger.info("Starting HTTP server with config:", config);
       const app = await this.loadApp(config.isDevelopment);
-      console.error("App loaded successfully");
+      logger.debug("App loaded successfully");
       const server = await this.loadServer(config.isDevelopment);
-      console.error("Server module loaded successfully");
+      logger.debug("Server module loaded successfully");
 
       const serverOptions = {
         fetch: app.fetch,
@@ -92,27 +94,27 @@ class HttpServerManager {
         hostname: config.host,
       };
 
-      console.error("Attempting to start server with options:", serverOptions);
+      logger.debug("Attempting to start server with options:", serverOptions);
 
       server.serve(serverOptions, (info: ServerInfo) => {
-        console.error(
+        logger.info(
           `✅ VOICEVOX MCP HTTP server running at http://${info.address}:${info.port}/mcp`
         );
-        console.error(
+        logger.info(
           `📡 SSE endpoint (legacy): http://${info.address}:${info.port}/sse`
         );
-        console.error(
+        logger.info(
           `🔍 Health check: http://${info.address}:${info.port}/health`
         );
       });
 
       // サーバー起動の確認を少し待つ
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.error("HTTP server startup completed");
+      logger.info("HTTP server startup completed");
     } catch (error) {
-      console.error("❌ HTTP server startup failed:", error);
+      logger.error("❌ HTTP server startup failed:", { error });
       if (error instanceof Error) {
-        console.error("Error details:", {
+        logger.error("Error details:", {
           message: error.message,
           stack: error.stack,
           name: error.name,
@@ -157,9 +159,9 @@ class StdioServerManager {
         process.exit(0);
       });
     } catch (error) {
-      console.error("❌ Stdio server startup failed:", error);
+      logger.error("❌ Stdio server startup failed:", { error });
       if (error instanceof Error) {
-        console.error("Error details:", {
+        logger.error("Error details:", {
           message: error.message,
           stack: error.stack,
           name: error.name,
@@ -188,7 +190,7 @@ class MCPServerManager {
 
     // HTTPモードの場合のみログを出力
     if (config.isHttpMode) {
-      console.error("🔍 Environment detection:", {
+      logger.debug("🔍 Environment detection:", {
         isCLI: EnvironmentDetector.isCLI(),
         isNpx: EnvironmentDetector.isNpx(),
         shouldStart,
@@ -197,12 +199,12 @@ class MCPServerManager {
         execPath: process.execPath,
       });
 
-      console.error("⚙️ Server configuration:", config);
+      logger.debug("⚙️ Server configuration:", config);
     }
 
     if (!shouldStart) {
       if (config.isHttpMode) {
-        console.error("📚 Running as library, server startup skipped");
+        logger.debug("📚 Running as library, server startup skipped");
       }
       return; // ライブラリとして使用されている
     }
@@ -214,7 +216,7 @@ class MCPServerManager {
         await StdioServerManager.start(config);
       }
     } catch (error) {
-      console.error("❌ Server startup failed:", error);
+      logger.error("❌ Server startup failed:", { error });
       process.exit(1);
     }
   }
@@ -223,7 +225,7 @@ class MCPServerManager {
 // Node.js環境での自動起動
 if (EnvironmentDetector.isNodejs()) {
   MCPServerManager.start().catch((error) => {
-    console.error("Initialization error:", error);
+    logger.error("Initialization error:", { error });
     // ライブラリとしての利用に支障がないように、エラーは無視
   });
 }
