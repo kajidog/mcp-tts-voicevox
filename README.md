@@ -334,3 +334,47 @@ curl http://172.29.176.1:3000
 ISC
 
 [![MseeP.ai Security Assessment Badge](https://mseep.net/pr/kajidog-mcp-tts-voicevox-badge.png)](https://mseep.ai/app/kajidog-mcp-tts-voicevox)
+
+## 開発者向け情報
+
+このリポジトリをローカルで開発する場合の手順です。
+
+### セットアップ
+
+1.  リポジトリをクローンします:
+    ```bash
+    git clone https://github.com/kajidog/mcp-tts-voicevox.git
+    cd mcp-tts-voicevox
+    ```
+2.  [pnpm](https://pnpm.io/) をインストールします。(まだインストールしていない場合)
+3.  依存関係をインストールします:
+    ```bash
+    pnpm install
+    ```
+
+### 主要な開発コマンド
+
+プロジェクトルートで以下のコマンドを実行できます。
+
+-   **すべてのパッケージをビルド:**
+    ```bash
+    pnpm build
+    ```
+-   **すべてのテストを実行:**
+    ```bash
+    pnpm test
+    ```
+-   **すべてのリンターを実行:**
+    ```bash
+    pnpm lint
+    ```
+-   **ルートサーバーを開発モードで起動:**
+    ```bash
+    pnpm dev
+    ```
+-   **stdioインターフェースを開発モードで起動:**
+    ```bash
+    pnpm dev:stdio
+    ```
+
+これらのコマンドは、ワークスペース内の関連するパッケージに対しても適切に処理を実行します。
