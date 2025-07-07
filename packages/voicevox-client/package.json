@@ -24,10 +24,10 @@
   "scripts": {
     "test": "jest",
     "build": "tsc",
-    "build:clean": "rm -rf dist && npm run build",
+    "build:clean": "rm -rf dist && pnpm build",
     "lint": "tsc --noEmit",
-    "prepare": "npm run build",
-    "prepublishOnly": "npm run lint"
+    "prepare": "pnpm build",
+    "prepublishOnly": "pnpm lint"
   },
   "files": [
     "dist",
