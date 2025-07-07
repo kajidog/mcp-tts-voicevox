@@ -22,7 +22,7 @@
   },
   "type": "commonjs",
   "scripts": {
-    "test": "jest",
+    "test": "pnpm -r --filter \"./packages/*\" test",
     "start": "node dist/index.js",
     "start:stdio": "node dist/stdio.js",
     "start:http": "MCP_HTTP_MODE=true node dist/index.js",
@@ -31,11 +31,11 @@
     "dev:stdio": "NODE_ENV=development ts-node src/stdio.ts",
     "dev:http": "NODE_ENV=development MCP_HTTP_MODE=true ts-node src/index.ts",
     "dev:http:win": "powershell -Command \"$env:NODE_ENV='development'; $env:MCP_HTTP_MODE='true'; ts-node src/index.ts\"",
-    "build": "tsc && node scripts/fix-permissions.js",
-    "build:clean": "rm -rf dist && npm run build",
-    "lint": "tsc --noEmit",
-    "prepare": "npm run build",
-    "prepublishOnly": "npm test && npm run lint"
+    "build": "tsc && pnpm -r --filter \"./packages/*\" build && node scripts/fix-permissions.js",
+    "build:clean": "rm -rf dist && pnpm -r --filter \"./packages/*\" run build:clean && pnpm build",
+    "lint": "pnpm -r --filter \"./packages/*\" lint",
+    "prepare": "pnpm build",
+    "prepublishOnly": "pnpm test && pnpm lint"
   },
   "files": [
     "dist",
