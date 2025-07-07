@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  audio_player_windows:
+    image: ubuntu:latest
+    command: >
+      bash -c "
+      apt-get update && \
+      apt-get install -y pulseaudio libasound2-plugins alsa-utils iproute2 && \
+      echo 'PULSE_SERVER=tcp:host.docker.internal:4713' >> /etc/environment && \
+      echo ' अब आप कंटेनर के अंदर ध्वनि चला सकते हैं' && \
+      pulseaudio --start --log-target=stderr --disallow-exit --exit-idle-time=-1 --load='module-native-protocol-tcp auth-ip-acl=127.0.0.1;172.0.0.0/8;192.168.0.0/16' --load='module-zeroconf-publish' && \
+      sleep infinity
+      "
+    ports:
+      - "4713:4713" # PulseAudioのTCPポート
+    # environment:
+    #   - PULSE_SERVER=tcp:host.docker.internal:4713 # command内で設定するためコメントアウト
+    # privileged: true # パーミッションの問題が発生する場合
+networks:
+  default:
+    driver: bridge

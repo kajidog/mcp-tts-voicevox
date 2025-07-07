@@ -1,380 +1,163 @@
-# MCP TTS VOICEVOX
+# Dockerでの音声再生 (Windows & WSL)
 
-VOICEVOX を使用した音声合成 MCP サーバー
+このリポジトリには、Dockerコンテナ内で音声を再生し、ホストOS（WindowsまたはWSL）のスピーカーから出力するための `docker-compose.yml` ファイルが含まれています。
 
-## 特徴
+## 前提条件
 
-- **高度な再生制御** - キュー管理・即時再生・同期/非同期制御による柔軟な音声処理
-- **プリフェッチ** - 次の音声を事前に生成し、再生をスムーズに
-- **クロスプラットフォーム対応** - Windows、macOS、Linux で動作（WSL環境での音声再生にも対応）
-- **Stdio/HTTP 対応** - Stdio や SSE、StreamableHttp に対応
-- **複数話者対応** - セグメント単位での個別話者指定が可能
-- **テキスト自動分割** - 長文の自動分割による安定した音声合成
-- **独立したクライアントライブラリ** - [`@kajidog/voicevox-client`](https://www.npmjs.com/package/@kajidog/voicevox-client) として別パッケージで提供
+- Docker Desktopがインストールされていること。
+- WSL環境で試す場合は、WSL2が有効になっていること。
 
-## 必要条件
+## 各環境でのセットアップと実行方法
 
-- Node.js 18.0.0 以上
-- [VOICEVOX エンジン](https://voicevox.hiroshiba.jp/) または互換エンジン
+### 1. WSL (Windows Subsystem for Linux) 環境
 
-## インストール
+WSL環境では、ホストOS (Windows) とコンテナ間でPulseAudioソケットを共有することで音声再生を実現します。
+
+**`docker-compose.wsl.yml` の内容:**
+
+```yaml
+version: '3.8'
+services:
+  audio_player_wsl:
+    image: ubuntu:latest
+    command: >
+      bash -c "
+      apt-get update && \
+      apt-get install -y pulseaudio libasound2-plugins alsa-utils && \
+      pactl load-module module-native-protocol-unix socket=/tmp/pulse-socket && \
+      echo ' अब आप कंटेनर के अंदर ध्वनि चला सकते हैं' && \
+      sleep infinity
+      "
+    volumes:
+      - /mnt/wslg/runtime-dir/pulse/native:/tmp/pulse-socket # WSLgの場合
+      # WSLでPulseAudioサーバーを別途実行している場合は、以下のようにホストのソケットパスを指定
+      # - /path/to/host/pulse-socket:/tmp/pulse-socket
+      - /dev/snd:/dev/snd
+    environment:
+      - PULSE_SERVER=unix:/tmp/pulse-socket
+    # privileged: true # パーミッションの問題が発生する場合
+networks:
+  default:
+    driver: bridge
+```
+
+**セットアップと実行:**
+
+1.  **WSLg (GUIアプリ対応WSL) を使用している場合:**
+    *   WSLgはデフォルトでPulseAudioサーバーを実行しており、ソケットは通常 `/mnt/wslg/runtime-dir/pulse/native` にあります。
+    *   ターミナルで以下のコマンドを実行します:
+        ```bash
+        docker-compose -f docker-compose.wsl.yml up -d
+        ```
+
+2.  **WSLgを使用していない、または手動でPulseAudioサーバーをWSLで実行している場合:**
+    *   WSL側でPulseAudioサーバーが実行されており、そのソケットファイルへのパスがわかっている必要があります。
+    *   `docker-compose.wsl.yml` の `volumes` セクションにある以下の行のコメントを解除し、実際のソケットパスに置き換えてください:
+        ```yaml
+        # - /path/to/host/pulse-socket:/tmp/pulse-socket
+        ```
+    *   ターミナルで以下のコマンドを実行します:
+        ```bash
+        docker-compose -f docker-compose.wsl.yml up -d
+        ```
+
+**コンテナ内での音声再生テスト:**
 
 ```bash
-npm install -g @kajidog/mcp-tts-voicevox
+docker-compose -f docker-compose.wsl.yml exec audio_player_wsl bash
+# コンテナ内で以下を実行
+# apt-get install -y alsa-utils (初回のみ、またはDockerfileに記述)
+aplay /usr/share/sounds/alsa/Front_Center.wav # テストサウンドの再生
+# またはスピーカーテストコマンド
+# speaker-test -t wav -c 2 -l 1
+exit
 ```
 
-## 使い方
+### 2. Windows ネイティブ (Docker Desktop) 環境
 
-### MCP サーバーとして
+Windowsネイティブ環境では、コンテナ内でPulseAudioサーバーを起動し、TCP経由でホストOSのサウンドシステムと連携します。ホスト側でPulseAudioクライアントソフトウェアの準備が必要になる場合があります。
 
-#### 1. VOICEVOX エンジンを起動
+**`docker-compose.windows.yml` の内容:**
 
-VOICEVOX エンジンを起動し、デフォルトポート（`http://localhost:50021`）で待機状態にします。
+```yaml
+version: '3.8'
+services:
+  audio_player_windows:
+    image: ubuntu:latest
+    command: >
+      bash -c "
+      apt-get update && \
+      apt-get install -y pulseaudio libasound2-plugins alsa-utils iproute2 && \
+      echo 'PULSE_SERVER=tcp:host.docker.internal:4713' >> /etc/environment && \
+      echo ' अब आप कंटेनर के अंदर ध्वनि चला सकते हैं' && \
+      pulseaudio --start --log-target=stderr --disallow-exit --exit-idle-time=-1 --load='module-native-protocol-tcp auth-ip-acl=127.0.0.1;172.0.0.0/8;192.168.0.0/16' --load='module-zeroconf-publish' && \
+      sleep infinity
+      "
+    ports:
+      - "4713:4713" # PulseAudioのTCPポート
+    # environment:
+    #   - PULSE_SERVER=tcp:host.docker.internal:4713 # command内で設定するためコメントアウト
+    # privileged: true # パーミッションの問題が発生する場合
+networks:
+  default:
+    driver: bridge
+```
 
-#### 2. MCP サーバーを起動
+**セットアップと実行:**
 
-**標準入出力モード（推奨）:**
+1.  **ホスト (Windows) 側の設定:**
+    *   WindowsでPulseAudioサーバー（またはクライアントとして機能するもの）をTCPでリッスンするように設定する必要があります。
+        *   **方法A: Windows用のPulseAudioをインストール・設定する:**
+            *   [PulseAudio for Windows](https://www.freedesktop.org/wiki/Software/PulseAudio/Ports/Windows/Support/) からダウンロードし、インストールします。
+            *   設定ファイル (`default.pa` や `system.pa`) でTCPモジュールがロードされるようにし、適切なIPからの接続を許可するように設定します。
+                例: `load-module module-native-protocol-tcp auth-ip-acl=127.0.0.1;host.docker.internal`
+        *   **方法B: WSL上のPulseAudioを利用する:**
+            *   WSL側でPulseAudioサーバーを起動し、TCPでリッスンするように設定します。
+                ```bash
+                # WSLのターミナルで
+                # /etc/pulse/default.pa または ~/.config/pulse/default.pa に以下を追記または編集
+                # load-module module-native-protocol-tcp auth-ip-acl=127.0.0.1;<DockerのネットワークIP範囲>
+                # pulseaudio --start
+                ```
+            *   この場合、コンテナからはWSLのIPアドレスに対して接続することになります。`host.docker.internal` がWSLのIPを指すようにDocker Desktopのネットワーク設定がされているか確認が必要です。
+    *   **ファイアウォールの設定:** WindowsファイアウォールでTCPポート `4713` の受信を許可します。
+
+2.  **Dockerコンテナの起動:**
+    *   PowerShellまたはコマンドプロンプトで以下のコマンドを実行します:
+        ```bash
+        docker-compose -f docker-compose.windows.yml up -d
+        ```
+
+**コンテナ内での音声再生テスト:**
 
 ```bash
-npx @kajidog/mcp-tts-voicevox
+docker-compose -f docker-compose.windows.yml exec audio_player_windows bash
+# コンテナ内で以下を実行
+# apt-get install -y alsa-utils (初回のみ、またはDockerfileに記述)
+aplay /usr/share/sounds/alsa/Front_Center.wav # テストサウンドの再生
+# またはスピーカーテストコマンド
+# speaker-test -t wav -c 2 -l 1
+exit
 ```
 
-**HTTP サーバーモード:**
-
-```bash
-# Linux/macOS
-MCP_HTTP_MODE=true npx @kajidog/mcp-tts-voicevox
-
-# Windows PowerShell
-$env:MCP_HTTP_MODE='true'; npx @kajidog/mcp-tts-voicevox
-```
-
-## MCP ツール
-
-### `speak` - テキスト読み上げ
-
-テキストを音声に変換して再生します。
-
-**パラメータ:**
-
-- `text`: 文字列（改行区切りで複数テキスト、話者指定は「1:テキスト」形式）
-- `speaker` (オプション): 話者 ID
-- `speedScale` (オプション): 再生速度
-- `immediate` (オプション): 即座に再生開始するか（デフォルト: true）
-- `waitForStart` (オプション): 再生開始まで待機するか（デフォルト: false）
-- `waitForEnd` (オプション): 再生終了まで待機するか（デフォルト: false）
-
-**使用例:**
-
-```javascript
-// シンプルなテキスト
-{ "text": "こんにちは\n今日はいい天気ですね" }
-
-// 話者指定
-{ "text": "こんにちは", "speaker": 3 }
-
-// セグメント別話者指定
-{ "text": "1:こんにちは\n3:今日はいい天気ですね" }
-
-// 即座に再生（キューを迂回）
-{
-  "text": "緊急メッセージです",
-  "immediate": true,
-  "waitForEnd": true
-}
-
-// 再生終了まで待機（同期処理）
-{
-  "text": "この音声の再生が完了するまで次の処理を待機",
-  "waitForEnd": true
-}
-
-// キューに追加するが自動再生しない
-{
-  "text": "手動で再生開始するまで待機",
-  "immediate": false
-}
-```
-
-### 高度な再生制御機能
-
-#### 即時再生（`immediate: true`）
-
-キューを迂回して音声を即座に再生：
-
-- **通常のキューと並行動作**: 既存のキュー再生を妨げません
-- **複数同時再生**: 複数の即時再生を同時に実行可能
-- **緊急通知に最適**: 重要なメッセージを優先的に再生
-
-#### 同期再生制御（`waitForEnd: true`）
-
-再生完了まで待機して処理を同期化：
-
-- **順次処理**: 音声再生後に次の処理を実行
-- **タイミング制御**: 音声と他の処理の連携が可能
-- **UI 同期**: 画面表示と音声のタイミングを合わせる
-
-```javascript
-// 例1: 緊急メッセージを即座に再生し、完了まで待機
-{
-  "text": "緊急！すぐに確認してください",
-  "immediate": true,
-  "waitForEnd": true
-}
-
-// 例2: ステップバイステップの音声ガイド
-{
-  "text": "手順1: ファイルを開いてください",
-  "waitForEnd": true
-}
-// 上記の音声が完了してから次の処理が実行される
-```
-
-### その他のツール
-
-- `generate_query` - 音声合成用クエリを生成
-- `synthesize_file` - 音声ファイルを生成
-- `stop_speaker` - 再生停止・キュークリア
-- `get_speakers` - 話者一覧取得
-- `get_speaker_detail` - 話者詳細取得
-
-## パッケージ構成
-
-### @kajidog/mcp-tts-voicevox (このパッケージ)
-
-- **MCP サーバー** - Claude Desktop 等の MCP クライアントと通信
-- **HTTP サーバー** - SSE/StreamableHTTP によるリモート MCP 通信
-
-### [@kajidog/voicevox-client](https://www.npmjs.com/package/@kajidog/voicevox-client) (独立パッケージ)
-
-- **汎用ライブラリ** - VOICEVOX エンジンとの通信機能
-- **クロスプラットフォーム** - Node.js、ブラウザ環境対応
-- **高度な再生制御** - 即時再生・同期再生・キュー管理機能
-
-## MCP 設定例
-
-### Claude Desktop での設定
-
-`claude_desktop_config.json` ファイルに以下の設定を追加：
-
-```json
-{
-  "mcpServers": {
-    "tts-mcp": {
-      "command": "npx",
-      "args": ["-y", "@kajidog/mcp-tts-voicevox"]
-    }
-  }
-}
-```
-
-#### SSE モードが必要な場合
-
-SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用して SSE↔Stdio 変換を行えます：
-
-1. **Claude Desktop 設定**
-
-   ```json
-   {
-     "mcpServers": {
-       "tts-mcp-proxy": {
-         "command": "npx",
-         "args": ["-y", "mcp-remote", "http://localhost:3000/sse"]
-       }
-     }
-   }
-   ```
-
-2. **SSE サーバーの起動**
-
-   **Mac/Linux:**
-
-   ```bash
-   MCP_HTTP_MODE=true MCP_HTTP_PORT=3000 npx @kajidog/mcp-tts-voicevox
-   ```
-
-   **Windows:**
-
-   ```powershell
-   $env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voicevox
-   ```
-
-````
-
-### AivisSpeech での設定例
-
-```json
-{
-  "mcpServers": {
-    "tts-mcp": {
-      "command": "npx",
-      "args": ["-y", "@kajidog/mcp-tts-voicevox"],
-      "env": {
-        "VOICEVOX_URL": "http://127.0.0.1:10101",
-        "VOICEVOX_DEFAULT_SPEAKER": "888753764"
-      }
-    }
-  }
-}
-````
-
-## 環境変数
-
-### VOICEVOX 設定
-
-- `VOICEVOX_URL`: VOICEVOX エンジンの URL（デフォルト: `http://localhost:50021`）
-- `VOICEVOX_DEFAULT_SPEAKER`: デフォルト話者 ID（デフォルト: `1`）
-- `VOICEVOX_DEFAULT_SPEED_SCALE`: デフォルト再生速度（デフォルト: `1.0`）
-
-### 再生オプション設定
-
-- `VOICEVOX_DEFAULT_IMMEDIATE`: キュー追加時に即座に再生開始するか（デフォルト: `true`）
-- `VOICEVOX_DEFAULT_WAIT_FOR_START`: 再生開始まで待機するか（デフォルト: `false`）
-- `VOICEVOX_DEFAULT_WAIT_FOR_END`: 再生終了まで待機するか（デフォルト: `false`）
-
-**使用例:**
-
-```bash
-# 例1: 全ての音声再生で完了まで待機（同期処理）
-export VOICEVOX_DEFAULT_WAIT_FOR_END=true
-npx @kajidog/mcp-tts-voicevox
-
-# 例2: 再生開始と終了の両方を待機
-export VOICEVOX_DEFAULT_WAIT_FOR_START=true
-export VOICEVOX_DEFAULT_WAIT_FOR_END=true
-npx @kajidog/mcp-tts-voicevox
-
-# 例3: 手動制御（自動再生無効）
-export VOICEVOX_DEFAULT_IMMEDIATE=false
-npx @kajidog/mcp-tts-voicevox
-```
-
-これらのオプションにより、アプリケーションの要件に応じて音声再生の挙動を細かく制御できます。
-
-### サーバー設定
-
-- `MCP_HTTP_MODE`: HTTP サーバーモードの有効化（`true` で有効）
-- `MCP_HTTP_PORT`: HTTP サーバーのポート番号（デフォルト: `3000`）
-- `MCP_HTTP_HOST`: HTTP サーバーのホスト（デフォルト: `0.0.0.0`）
-
-## WSL（Windows Subsystem for Linux）での使用
-
-WSL環境から WindowsホストのMCPサーバーに接続する場合の設定方法です。
-
-### 1. Windowsホストでの設定
-
-**AivisSpeechとPowerShellでMCPサーバーを起動:**
-
-```powershell
-$env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; $env:VOICEVOX_URL='http://127.0.0.1:10101'; $env:VOICEVOX_DEFAULT_SPEAKER='888753764'; npx @kajidog/mcp-tts-voicevox
-```
-
-### 2. WSL環境での設定
-
-**WindowsホストのIPアドレスを確認:**
-
-```bash
-# WSLからWindowsホストのIPアドレスを取得
-ip route show | grep default | awk '{print $3}'
-```
-
-通常は `172.x.x.1` の形式になります。
-
-** Claude Code の .mcp.json の設定例:**
-
-```json
-{
-  "mcpServers": {
-    "tts": {
-      "type": "sse",
-      "url": "http://172.29.176.1:3000/sse"
-    }
-  }
-}
-```
-
-**重要なポイント:**
-- WSL内では `localhost` や `127.0.0.1` はWSL内部を指すため、Windowsホストのサービスにはアクセスできません
-- WSLのゲートウェイIP（通常 `172.x.x.1`）を使用してWindowsホストにアクセスします
-- Windowsのファイアウォールでポートがブロックされていないことを確認してください
-
-**接続テスト:**
-
-```bash
-# WSL内でWindowsホストのMCPサーバーへの接続確認
-curl http://172.29.176.1:3000
-```
-
-正常な場合は `404 Not Found` が返されます（ルートパスが存在しないため）。
+## 注意点
+
+-   **イメージのカスタマイズ:** `ubuntu:latest` は基本的なイメージです。実際に使用するアプリケーションが含まれるイメージや、必要なライブラリがプリインストールされたカスタムイメージを使用することを推奨します。その場合、`command` 内の `apt-get install` はDockerfileに記述すると良いでしょう。
+-   **セキュリティ:** `privileged: true` の使用はセキュリティリスクを伴うため、必要な場合に限定してください。PulseAudioのTCP接続も、信頼できるネットワーク内での使用に留めるなど、セキュリティに配慮してください。
+-   **PulseAudioの設定:** PulseAudioの設定は環境によって複雑になることがあります。上記の手順でうまくいかない場合は、PulseAudioのログを確認したり、設定ファイルを調整したりする必要があります。
+-   **`host.docker.internal`:** Docker Desktop for Windowsでは、`host.docker.internal` がホストマシンのIPアドレスを指しますが、環境によっては正しく解決されない場合もあります。その場合は、ホストの具体的なIPアドレスを指定する必要があるかもしれません。
 
 ## トラブルシューティング
 
-### よくある問題
+-   **音声が再生されない (WSL):**
+    *   PulseAudioソケットのパスが正しいか確認してください。
+    *   WSL側でPulseAudioサーバーが実行されているか確認してください。
+    *   コンテナ内の `PULSE_SERVER` 環境変数が正しく設定されているか確認してください (`echo $PULSE_SERVER`)。
+    *   `/dev/snd` のパーミッションを確認してください。必要であれば `privileged: true` を試してください。
+-   **音声が再生されない (Windowsネイティブ):**
+    *   ホスト側でPulseAudioサーバー (またはクライアントとして機能するもの) がTCPポート `4713` でリッスンしているか確認してください (例: `netstat -ano | findstr "4713"`)。
+    *   Windowsファイアウォールでポート `4713` がブロックされていないか確認してください。
+    *   コンテナ内の `PULSE_SERVER` 環境変数 (または `/etc/environment`) が正しく設定されているか確認してください。
+    *   コンテナから `host.docker.internal` にpingが通るか確認してください (`ping host.docker.internal`)。
 
-1. **VOICEVOX エンジンが起動していない**
-
-   ```bash
-   curl http://localhost:50021/speakers
-   ```
-
-2. **音声が再生されない**
-
-   - システムの音声出力デバイスを確認
-   - プラットフォーム固有の音声再生ツールの確認：
-     - **Linux**: `aplay`, `paplay`, `play`, `ffplay` のいずれかが必要
-     - **macOS**: `afplay` (標準でインストール済み)
-     - **Windows**: PowerShell (標準でインストール済み)
-
-3. **MCP クライアントで認識されない**
-   - パッケージのインストールを確認：`npm list -g @kajidog/mcp-tts-voicevox`
-   - 設定ファイルの JSON 構文を確認
-
-## ライセンス
-
-ISC
-
-[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/kajidog-mcp-tts-voicevox-badge.png)](https://mseep.ai/app/kajidog-mcp-tts-voicevox)
-
-## 開発者向け情報
-
-このリポジトリをローカルで開発する場合の手順です。
-
-### セットアップ
-
-1.  リポジトリをクローンします:
-    ```bash
-    git clone https://github.com/kajidog/mcp-tts-voicevox.git
-    cd mcp-tts-voicevox
-    ```
-2.  [pnpm](https://pnpm.io/) をインストールします。(まだインストールしていない場合)
-3.  依存関係をインストールします:
-    ```bash
-    pnpm install
-    ```
-
-### 主要な開発コマンド
-
-プロジェクトルートで以下のコマンドを実行できます。
-
--   **すべてのパッケージをビルド:**
-    ```bash
-    pnpm build
-    ```
--   **すべてのテストを実行:**
-    ```bash
-    pnpm test
-    ```
--   **すべてのリンターを実行:**
-    ```bash
-    pnpm lint
-    ```
--   **ルートサーバーを開発モードで起動:**
-    ```bash
-    pnpm dev
-    ```
--   **stdioインターフェースを開発モードで起動:**
-    ```bash
-    pnpm dev:stdio
-    ```
-
-これらのコマンドは、ワークスペース内の関連するパッケージに対しても適切に処理を実行します。
+このドキュメントが、Docker環境での音声再生設定の一助となれば幸いです。

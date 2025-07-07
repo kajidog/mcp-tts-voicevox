@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  audio_player_wsl:
+    image: ubuntu:latest
+    command: >
+      bash -c "
+      apt-get update && \
+      apt-get install -y pulseaudio libasound2-plugins alsa-utils && \
+      pactl load-module module-native-protocol-unix socket=/tmp/pulse-socket && \
+      echo ' अब आप कंटेनर के अंदर ध्वनि चला सकते हैं' && \
+      sleep infinity
+      "
+    volumes:
+      - /mnt/wslg/runtime-dir/pulse/native:/tmp/pulse-socket # WSLgの場合
+      # WSLでPulseAudioサーバーを別途実行している場合は、以下のようにホストのソケットパスを指定
+      # - /path/to/host/pulse-socket:/tmp/pulse-socket
+      - /dev/snd:/dev/snd
+    environment:
+      - PULSE_SERVER=unix:/tmp/pulse-socket
+    # privileged: true # パーミッションの問題が発生する場合
+networks:
+  default:
+    driver: bridge

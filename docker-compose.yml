@@ -1,0 +1,25 @@
+version: '3.8'
+services:
+  audio_player:
+    image: ubuntu:latest # Dockerイメージを適宜変更してください
+    command: >
+      bash -c "
+      apt-get update && \
+      apt-get install -y pulseaudio libasound2-plugins alsa-utils && \
+      pactl load-module module-native-protocol-unix socket=/tmp/pulse-socket && \
+      sleep infinity
+      "
+    volumes:
+      - /tmp/pulse-socket:/tmp/pulse-socket
+      - /dev/snd:/dev/snd # ALSAデバイスをマウント (オプション)
+    environment:
+      - PULSE_SERVER=unix:/tmp/pulse-socket
+    # privileged: true # 場合によっては必要になることがあります
+    # group_add:
+    #   - audio # ホストのaudioグループに参加 (オプション)
+    # devices:
+    #   - /dev/snd:/dev/snd # ALSAデバイスを直接指定 (オプション)
+    # user: "${UID}:${GID}" # ホストユーザーで実行 (オプション)
+networks:
+  default:
+    driver: bridge
