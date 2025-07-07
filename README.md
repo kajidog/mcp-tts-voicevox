@@ -1,11 +1,32 @@
 # Dockerでの音声再生 (Windows & WSL)
 
-このリポジトリには、Dockerコンテナ内で音声を再生し、ホストOS（WindowsまたはWSL）のスピーカーから出力するための `docker-compose.yml` ファイルが含まれています。
+このリポジトリには、Dockerコンテナ内で音声を再生し、ホストOS（WindowsまたはWSL）のスピーカーから出力するための設定ファイル群が含まれています。
+`Dockerfile` を使用して、音声再生に必要な共通の依存関係を持つカスタムDockerイメージをビルドし、各環境（WSL、Windowsネイティブ）に最適化された `docker-compose.*.yml` ファイルでそのイメージを利用します。
 
 ## 前提条件
 
 - Docker Desktopがインストールされていること。
 - WSL環境で試す場合は、WSL2が有効になっていること。
+
+## Dockerfileによるイメージのカスタマイズ
+
+このプロジェクトには `Dockerfile` が含まれており、音声再生に必要なパッケージ (PulseAudio, ALSA utilities, iproute2) を `ubuntu:latest` イメージにインストールします。
+各 `docker-compose.*.yml` ファイルは、この `Dockerfile` を参照してカスタムイメージ (例: `audio-player-wsl`, `audio-player-windows`) をビルドします。
+
+**`Dockerfile` の概要:**
+```dockerfile
+# ベースイメージ
+FROM ubuntu:latest
+
+# 必要なパッケージのインストール
+RUN apt-get update && \
+    apt-get install -y pulseaudio libasound2-plugins alsa-utils iproute2 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# コンテナ起動時のデフォルトコマンド
+CMD ["bash", "-c", "echo 'Audio player container started. Run exec to test audio.' && sleep infinity"]
+```
+これにより、各 `docker-compose` ファイル内の `command` でパッケージのインストールを行う必要がなくなり、セットアップが簡素化されます。
 
 ## 各環境でのセットアップと実行方法
 
@@ -13,38 +34,41 @@
 
 WSL環境では、ホストOS (Windows) とコンテナ間でPulseAudioソケットを共有することで音声再生を実現します。
 
-**`docker-compose.wsl.yml` の内容:**
-
+**`docker-compose.wsl.yml` の概要:**
 ```yaml
 version: '3.8'
 services:
-  audio_player_wsl:
-    image: ubuntu:latest
+  audio_player_wsl: # イメージ名は audio-player-wsl:latest のようになる
+    build:
+      context: .
+      dockerfile: Dockerfile
     command: >
       bash -c "
-      apt-get update && \
-      apt-get install -y pulseaudio libasound2-plugins alsa-utils && \
       pactl load-module module-native-protocol-unix socket=/tmp/pulse-socket && \
-      echo ' अब आप कंटेनर के अंदर ध्वनि चला सकते हैं' && \
+      echo 'WSL Audio player container ready. Execute aplay or speaker-test inside the container.' && \
       sleep infinity
       "
     volumes:
       - /mnt/wslg/runtime-dir/pulse/native:/tmp/pulse-socket # WSLgの場合
-      # WSLでPulseAudioサーバーを別途実行している場合は、以下のようにホストのソケットパスを指定
-      # - /path/to/host/pulse-socket:/tmp/pulse-socket
+      # - /path/to/host/pulse-socket:/tmp/pulse-socket # WSLg以外の場合
       - /dev/snd:/dev/snd
     environment:
       - PULSE_SERVER=unix:/tmp/pulse-socket
-    # privileged: true # パーミッションの問題が発生する場合
-networks:
-  default:
-    driver: bridge
+    # privileged: true
+# ...
 ```
 
 **セットアップと実行:**
 
+1.  **イメージのビルドとコンテナの起動:**
+    `docker-compose up` コマンドを実行すると、イメージがまだ存在しない場合や `Dockerfile` が変更されている場合に自動的にビルドされ、コンテナが起動します。
+    ```bash
+    docker-compose -f docker-compose.wsl.yml up -d
+    ```
+    手動でビルドのみを行う場合は `docker-compose -f docker-compose.wsl.yml build` を実行します。
+
 1.  **WSLg (GUIアプリ対応WSL) を使用している場合:**
-    *   WSLgはデフォルトでPulseAudioサーバーを実行しており、ソケットは通常 `/mnt/wslg/runtime-dir/pulse/native` にあります。
+    *   WSLgはデフォルトでPulseAudioサーバーを実行しており、ボリュームマウントで指定されたソケット (`/mnt/wslg/runtime-dir/pulse/native`) が使用されます。
     *   ターミナルで以下のコマンドを実行します:
         ```bash
         docker-compose -f docker-compose.wsl.yml up -d
@@ -65,11 +89,10 @@ networks:
 
 ```bash
 docker-compose -f docker-compose.wsl.yml exec audio_player_wsl bash
-# コンテナ内で以下を実行
-# apt-get install -y alsa-utils (初回のみ、またはDockerfileに記述)
-aplay /usr/share/sounds/alsa/Front_Center.wav # テストサウンドの再生
+# コンテナ内で以下を実行 (alsa-utilsはDockerfileでインストール済み)
+aplay /usr/share/sounds/alsa/Front_Center.wav # テストサウンドの再生 (ファイルが存在する場合)
 # またはスピーカーテストコマンド
-# speaker-test -t wav -c 2 -l 1
+speaker-test -t wav -c 2 -l 1
 exit
 ```
 
@@ -77,33 +100,35 @@ exit
 
 Windowsネイティブ環境では、コンテナ内でPulseAudioサーバーを起動し、TCP経由でホストOSのサウンドシステムと連携します。ホスト側でPulseAudioクライアントソフトウェアの準備が必要になる場合があります。
 
-**`docker-compose.windows.yml` の内容:**
-
+**`docker-compose.windows.yml` の概要:**
 ```yaml
 version: '3.8'
 services:
-  audio_player_windows:
-    image: ubuntu:latest
+  audio_player_windows: # イメージ名は audio-player-windows:latest のようになる
+    build:
+      context: .
+      dockerfile: Dockerfile
     command: >
       bash -c "
-      apt-get update && \
-      apt-get install -y pulseaudio libasound2-plugins alsa-utils iproute2 && \
       echo 'PULSE_SERVER=tcp:host.docker.internal:4713' >> /etc/environment && \
-      echo ' अब आप कंटेनर के अंदर ध्वनि चला सकते हैं' && \
-      pulseaudio --start --log-target=stderr --disallow-exit --exit-idle-time=-1 --load='module-native-protocol-tcp auth-ip-acl=127.0.0.1;172.0.0.0/8;192.168.0.0/16' --load='module-zeroconf-publish' && \
+      echo 'Windows Audio player container ready. Starting PulseAudio server...' && \
+      pulseaudio --start --log-target=stderr --disallow-exit --exit-idle-time=-1 --load='module-native-protocol-tcp auth-ip-acl=127.0.0.1;172.0.0.0/8;192.168.0.0/16;host.docker.internal' --load='module-zeroconf-publish' && \
+      echo 'PulseAudio server started. Execute aplay or speaker-test inside the container once host is ready.' && \
       sleep infinity
       "
     ports:
       - "4713:4713" # PulseAudioのTCPポート
-    # environment:
-    #   - PULSE_SERVER=tcp:host.docker.internal:4713 # command内で設定するためコメントアウト
-    # privileged: true # パーミッションの問題が発生する場合
-networks:
-  default:
-    driver: bridge
+    # privileged: true
+# ...
 ```
 
 **セットアップと実行:**
+
+1.  **イメージのビルドとコンテナの起動:**
+    ```bash
+    docker-compose -f docker-compose.windows.yml up -d
+    ```
+    手動でビルドのみを行う場合は `docker-compose -f docker-compose.windows.yml build` を実行します。
 
 1.  **ホスト (Windows) 側の設定:**
     *   WindowsでPulseAudioサーバー（またはクライアントとして機能するもの）をTCPでリッスンするように設定する必要があります。
@@ -123,26 +148,23 @@ networks:
     *   **ファイアウォールの設定:** WindowsファイアウォールでTCPポート `4713` の受信を許可します。
 
 2.  **Dockerコンテナの起動:**
-    *   PowerShellまたはコマンドプロンプトで以下のコマンドを実行します:
-        ```bash
-        docker-compose -f docker-compose.windows.yml up -d
-        ```
+    *   PowerShellまたはコマンドプロンプトで上記の `docker-compose -f docker-compose.windows.yml up -d` コマンドを実行してコンテナを起動します。
 
 **コンテナ内での音声再生テスト:**
 
 ```bash
 docker-compose -f docker-compose.windows.yml exec audio_player_windows bash
-# コンテナ内で以下を実行
-# apt-get install -y alsa-utils (初回のみ、またはDockerfileに記述)
-aplay /usr/share/sounds/alsa/Front_Center.wav # テストサウンドの再生
+# コンテナ内で以下を実行 (alsa-utilsはDockerfileでインストール済み)
+aplay /usr/share/sounds/alsa/Front_Center.wav # テストサウンドの再生 (ファイルが存在する場合)
 # またはスピーカーテストコマンド
-# speaker-test -t wav -c 2 -l 1
+speaker-test -t wav -c 2 -l 1
 exit
 ```
 
 ## 注意点
 
--   **イメージのカスタマイズ:** `ubuntu:latest` は基本的なイメージです。実際に使用するアプリケーションが含まれるイメージや、必要なライブラリがプリインストールされたカスタムイメージを使用することを推奨します。その場合、`command` 内の `apt-get install` はDockerfileに記述すると良いでしょう。
+-   **イメージのビルド:** `docker-compose up` 時に自動でイメージがビルドされますが、`Dockerfile` やビルドコンテキスト内のファイルが変更された場合、`--build` オプションをつけて `docker-compose up --build` を実行するか、事前に `docker-compose build` を実行すると、確実にイメージが再ビルドされます。
+-   **テスト用サウンドファイル:** `aplay /usr/share/sounds/alsa/Front_Center.wav` は、テスト用サウンドファイルがそのパスに存在することを前提としています。`alsa-ucm-conf` パッケージなどがインストールされていれば含まれることが多いですが、なければ `speaker-test` を使用するか、任意のWAVファイルをコンテナにコピーして再生してください。
 -   **セキュリティ:** `privileged: true` の使用はセキュリティリスクを伴うため、必要な場合に限定してください。PulseAudioのTCP接続も、信頼できるネットワーク内での使用に留めるなど、セキュリティに配慮してください。
 -   **PulseAudioの設定:** PulseAudioの設定は環境によって複雑になることがあります。上記の手順でうまくいかない場合は、PulseAudioのログを確認したり、設定ファイルを調整したりする必要があります。
 -   **`host.docker.internal`:** Docker Desktop for Windowsでは、`host.docker.internal` がホストマシンのIPアドレスを指しますが、環境によっては正しく解決されない場合もあります。その場合は、ホストの具体的なIPアドレスを指定する必要があるかもしれません。

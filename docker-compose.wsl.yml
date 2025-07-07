@@ -1,13 +1,14 @@
 version: '3.8'
 services:
   audio_player_wsl:
-    image: ubuntu:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # image: audio-player:latest # buildを使用する場合、image名はオプション
     command: >
       bash -c "
-      apt-get update && \
-      apt-get install -y pulseaudio libasound2-plugins alsa-utils && \
       pactl load-module module-native-protocol-unix socket=/tmp/pulse-socket && \
-      echo ' अब आप कंटेनर के अंदर ध्वनि चला सकते हैं' && \
+      echo 'WSL Audio player container ready. Execute aplay or speaker-test inside the container.' && \
       sleep infinity
       "
     volumes:

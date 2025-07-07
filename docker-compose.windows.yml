@@ -1,14 +1,15 @@
 version: '3.8'
 services:
   audio_player_windows:
-    image: ubuntu:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # image: audio-player:latest # buildを使用する場合、image名はオプション
     command: >
       bash -c "
-      apt-get update && \
-      apt-get install -y pulseaudio libasound2-plugins alsa-utils iproute2 && \
       echo 'PULSE_SERVER=tcp:host.docker.internal:4713' >> /etc/environment && \
-      echo ' अब आप कंटेनर के अंदर ध्वनि चला सकते हैं' && \
-      pulseaudio --start --log-target=stderr --disallow-exit --exit-idle-time=-1 --load='module-native-protocol-tcp auth-ip-acl=127.0.0.1;172.0.0.0/8;192.168.0.0/16' --load='module-zeroconf-publish' && \
+      echo 'Windows Audio player container ready. Starting PulseAudio server. Execute aplay or speaker-test inside the container once host is ready.' && \
+      pulseaudio --start --log-target=stderr --disallow-exit --exit-idle-time=-1 --load='module-native-protocol-tcp auth-ip-acl=127.0.0.1;172.0.0.0/8;192.168.0.0/16;host.docker.internal' --load='module-zeroconf-publish' && \
       sleep infinity
       "
     ports:
