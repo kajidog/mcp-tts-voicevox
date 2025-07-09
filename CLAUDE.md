@@ -11,7 +11,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run dev:http:win` - Windows-specific HTTP mode with PowerShell environment setup
 
 ### Building and Testing
-- `npm run build` - Build TypeScript to dist/ and fix permissions
+- `npm run build` - Build TypeScript to dist/ using tsgo (TypeScript native compilation) and fix permissions
+- `npm run build:tsc` - Build TypeScript to dist/ using traditional tsc compiler (fallback option)
 - `npm run build:clean` - Clean build (remove dist/ and rebuild)
 - `npm run lint` - Run TypeScript type checking (use this for validation)
 - `npm test` - Run Jest test suite for both main package and voicevox-client
@@ -24,7 +25,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run start:http:win` - Windows-specific HTTP mode startup
 
 ### Working with packages/voicevox-client
-- `cd packages/voicevox-client && npm run build` - Build the voicevox-client package
+- `cd packages/voicevox-client && npm run build` - Build the voicevox-client package using tsgo
+- `cd packages/voicevox-client && npm run build:tsc` - Build the voicevox-client package using traditional tsc
 - `cd packages/voicevox-client && npm test` - Run tests for voicevox-client
 - `cd packages/voicevox-client && npm run lint` - Run TypeScript checking for voicevox-client
 - `cd packages/voicevox-client && npm pack` - Package for publishing
@@ -64,6 +66,26 @@ This is a VOICEVOX MCP (Model Context Protocol) server that provides text-to-spe
 3. **Server Modes**:
    - **Stdio Mode** (`src/stdio.ts`): Standard MCP protocol for Claude Desktop
    - **HTTP/SSE Mode** (`src/sse.ts`): REST API and real-time communication
+
+### Build System
+
+The project uses **TypeScript native compilation (tsgo)** as the default build method with traditional TypeScript compiler (tsc) as a fallback option.
+
+**Build Approach:**
+- **Default**: `tsgo` from `@typescript/native-preview` package provides faster compilation and better performance
+- **Fallback**: `tsc` from standard TypeScript compiler for compatibility and debugging
+- **Both packages** use the same build system with consistent commands
+
+**Key Benefits of tsgo:**
+- **Performance**: Faster compilation times compared to traditional tsc
+- **Native Code**: Compiles TypeScript to optimized native code
+- **Compatibility**: Maintains full TypeScript compatibility and type checking
+- **Development**: Experimental TypeScript compiler from Microsoft
+
+**Build Commands:**
+- `npm run build` - Uses tsgo (default)
+- `npm run build:tsc` - Uses traditional tsc (fallback)
+- Both commands maintain the same output structure and file organization
 
 ### VoicevoxClient Package (packages/voicevox-client/)
 
@@ -147,6 +169,10 @@ This is a VOICEVOX MCP (Model Context Protocol) server that provides text-to-spe
 - `axios`: HTTP client for VOICEVOX API
 - `uuid`: Unique ID generation
 - Built-in command-line audio playback (cross-platform, no external dependencies)
+
+**Development Dependencies (Both Packages)**:
+- `@typescript/native-preview`: TypeScript native compilation (tsgo) - **default build method**
+- `typescript`: Traditional TypeScript compiler (tsc) - **fallback option**
 
 ### Testing
 
