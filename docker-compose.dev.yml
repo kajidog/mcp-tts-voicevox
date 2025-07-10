@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: mcp-tts-voicevox-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - MCP_HTTP_MODE=true
+      - MCP_HTTP_PORT=3000
+      - MCP_HTTP_HOST=0.0.0.0
+      - VOICEVOX_URL=http://voicevox:50021
+      - VOICEVOX_DEFAULT_SPEAKER=1
+      - VOICEVOX_DEFAULT_SPEED_SCALE=1.0
+      - NODE_ENV=development
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/packages/voicevox-client/node_modules
+    depends_on:
+      - voicevox
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    command: ["pnpm", "dev:http"]
+
+  voicevox:
+    image: voicevox/voicevox_engine:cpu-ubuntu20.04-latest
+    container_name: voicevox-engine-dev
+    ports:
+      - "50021:50021"
+    environment:
+      - VOICEVOX_CPU_NUM_THREADS=4
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:50021/speakers"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  mcp-network:
+    driver: bridge
