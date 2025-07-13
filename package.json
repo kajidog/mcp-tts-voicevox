@@ -22,7 +22,6 @@
   },
   "type": "commonjs",
   "scripts": {
-    "test": "pnpm -r --filter \"./packages/*\" test",
     "start": "node dist/index.js",
     "start:stdio": "node dist/stdio.js",
     "start:http": "MCP_HTTP_MODE=true node dist/index.js",
@@ -34,7 +33,9 @@
     "build": "tsgo && pnpm -r --filter \"./packages/*\" build && node scripts/fix-permissions.js",
     "build:tsc": "tsc && pnpm -r --filter \"./packages/*\" build:tsc && node scripts/fix-permissions.js",
     "build:clean": "rm -rf dist && pnpm -r --filter \"./packages/*\" run build:clean && pnpm build",
-    "lint": "pnpm -r --filter \"./packages/*\" lint",
+    "lint": "biome check . && pnpm -r --filter \"./packages/*\" lint",
+    "lint:fix": "biome check --write . && pnpm -r --filter \"./packages/*\" lint:fix",
+    "test": "vitest run && pnpm -r --filter \"./packages/*\" test",
     "prepare": "pnpm build",
     "prepublishOnly": "pnpm test && pnpm lint"
   },
@@ -76,11 +77,10 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
+    "@biomejs/biome": "^1.9.4",
     "@types/node": "^20.0.0",
     "@typescript/native-preview": "^0.1.0",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.3.1",
+    "vitest": "^2.1.8",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0"
   },

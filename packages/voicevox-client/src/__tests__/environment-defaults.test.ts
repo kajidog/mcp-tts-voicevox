@@ -1,10 +1,11 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { VoicevoxClient } from "../client";
 import { VoicevoxConfig } from "../types";
 
 // APIとプレイヤーのモック
-jest.mock("../api", () => ({
-  VoicevoxApi: jest.fn().mockImplementation(() => ({
-    generateQuery: jest.fn().mockResolvedValue({
+vi.mock("../api", () => ({
+  VoicevoxApi: vi.fn().mockImplementation(() => ({
+    generateQuery: vi.fn().mockResolvedValue({
       accent_phrases: [],
       speedScale: 1.0,
       pitchScale: 0.0,
@@ -15,19 +16,19 @@ jest.mock("../api", () => ({
       outputSamplingRate: 24000,
       outputStereo: false,
     }),
-    synthesize: jest.fn().mockResolvedValue(new ArrayBuffer(1024)),
+    synthesize: vi.fn().mockResolvedValue(new ArrayBuffer(1024)),
   })),
 }));
 
-jest.mock("../player", () => ({
-  VoicevoxPlayer: jest.fn().mockImplementation(() => ({
-    getQueueManager: jest.fn().mockReturnValue({
-      enqueueQueryWithOptions: jest.fn().mockResolvedValue({
+vi.mock("../player", () => ({
+  VoicevoxPlayer: vi.fn().mockImplementation(() => ({
+    getQueueManager: vi.fn().mockReturnValue({
+      enqueueQueryWithOptions: vi.fn().mockResolvedValue({
         item: { id: "test" },
         promises: {},
       }),
     }),
-    clearQueue: jest.fn(),
+    clearQueue: vi.fn(),
   })),
 }));
 
@@ -35,7 +36,7 @@ describe("VoicevoxClient - 環境変数デフォルト値テスト", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    jest.resetModules();
+    vi.resetModules();
     process.env = { ...originalEnv };
   });
 

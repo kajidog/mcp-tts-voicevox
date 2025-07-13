@@ -1,10 +1,11 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { VoicevoxQueueManager } from "../manager";
 import { VoicevoxApi } from "../../api";
 import { AudioQuery } from "../../types";
 import { QueueEventType, QueueItemStatus, QueueItem } from "../types";
 
 // テストのタイムアウトを延長する
-jest.setTimeout(60000);
+// Note: Vitest uses different timeout configuration
 
 // 共通のモックデータ
 const DEFAULT_MOCK_QUERY: AudioQuery = {
@@ -38,8 +39,8 @@ const createMockItem = (id: string, overrides = {}): QueueItem => ({
 
 // VoicevoxApiのモックを作成
 const mockApi = {
-  generateQuery: jest.fn(),
-  synthesize: jest.fn(),
+  generateQuery: vi.fn(),
+  synthesize: vi.fn(),
 } as unknown as VoicevoxApi;
 
 // child_processのモック（将来の拡張用に残しておく）
@@ -53,10 +54,10 @@ const mockPlayPromises: Record<
 > = {};
 
 // child_processのモック
-jest.mock("child_process", () => ({
-  spawn: jest.fn().mockImplementation((_command: string, _args: string[]) => {
+vi.mock("child_process", () => ({
+  spawn: vi.fn().mockImplementation((_command: string, _args: string[]) => {
     const mockProcess = {
-      on: jest.fn().mockImplementation((event: string, callback: Function) => {
+      on: vi.fn().mockImplementation((event: string, callback: Function) => {
         if (event === "close") {
           // 成功を模倣
           setTimeout(() => callback(0), 10);
@@ -68,35 +69,35 @@ jest.mock("child_process", () => ({
 }));
 
 // fs/promises のモックに変更
-jest.mock("fs/promises", () => ({
-  unlink: jest.fn().mockResolvedValue(undefined),
-  writeFile: jest.fn().mockResolvedValue(undefined),
+vi.mock("fs/promises", () => ({
+  unlink: vi.fn().mockResolvedValue(undefined),
+  writeFile: vi.fn().mockResolvedValue(undefined),
 }));
 
 // fs のモック
-jest.mock("fs", () => ({
-  existsSync: jest.fn().mockReturnValue(true),
+vi.mock("fs", () => ({
+  existsSync: vi.fn().mockReturnValue(true),
 }));
 
 // os のモック
-jest.mock("os", () => ({
-  platform: jest.fn().mockReturnValue("linux"),
-  tmpdir: jest.fn().mockReturnValue("/tmp"),
+vi.mock("os", () => ({
+  platform: vi.fn().mockReturnValue("linux"),
+  tmpdir: vi.fn().mockReturnValue("/tmp"),
 }));
 
 // テスト実行前にモック関数を取得できるように変更
-let mockFsUnlink: jest.Mock;
+let mockFsUnlink: any;
 
 beforeAll(async () => {
   const fsPromises = await import("fs/promises");
-  mockFsUnlink = fsPromises.unlink as jest.Mock;
+  mockFsUnlink = fsPromises.unlink as any;
 });
 
 describe("VoicevoxQueueManager", () => {
   let queueManager: VoicevoxQueueManager;
 
   beforeEach(() => {
-    jest.clearAllMocks(); // 各テスト前にモックをクリア
+    vi.clearAllMocks(); // 各テスト前にモックをクリア
     Object.keys(mockPlayPromises).forEach(
       (key) => delete mockPlayPromises[key]
     ); // プレイプロミスもクリア
@@ -108,8 +109,8 @@ describe("VoicevoxQueueManager", () => {
     const speaker = 1;
     const mockQuery = createMockQuery();
 
-    (mockApi.generateQuery as jest.Mock).mockResolvedValue(mockQuery);
-    (mockApi.synthesize as jest.Mock).mockResolvedValue(
+    (mockApi.generateQuery as any).mockResolvedValue(mockQuery);
+    (mockApi.synthesize as any).mockResolvedValue(
       DEFAULT_MOCK_AUDIO_DATA
     );
 
@@ -151,7 +152,7 @@ describe("VoicevoxQueueManager", () => {
     const speaker = 3;
     const mockAudioData = new ArrayBuffer(20);
 
-    (mockApi.synthesize as jest.Mock).mockResolvedValue(mockAudioData);
+    (mockApi.synthesize as any).mockResolvedValue(mockAudioData);
 
     const itemAddedPromise = new Promise<QueueItem>((resolve) => {
       queueManager.addEventListener(QueueEventType.ITEM_ADDED, (event, item) =>
@@ -235,8 +236,8 @@ describe("VoicevoxQueueManager", () => {
     const mockQuery = createMockQuery();
     const mockTempFile = "mock-temp-file.wav";
 
-    (mockApi.generateQuery as jest.Mock).mockResolvedValue(mockQuery);
-    (mockApi.synthesize as jest.Mock).mockResolvedValue(
+    (mockApi.generateQuery as any).mockResolvedValue(mockQuery);
+    (mockApi.synthesize as any).mockResolvedValue(
       DEFAULT_MOCK_AUDIO_DATA
     );
 
@@ -247,7 +248,7 @@ describe("VoicevoxQueueManager", () => {
       audioGenerator.generateAudioFromQuery;
 
     // 同期的にレスポンスを返すモック関数で置き換え
-    audioGenerator.generateQuery = jest.fn().mockImplementation(async () => {
+    audioGenerator.generateQuery = vi.fn().mockImplementation(async () => {
       return mockQuery;
     });
 
@@ -327,7 +328,7 @@ describe("VoicevoxQueueManager", () => {
 
     // mockApi.generateQueryでエラーをスローするようにモック設定
     const mockError = new Error(mockErrorMessage);
-    (mockApi.generateQuery as jest.Mock).mockRejectedValueOnce(mockError);
+    (mockApi.generateQuery as any).mockRejectedValueOnce(mockError);
 
     // イベントリスナーの設定
     const errorEventPromise = new Promise<QueueItem>((resolve) => {
@@ -365,7 +366,7 @@ describe("VoicevoxQueueManager", () => {
 
     // console.errorをモックして抑制
     const originalConsoleError = console.error;
-    console.error = jest.fn();
+    console.error = vi.fn();
     
     // キューに追加（エラーが発生するはずなのでtry-catchで囲む）
     try {
@@ -402,8 +403,8 @@ describe("VoicevoxQueueManager", () => {
     await queueManager.clearQueue();
 
     const mockQuery = createMockQuery();
-    (mockApi.generateQuery as jest.Mock).mockResolvedValue(mockQuery);
-    (mockApi.synthesize as jest.Mock).mockResolvedValue(
+    (mockApi.generateQuery as any).mockResolvedValue(mockQuery);
+    (mockApi.synthesize as any).mockResolvedValue(
       DEFAULT_MOCK_AUDIO_DATA
     );
 
@@ -491,8 +492,8 @@ describe("VoicevoxQueueManager", () => {
     const mockQuery = createMockQuery();
     const playError = new Error("再生エラー");
 
-    (mockApi.generateQuery as jest.Mock).mockResolvedValue(mockQuery);
-    (mockApi.synthesize as jest.Mock).mockResolvedValue(
+    (mockApi.generateQuery as any).mockResolvedValue(mockQuery);
+    (mockApi.synthesize as any).mockResolvedValue(
       DEFAULT_MOCK_AUDIO_DATA
     );
 
@@ -614,7 +615,7 @@ describe("VoicevoxQueueManager", () => {
     const mockAudioData = new ArrayBuffer(10);
 
     // generateQueryに遅延を追加
-    (mockApi.generateQuery as jest.Mock).mockImplementation(async (text) => {
+    (mockApi.generateQuery as any).mockImplementation(async (text) => {
       const index = parseInt(text.slice(-1)) - 1;
 
       // item3の処理を遅延させる
@@ -624,7 +625,7 @@ describe("VoicevoxQueueManager", () => {
 
       return mockQueries[index];
     });
-    (mockApi.synthesize as jest.Mock).mockResolvedValue(mockAudioData);
+    (mockApi.synthesize as any).mockResolvedValue(mockAudioData);
 
     // 状態変更を監視する配列
     const readyItems: string[] = [];

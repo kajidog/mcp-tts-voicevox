@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { VoicevoxQueueManager } from "../manager";
 import { QueueEventType, QueueItemStatus } from "../types";
 import { VoicevoxApi } from "../../api";
@@ -5,10 +6,10 @@ import { AudioQuery, PlaybackOptions } from "../../types";
 
 // モックオブジェクト
 const mockApi = {
-  generateQuery: jest.fn(),
-  synthesize: jest.fn(),
-  getSpeakers: jest.fn(),
-  getSpeakerInfo: jest.fn(),
+  generateQuery: vi.fn(),
+  synthesize: vi.fn(),
+  getSpeakers: vi.fn(),
+  getSpeakerInfo: vi.fn(),
 } as unknown as VoicevoxApi;
 
 // テスト用のオーディオクエリ
@@ -25,9 +26,9 @@ const testQuery: AudioQuery = {
 };
 
 // オーディオプレイヤーのモック
-jest.mock("../audio-player", () => ({
-  AudioPlayer: jest.fn().mockImplementation(() => ({
-    playAudio: jest.fn().mockImplementation((filePath: string) => {
+vi.mock("../audio-player", () => ({
+  AudioPlayer: vi.fn().mockImplementation(() => ({
+    playAudio: vi.fn().mockImplementation((filePath: string) => {
       // 短時間で再生完了をシミュレート
       return new Promise((resolve) => setTimeout(resolve, 50));
     }),
@@ -35,10 +36,10 @@ jest.mock("../audio-player", () => ({
 }));
 
 // ファイルマネージャーのモック
-jest.mock("../file-manager", () => ({
-  AudioFileManager: jest.fn().mockImplementation(() => ({
-    saveTempAudioFile: jest.fn().mockResolvedValue("/tmp/test-audio.wav"),
-    deleteTempFile: jest.fn().mockResolvedValue(undefined),
+vi.mock("../file-manager", () => ({
+  AudioFileManager: vi.fn().mockImplementation(() => ({
+    saveTempAudioFile: vi.fn().mockResolvedValue("/tmp/test-audio.wav"),
+    deleteTempFile: vi.fn().mockResolvedValue(undefined),
   })),
 }));
 
@@ -46,11 +47,11 @@ describe("VoicevoxQueueManager - 再生タイミングテスト", () => {
   let queueManager: VoicevoxQueueManager;
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     // APIモックの設定
-    (mockApi.generateQuery as jest.Mock).mockResolvedValue(testQuery);
-    (mockApi.synthesize as jest.Mock).mockResolvedValue(new ArrayBuffer(1024));
+    (mockApi.generateQuery as any).mockResolvedValue(testQuery);
+    (mockApi.synthesize as any).mockResolvedValue(new ArrayBuffer(1024));
     
     queueManager = new VoicevoxQueueManager(mockApi, 2);
     
@@ -179,10 +180,10 @@ describe("VoicevoxQueueManager - 再生タイミングテスト", () => {
     it("音声生成エラー時に適切にPromiseが拒否される", async () => {
       // console.errorをモックして抑制
       const originalConsoleError = console.error;
-      console.error = jest.fn();
+      console.error = vi.fn();
       
       // APIエラーを発生させる
-      (mockApi.generateQuery as jest.Mock).mockRejectedValue(new Error("API Error"));
+      (mockApi.generateQuery as any).mockRejectedValue(new Error("API Error"));
 
       const options: PlaybackOptions = { 
         waitForStart: true, 

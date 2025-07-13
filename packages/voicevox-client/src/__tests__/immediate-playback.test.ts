@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { VoicevoxClient } from "../client";
 import { VoicevoxQueueManager } from "../queue/manager";
 import { VoicevoxApi } from "../api";
@@ -7,23 +8,23 @@ import * as os from "os";
 import { spawn } from "child_process";
 
 // モック設定
-jest.mock("fs");
-jest.mock("path");
-jest.mock("os");
-jest.mock("child_process");
-jest.mock("axios");
+vi.mock("fs");
+vi.mock("path");
+vi.mock("os");
+vi.mock("child_process");
+vi.mock("axios");
 
-const mockedFs = fs as jest.Mocked<typeof fs>;
-const mockedPath = path as jest.Mocked<typeof path>;
-const mockedOs = os as jest.Mocked<typeof os>;
-const mockedSpawn = spawn as jest.MockedFunction<typeof spawn>;
+const mockedFs = fs as any;
+const mockedPath = path as any;
+const mockedOs = os as any;
+const mockedSpawn = spawn as any;
 
 describe("Immediate Playback", () => {
   let client: VoicevoxClient;
   let mockProcess: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // OSをmacOSとして設定
     mockedOs.platform.mockReturnValue("darwin");
@@ -37,14 +38,14 @@ describe("Immediate Playback", () => {
 
     // child_processのモック
     mockProcess = {
-      on: jest.fn((event, callback) => {
+      on: vi.fn((event, callback) => {
         if (event === "close") {
           // 100ms後に正常終了
           setTimeout(() => callback(0), 100);
         }
       }),
-      stderr: { on: jest.fn() },
-      stdout: { on: jest.fn() }
+      stderr: { on: vi.fn() },
+      stdout: { on: vi.fn() }
     };
     mockedSpawn.mockReturnValue(mockProcess as any);
 
