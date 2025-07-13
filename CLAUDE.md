@@ -14,8 +14,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run build` - Build TypeScript to dist/ using tsgo (TypeScript native compilation) and fix permissions
 - `npm run build:tsc` - Build TypeScript to dist/ using traditional tsc compiler (fallback option)
 - `npm run build:clean` - Clean build (remove dist/ and rebuild)
-- `npm run lint` - Run TypeScript type checking (use this for validation)
-- `npm test` - Run Jest test suite for both main package and voicevox-client
+- `npm run lint` - Run Biome linting and TypeScript type checking (use this for validation)
+- `npm run lint:fix` - Run Biome linting with auto-fix and format code
+- `npm test` - Run Vitest test suite for both main package and voicevox-client
 - `npm run test:sound` - Test sound playback functionality
 
 ### Production
@@ -27,8 +28,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Working with packages/voicevox-client
 - `cd packages/voicevox-client && npm run build` - Build the voicevox-client package using tsgo
 - `cd packages/voicevox-client && npm run build:tsc` - Build the voicevox-client package using traditional tsc
-- `cd packages/voicevox-client && npm test` - Run tests for voicevox-client
-- `cd packages/voicevox-client && npm run lint` - Run TypeScript checking for voicevox-client
+- `cd packages/voicevox-client && npm test` - Run Vitest tests for voicevox-client
+- `cd packages/voicevox-client && npm run lint` - Run Biome linting and TypeScript checking for voicevox-client
+- `cd packages/voicevox-client && npm run lint:fix` - Run Biome linting with auto-fix for voicevox-client
 - `cd packages/voicevox-client && npm pack` - Package for publishing
 
 ## Architecture
@@ -173,6 +175,8 @@ The project uses **TypeScript native compilation (tsgo)** as the default build m
 **Development Dependencies (Both Packages)**:
 - `@typescript/native-preview`: TypeScript native compilation (tsgo) - **default build method**
 - `typescript`: Traditional TypeScript compiler (tsc) - **fallback option**
+- `@biomejs/biome`: Fast linter and formatter for JavaScript/TypeScript
+- `vitest`: Fast unit testing framework with native TypeScript support
 
 ### Testing
 
@@ -180,7 +184,8 @@ The project uses **TypeScript native compilation (tsgo)** as the default build m
 - **VoicevoxClient Package**: Comprehensive queue management and audio processing tests
 - **Cross-platform Mocking**: Audio playback tests use mocked `child_process.spawn`, `fs`, and `os` modules
 - **Test Isolation**: Each test suite runs independently with proper cleanup
-- **Both packages tested**: Jest runs tests for both src/ and packages/voicevox-client/
+- **Both packages tested**: Vitest runs tests for both src/ and packages/voicevox-client/
+- **Test Framework**: Uses Vitest for faster testing with native TypeScript support
 
 ### Audio Playback Development Notes
 

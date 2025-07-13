@@ -3,12 +3,14 @@
  * server.ts の immediate オプション処理の修正をテストします
  */
 
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+
 // 環境変数を各テストで制御するため、最初に保存
 const originalEnv = process.env;
 
 describe("MCP Server - 再生オプションの処理", () => {
   beforeEach(() => {
-    jest.resetModules();
+    vi.resetModules();
     process.env = { ...originalEnv };
   });
 
