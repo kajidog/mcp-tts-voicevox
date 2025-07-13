@@ -39,19 +39,8 @@
     "prepare": "pnpm build",
     "prepublishOnly": "pnpm test && pnpm lint"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE",
-    "scripts"
-  ],
-  "keywords": [
-    "voicevox",
-    "tts",
-    "text-to-speech",
-    "mcp",
-    "mcp-server"
-  ],
+  "files": ["dist", "README.md", "LICENSE", "scripts"],
+  "keywords": ["voicevox", "tts", "text-to-speech", "mcp", "mcp-server"],
   "author": {
     "name": "kajidog",
     "email": "dev@kajidog.com"
@@ -79,7 +68,7 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^20.0.0",
-    "@typescript/native-preview": "^0.1.0",
+    "@typescript/native-preview": "7.0.0-dev.20250712.1",
     "vitest": "^2.1.8",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0"

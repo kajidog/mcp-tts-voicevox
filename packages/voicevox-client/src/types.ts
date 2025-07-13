@@ -3,13 +3,13 @@
  */
 export interface VoicevoxConfig {
   /** VOICEVOXエンジンのURL */
-  url: string;
+  url: string
   /** デフォルトの話者ID */
-  defaultSpeaker: number;
+  defaultSpeaker: number
   /** デフォルトの再生速度 */
-  defaultSpeedScale?: number;
+  defaultSpeedScale?: number
   /** デフォルトの再生オプション */
-  defaultPlaybackOptions?: PlaybackOptions;
+  defaultPlaybackOptions?: PlaybackOptions
 }
 
 /**
@@ -17,44 +17,44 @@ export interface VoicevoxConfig {
  */
 export interface AudioQuery {
   /** アクセント句のリスト */
-  accent_phrases: AccentPhrase[];
+  accent_phrases: AccentPhrase[]
   /** 全体の話速 */
-  speedScale: number;
+  speedScale: number
   /** 全体の音高 */
-  pitchScale: number;
+  pitchScale: number
   /** 全体の抑揚 */
-  intonationScale: number;
+  intonationScale: number
   /** 全体の音量 */
-  volumeScale: number;
+  volumeScale: number
   /** 音声の前の無音時間 */
-  prePhonemeLength: number;
+  prePhonemeLength: number
   /** 音声の後の無音時間 */
-  postPhonemeLength: number;
+  postPhonemeLength: number
   /** 音声データの出力サンプリングレート */
-  outputSamplingRate: number;
+  outputSamplingRate: number
   /** 音声データをステレオ出力するか否か */
-  outputStereo: boolean;
+  outputStereo: boolean
   /** AquesTalk風記法によるテキスト */
-  kana?: string;
+  kana?: string
 }
 
 /**
  * 文字列またはAudioQueryのいずれかを受け入れる型
  */
-export type StringOrAudioQuery = string | AudioQuery;
+export type StringOrAudioQuery = string | AudioQuery
 
 /**
  * アクセント句ごとの情報
  */
 export interface AccentPhrase {
   /** モーラのリスト */
-  moras: Mora[];
+  moras: Mora[]
   /** アクセント箇所 */
-  accent: number;
+  accent: number
   /** 後ろに無音を付けるかどうか */
-  pause_mora?: Mora;
+  pause_mora?: Mora
   /** 疑問形かどうか */
-  is_interrogative?: boolean;
+  is_interrogative?: boolean
 }
 
 /**
@@ -62,17 +62,17 @@ export interface AccentPhrase {
  */
 export interface Mora {
   /** 文字 */
-  text: string;
+  text: string
   /** 子音の音素 */
-  consonant?: string;
+  consonant?: string
   /** 子音の音長 */
-  consonant_length?: number;
+  consonant_length?: number
   /** 母音の音素 */
-  vowel: string;
+  vowel: string
   /** 母音の音長 */
-  vowel_length: number;
+  vowel_length: number
   /** 音高 */
-  pitch: number;
+  pitch: number
 }
 
 /**
@@ -80,13 +80,13 @@ export interface Mora {
  */
 export interface SingingParameters {
   /** 全体の話速 */
-  speedScale?: number;
+  speedScale?: number
   /** 全体の音高 */
-  pitchScale?: number;
+  pitchScale?: number
   /** 全体の抑揚 */
-  intonationScale?: number;
+  intonationScale?: number
   /** 全体の音量 */
-  volumeScale?: number;
+  volumeScale?: number
 }
 
 /**
@@ -94,7 +94,7 @@ export interface SingingParameters {
  */
 export interface Score {
   /** 音符のリスト */
-  notes: Note[];
+  notes: Note[]
 }
 
 /**
@@ -102,13 +102,13 @@ export interface Score {
  */
 export interface Note {
   /** ID */
-  id?: string | null;
+  id?: string | null
   /** 音階 */
-  key?: number;
+  key?: number
   /** 音符のフレーム長 */
-  frame_length: number;
+  frame_length: number
   /** 音符の歌詞 */
-  lyric: string;
+  lyric: string
 }
 
 /**
@@ -116,17 +116,17 @@ export interface Note {
  */
 export interface FrameAudioQuery {
   /** フレームごとの基本周波数 */
-  f0: number[];
+  f0: number[]
   /** フレームごとの音量 */
-  volume: number[];
+  volume: number[]
   /** 音素のリスト */
-  phonemes: FramePhoneme[];
+  phonemes: FramePhoneme[]
   /** 全体の音量 */
-  volumeScale: number;
+  volumeScale: number
   /** 音声データの出力サンプリングレート */
-  outputSamplingRate: number;
+  outputSamplingRate: number
   /** 音声データをステレオ出力するか否か */
-  outputStereo: boolean;
+  outputStereo: boolean
 }
 
 /**
@@ -134,36 +134,36 @@ export interface FrameAudioQuery {
  */
 export interface FramePhoneme {
   /** 音素 */
-  phoneme: string;
+  phoneme: string
   /** 音素のフレーム長 */
-  frame_length: number;
+  frame_length: number
   /** 音符のID */
-  note_id?: string | null;
+  note_id?: string | null
 }
 
 /**
  * スピーカーの情報
  */
 export interface Speaker {
-  name: string;
-  speaker_uuid: string;
+  name: string
+  speaker_uuid: string
   styles: {
-    name: string;
-    id: number;
-    type: string;
-  }[];
-  version: string;
+    name: string
+    id: number
+    type: string
+  }[]
+  version: string
   supported_features: {
-    permitted_synthesis_morphing: string;
-  };
+    permitted_synthesis_morphing: string
+  }
 }
 
 // VoicevoxError は error.ts から再エクスポートされるため削除
 
 // 音声セグメント定義
 export interface SpeechSegment {
-  text: string;
-  speaker?: number;
+  text: string
+  speaker?: number
 }
 
 /**
@@ -171,9 +171,9 @@ export interface SpeechSegment {
  */
 export interface PlaybackOptions {
   /** 即座に再生を開始するかどうか */
-  immediate?: boolean;
+  immediate?: boolean
   /** 再生開始まで待機するかどうか */
-  waitForStart?: boolean;
+  waitForStart?: boolean
   /** 再生終了まで待機するかどうか */
-  waitForEnd?: boolean;
+  waitForEnd?: boolean
 }

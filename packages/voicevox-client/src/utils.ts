@@ -6,74 +6,74 @@
  */
 export function splitText(text: string, maxLength: number): string[] {
   // 文の区切りとなるパターン
-  const sentenceEndings = /([。！？])/;
+  const sentenceEndings = /([。！？])/
   // 自然な区切りとなる接続詞や助詞
   const naturalBreaks =
-    /([、しかし、でも、けれど、そして、また、または、それで、だから、ですから、そのため、したがって、ゆえに])/;
+    /([、しかし、でも、けれど、そして、また、または、それで、だから、ですから、そのため、したがって、ゆえに])/
 
-  const segments: string[] = [];
-  let currentSegment = "";
+  const segments: string[] = []
+  let currentSegment = ''
 
   // 文を句読点で分割
   const sentences = text.split(sentenceEndings).reduce((acc, part, i, arr) => {
     if (i % 2 === 0) {
       // テキスト部分
-      acc.push(part);
+      acc.push(part)
     } else {
       // 句読点部分 - 前のテキストと結合
-      acc[acc.length - 1] += part;
+      acc[acc.length - 1] += part
     }
-    return acc;
-  }, [] as string[]);
+    return acc
+  }, [] as string[])
 
   // 文ごとに処理
   for (const sentence of sentences) {
-    if (!sentence.trim()) continue;
+    if (!sentence.trim()) continue
 
     // 現在のセグメントに追加してみる
-    const potentialSegment = currentSegment + sentence;
+    const potentialSegment = currentSegment + sentence
 
     // 最大長を超えないならそのまま追加
     if (potentialSegment.length <= maxLength) {
-      currentSegment = potentialSegment;
+      currentSegment = potentialSegment
     } else {
       // 最大長を超える場合、naturalBreaksで分割を試みる
-      const parts = sentence.split(naturalBreaks);
+      const parts = sentence.split(naturalBreaks)
 
       // 分割パーツを処理
       for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        if (!part.trim()) continue;
+        const part = parts[i]
+        if (!part.trim()) continue
 
         // 現在のセグメントに追加してみる
-        const newSegment = currentSegment + part;
+        const newSegment = currentSegment + part
 
         // 最大長を超えるかチェック
         if (newSegment.length <= maxLength) {
-          currentSegment = newSegment;
+          currentSegment = newSegment
         } else {
           // 既存のセグメントがあれば保存
           if (currentSegment.trim()) {
-            segments.push(currentSegment.trim());
+            segments.push(currentSegment.trim())
           }
-          currentSegment = part;
+          currentSegment = part
         }
       }
     }
 
     // 一文が終わったら保存判定
     if (currentSegment.length >= maxLength && currentSegment.trim()) {
-      segments.push(currentSegment.trim());
-      currentSegment = "";
+      segments.push(currentSegment.trim())
+      currentSegment = ''
     }
   }
 
   // 残りのテキストがあれば追加
   if (currentSegment.trim()) {
-    segments.push(currentSegment.trim());
+    segments.push(currentSegment.trim())
   }
 
-  return segments;
+  return segments
 }
 
 /**
@@ -81,7 +81,7 @@ export function splitText(text: string, maxLength: number): string[] {
  * @returns ブラウザ環境の場合はtrue、それ以外の場合はfalse
  */
 export function isBrowser(): boolean {
-  return typeof window !== "undefined" && typeof document !== "undefined";
+  return typeof window !== 'undefined' && typeof document !== 'undefined'
 }
 
 /**
@@ -92,17 +92,15 @@ export function isTestEnvironment(): boolean {
   if (isBrowser()) {
     // ブラウザ環境ではテスト環境の判定方法を変更
     // 例: URLにtestパラメータがある場合など
-    return window.location.href.includes("test=true");
+    return window.location.href.includes('test=true')
   }
 
   // Node.js環境での判定
   try {
-    const processEnv = typeof process !== "undefined" ? process.env : {};
-    return (
-      processEnv.NODE_ENV === "test" || processEnv.JEST_WORKER_ID !== undefined
-    );
+    const processEnv = typeof process !== 'undefined' ? process.env : {}
+    return processEnv.NODE_ENV === 'test' || processEnv.VITEST !== undefined
   } catch (e) {
-    return false;
+    return false
   }
 }
 
@@ -110,7 +108,7 @@ export function isTestEnvironment(): boolean {
  * IE用の拡張Navigatorインターフェース
  */
 interface IENavigator extends Navigator {
-  msSaveOrOpenBlob?: (blob: Blob, fileName: string) => boolean;
+  msSaveOrOpenBlob?: (blob: Blob, fileName: string) => boolean
 }
 
 /**
@@ -120,63 +118,56 @@ interface IENavigator extends Navigator {
  * @param mimeType MIMEタイプ（デフォルトはaudio/wav）
  * @returns ダウンロードしたファイル名
  */
-export function downloadBlob(
-  data: ArrayBuffer | Blob,
-  filename: string,
-  mimeType: string = "audio/wav"
-): Promise<string> {
+export function downloadBlob(data: ArrayBuffer | Blob, filename: string, mimeType = 'audio/wav'): Promise<string> {
   if (!isBrowser()) {
-    return Promise.reject(
-      new Error("この関数はブラウザ環境でのみ使用できます")
-    );
+    return Promise.reject(new Error('この関数はブラウザ環境でのみ使用できます'))
   }
 
   return new Promise<string>((resolve, reject) => {
     try {
       // Blobオブジェクトを作成（既にBlobなら変換しない）
-      const blob =
-        data instanceof Blob ? data : new Blob([data], { type: mimeType });
+      const blob = data instanceof Blob ? data : new Blob([data], { type: mimeType })
 
       // URLを作成
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob)
 
       // IE11用のMS独自オブジェクトのチェック
-      const ieNavigator = window.navigator as IENavigator;
+      const ieNavigator = window.navigator as IENavigator
       if (ieNavigator.msSaveOrOpenBlob) {
-        ieNavigator.msSaveOrOpenBlob(blob, filename);
-        resolve(filename);
-        return;
+        ieNavigator.msSaveOrOpenBlob(blob, filename)
+        resolve(filename)
+        return
       }
 
       // a要素を作成
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.style.display = "none";
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.style.display = 'none'
 
       // ダウンロード完了を検知するためのイベントリスナー
       const cleanup = () => {
-        window.removeEventListener("focus", cleanup);
+        window.removeEventListener('focus', cleanup)
         if (document.body.contains(a)) {
-          document.body.removeChild(a);
+          document.body.removeChild(a)
         }
-        URL.revokeObjectURL(url);
-        resolve(filename);
-      };
+        URL.revokeObjectURL(url)
+        resolve(filename)
+      }
 
       // Safari用の対応
-      window.addEventListener("focus", cleanup);
+      window.addEventListener('focus', cleanup)
 
       // bodyに追加してクリック
-      document.body.appendChild(a);
-      a.click();
+      document.body.appendChild(a)
+      a.click()
 
       // フォールバックタイマー
-      setTimeout(cleanup, 1000);
+      setTimeout(cleanup, 1000)
     } catch (error) {
-      reject(error);
+      reject(error)
     }
-  });
+  })
 }
 
 /**
@@ -186,23 +177,23 @@ export function downloadBlob(
  */
 export function playBlobAudio(blob: Blob): HTMLAudioElement {
   if (!isBrowser()) {
-    throw new Error("この関数はブラウザ環境でのみ使用できます");
+    throw new Error('この関数はブラウザ環境でのみ使用できます')
   }
 
-  const url = URL.createObjectURL(blob);
-  const audio = new Audio(url);
+  const url = URL.createObjectURL(blob)
+  const audio = new Audio(url)
 
   // 再生終了時にURLを解放
   audio.onended = () => {
-    URL.revokeObjectURL(url);
-  };
+    URL.revokeObjectURL(url)
+  }
 
   // エラー時にもURLを解放
   audio.onerror = () => {
-    URL.revokeObjectURL(url);
-  };
+    URL.revokeObjectURL(url)
+  }
 
   // 再生開始
-  audio.play().catch(console.error);
-  return audio;
+  audio.play().catch(console.error)
+  return audio
 }
