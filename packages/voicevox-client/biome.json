@@ -37,12 +37,5 @@
       "semicolons": "asNeeded",
       "trailingCommas": "es5"
     }
-  },
-  "typescript": {
-    "formatter": {
-      "quoteStyle": "single",
-      "semicolons": "asNeeded",
-      "trailingCommas": "es5"
-    }
   }
 }

@@ -12,7 +12,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "typeRoots": ["../../node_modules/@types", "./node_modules/@types", "./src/types"],
-    "types": ["node", "jest"],
+    "types": ["node"],
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,

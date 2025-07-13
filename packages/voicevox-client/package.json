@@ -31,19 +31,8 @@
     "prepare": "pnpm build",
     "prepublishOnly": "pnpm lint"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
-  "keywords": [
-    "voicevox",
-    "tts",
-    "text-to-speech",
-    "audio",
-    "synthesis",
-    "queue"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
+  "keywords": ["voicevox", "tts", "text-to-speech", "audio", "synthesis", "queue"],
   "author": {
     "name": "kajidog",
     "email": "dev@kajidog.com"
@@ -72,16 +61,12 @@
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^20.19.2",
     "@types/uuid": "^10.0.0",
-    "@typescript/native-preview": "^0.1.0",
+    "@typescript/native-preview": "7.0.0-dev.20250712.1",
     "vitest": "^2.1.8",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
     "typescript": ">=4.5.0"
   },
-  "browserslist": [
-    "> 1%",
-    "last 2 versions",
-    "not dead"
-  ]
+  "browserslist": ["> 1%", "last 2 versions", "not dead"]
 }
