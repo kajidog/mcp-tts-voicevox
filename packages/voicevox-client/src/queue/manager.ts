@@ -414,7 +414,7 @@ export class VoicevoxQueueManager implements QueueManager {
             this.queue.splice(itemIndex, 1)
           }
         } catch (error) {
-          console.error(`Error playing audio immediately:`, error)
+          console.error('Error playing audio immediately:', error)
           this.updateItemStatus(item, QueueItemStatus.ERROR)
           item.error = error instanceof Error ? error : new Error(String(error))
           this.eventManager.emitEvent(QueueEventType.ERROR, item)
@@ -504,7 +504,7 @@ export class VoicevoxQueueManager implements QueueManager {
       this.currentPlayingItem = null
       this.processQueue()
     } catch (error) {
-      console.error(`Error playing audio:`, error)
+      console.error('Error playing audio:', error)
       this.updateItemStatus(nextItem, QueueItemStatus.ERROR)
       nextItem.error = error instanceof Error ? error : new Error(String(error))
       this.eventManager.emitEvent(QueueEventType.ERROR, nextItem)
@@ -544,7 +544,8 @@ export class VoicevoxQueueManager implements QueueManager {
             return this.audioGenerator
               .generateAudioFromQuery(item, this.updateItemStatus.bind(this))
               .catch((e) => console.error('Prefetch error:', e))
-          } else if (item.text) {
+          }
+          if (item.text) {
             return this.audioGenerator
               .generateAudio(item, this.updateItemStatus.bind(this))
               .catch((e) => console.error('Prefetch error:', e))
@@ -617,16 +618,16 @@ export class VoicevoxQueueManager implements QueueManager {
     }
 
     // 一時ファイルがあれば削除
-    this.queue.forEach((item) => {
+    for (const item of this.queue) {
       if (item.tempFile) {
         this.fileManager.deleteTempFile(item.tempFile)
       }
-    })
+    }
 
     // 即時再生用のインターバルをクリア
-    this.immediatePlayIntervals.forEach((interval) => {
+    for (const interval of this.immediatePlayIntervals) {
       clearInterval(interval)
-    })
+    }
     this.immediatePlayIntervals.clear()
 
     // キューをクリア

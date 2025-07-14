@@ -1,6 +1,6 @@
-import { spawn } from 'child_process'
-import * as fs from 'fs'
-import * as os from 'os'
+import { spawn } from 'node:child_process'
+import * as fs from 'node:fs'
+import * as os from 'node:os'
 import { handleError } from '../error'
 import { isBrowser, isTestEnvironment } from '../utils'
 
@@ -20,10 +20,9 @@ export class AudioPlayer {
       if (isBrowser()) {
         // ブラウザでの再生
         return this.playAudioInBrowser(filePath)
-      } else {
-        // Node.js環境での再生
-        return this.playAudioInNodejs(filePath)
       }
+      // Node.js環境での再生
+      return this.playAudioInNodejs(filePath)
     } catch (error) {
       // エラー発生時はハンドリングして再スロー
       throw handleError(`音声ファイルの再生中にエラーが発生しました: ${filePath}`, error)
@@ -52,7 +51,8 @@ export class AudioPlayer {
           command = 'afplay'
           args = [filePath]
           break
-        case 'win32': // Windows
+        case 'win32': {
+          // Windows
           command = 'powershell'
           // より簡単で確実なPowerShellコマンドを使用
           const escapedPath = filePath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
@@ -61,13 +61,15 @@ export class AudioPlayer {
             `Add-Type -AssemblyName presentationCore; $player = New-Object system.windows.media.mediaplayer; $player.open('${escapedPath}'); $player.Volume = 0.5; $player.Play(); Start-Sleep 1; Start-Sleep -s $player.NaturalDuration.TimeSpan.TotalSeconds; Exit;`,
           ]
           break
-        case 'linux': // Linux
+        }
+        case 'linux': {
+          // Linux
           // 利用可能なプレイヤーを順番に試す
           const linuxPlayers = ['aplay', 'paplay', 'play', 'ffplay']
           command =
             linuxPlayers.find((player) => {
               try {
-                const { execSync } = require('child_process')
+                const { execSync } = require('node:child_process')
                 execSync(`which ${player}`, { stdio: 'ignore' })
                 return true
               } catch {
@@ -76,6 +78,7 @@ export class AudioPlayer {
             }) || 'aplay' // デフォルトはaplay
           args = command === 'ffplay' ? ['-nodisp', '-autoexit', filePath] : [filePath]
           break
+        }
         default:
           reject(new Error(`サポートされていないプラットフォームです: ${platform}`))
           return

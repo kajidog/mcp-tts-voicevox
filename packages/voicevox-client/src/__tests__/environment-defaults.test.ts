@@ -126,9 +126,9 @@ describe('VoicevoxClient - 環境変数デフォルト値テスト', () => {
     })
 
     it('環境変数が設定されていない場合、デフォルト値が使用される', async () => {
-      delete process.env.VOICEVOX_DEFAULT_IMMEDIATE
-      delete process.env.VOICEVOX_DEFAULT_WAIT_FOR_START
-      delete process.env.VOICEVOX_DEFAULT_WAIT_FOR_END
+      process.env.VOICEVOX_DEFAULT_IMMEDIATE = undefined
+      process.env.VOICEVOX_DEFAULT_WAIT_FOR_START = undefined
+      process.env.VOICEVOX_DEFAULT_WAIT_FOR_END = undefined
 
       const config: VoicevoxConfig = {
         url: 'http://localhost:50021',

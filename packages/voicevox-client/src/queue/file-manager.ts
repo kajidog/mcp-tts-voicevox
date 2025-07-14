@@ -12,15 +12,15 @@ if (!isBrowser()) {
   ;(async () => {
     try {
       // 動的インポートを使用して必要なモジュールを読み込む
-      fsPromises = await import('fs/promises')
-      path = await import('path')
-      os = await import('os')
+      fsPromises = await import('node:fs/promises')
+      path = await import('node:path')
+      os = await import('node:os')
     } catch (error) {
       // 動的インポートが失敗した場合（古いNode.js環境など）、従来のrequireを使用
       try {
-        fsPromises = require('fs/promises')
-        path = require('path')
-        os = require('os')
+        fsPromises = require('node:fs/promises')
+        path = require('node:path')
+        os = require('node:os')
       } catch (requireError) {
         console.error(
           '必要なNode.jsモジュールを読み込めませんでした。この機能は正常に動作しない可能性があります。',
@@ -117,12 +117,11 @@ export class AudioFileManager {
       const url = URL.createObjectURL(tempBlob)
       this.blobUrls.add(url)
       return url
-    } else {
-      // すでに適切なtype属性がある場合はそのまま使用
-      const url = URL.createObjectURL(blob)
-      this.blobUrls.add(url)
-      return url
     }
+    // すでに適切なtype属性がある場合はそのまま使用
+    const url = URL.createObjectURL(blob)
+    this.blobUrls.add(url)
+    return url
   }
 
   /**
@@ -143,9 +142,9 @@ export class AudioFileManager {
    * 全てのBlobURLを解放
    */
   public releaseAllBlobUrls(): void {
-    this.blobUrls.forEach((url) => {
+    for (const url of this.blobUrls) {
       URL.revokeObjectURL(url)
-    })
+    }
     this.blobUrls.clear()
   }
 
@@ -196,10 +195,9 @@ export class AudioFileManager {
         // forceDownloadフラグがtrueの場合のみダウンロードを実行
         if (forceDownload) {
           return this.browserDownloadFile(blob, filename)
-        } else {
-          // 強制ダウンロードでない場合はblobURLを返す
-          return this.createBlobUrl(blob)
         }
+        // 強制ダウンロードでない場合はblobURLを返す
+        return this.createBlobUrl(blob)
       }
 
       // Node.jsモジュールが利用可能か確認

@@ -1,7 +1,7 @@
-import { spawn } from 'child_process'
-import * as fs from 'fs'
-import * as os from 'os'
-import * as path from 'path'
+import { spawn } from 'node:child_process'
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VoicevoxApi } from '../api'
 import { VoicevoxClient } from '../client'
@@ -111,7 +111,7 @@ describe('Immediate Playback', () => {
     // クライアントのクリーンアップ
     if (client) {
       const player = (client as any).player
-      if (player && player.queueManager) {
+      if (player?.queueManager) {
         player.queueManager.cleanup()
       }
     }

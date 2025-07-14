@@ -147,9 +147,8 @@ export class VoicevoxPlayer {
       // 出力パスが指定されていない場合は一時ファイル、指定されている場合は指定パスに保存
       if (!output) {
         return await fileManager.saveTempAudioFile(audioData)
-      } else {
-        return await fileManager.saveAudioFile(audioData, output)
       }
+      return await fileManager.saveAudioFile(audioData, output)
     }, '音声ファイル生成中にエラーが発生しました')
   }
 

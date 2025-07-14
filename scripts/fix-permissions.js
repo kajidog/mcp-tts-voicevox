@@ -2,8 +2,8 @@
  * クロスプラットフォームで実行権限を設定するスクリプト
  * Windowsではfs.chmodは機能しないが、shebangの追加は効果あり
  */
-const fs = require('fs')
-const path = require('path')
+const fs = require('node:fs')
+const path = require('node:path')
 
 // ターゲットファイルのパス
 const indexJsPath = path.join(__dirname, '..', 'dist', 'index.js')
@@ -29,7 +29,7 @@ try {
   // すでにshebangが含まれているか確認
   if (!content.startsWith('#!/usr/bin/env node')) {
     // shebangがなければ追加
-    content = '#!/usr/bin/env node\n' + content
+    content = `#!/usr/bin/env node\n${content}`
     fs.writeFileSync(indexJsPath, content, 'utf8')
     console.log(`${indexJsPath} にshebangを追加しました`)
   } else {
