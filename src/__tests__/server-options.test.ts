@@ -21,7 +21,7 @@ describe('MCP Server - 再生オプションの処理', () => {
   describe('immediate オプションのデフォルト値処理', () => {
     it('環境変数が未設定で immediate=true を明示指定した場合、true になる', () => {
       // 環境変数を未設定にする
-      delete process.env.VOICEVOX_DEFAULT_IMMEDIATE
+      process.env.VOICEVOX_DEFAULT_IMMEDIATE = undefined
 
       // server.ts の処理をシミュレート
       const defaultImmediate = process.env.VOICEVOX_DEFAULT_IMMEDIATE !== 'false'
@@ -32,7 +32,7 @@ describe('MCP Server - 再生オプションの処理', () => {
     })
 
     it('環境変数が未設定で immediate 未指定の場合、true になる', () => {
-      delete process.env.VOICEVOX_DEFAULT_IMMEDIATE
+      process.env.VOICEVOX_DEFAULT_IMMEDIATE = undefined
 
       const defaultImmediate = process.env.VOICEVOX_DEFAULT_IMMEDIATE !== 'false'
       const immediate = undefined // 未指定
@@ -94,7 +94,7 @@ describe('MCP Server - 再生オプションの処理', () => {
     })
 
     it('環境変数未設定でオプション未指定の場合', () => {
-      delete process.env.VOICEVOX_DEFAULT_WAIT_FOR_START
+      process.env.VOICEVOX_DEFAULT_WAIT_FOR_START = undefined
 
       const defaultWaitForStart = process.env.VOICEVOX_DEFAULT_WAIT_FOR_START === 'true'
       const waitForStart = undefined // 未指定
@@ -116,7 +116,7 @@ describe('MCP Server - 再生オプションの処理', () => {
     })
 
     it('環境変数未設定でオプション未指定の場合', () => {
-      delete process.env.VOICEVOX_DEFAULT_WAIT_FOR_END
+      process.env.VOICEVOX_DEFAULT_WAIT_FOR_END = undefined
 
       const defaultWaitForEnd = process.env.VOICEVOX_DEFAULT_WAIT_FOR_END === 'true'
       const waitForEnd = undefined // 未指定
@@ -129,7 +129,7 @@ describe('MCP Server - 再生オプションの処理', () => {
   describe('修正前の問題を確認（回帰テスト）', () => {
     it('修正前の処理では immediate=true が無視されていた', () => {
       // 修正前の処理をシミュレート
-      delete process.env.VOICEVOX_DEFAULT_IMMEDIATE
+      process.env.VOICEVOX_DEFAULT_IMMEDIATE = undefined
 
       const oldDefaultImmediate = process.env.VOICEVOX_DEFAULT_IMMEDIATE === 'true' // false
       const immediate = true // 明示指定

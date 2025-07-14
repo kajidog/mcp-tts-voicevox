@@ -27,60 +27,58 @@ interface HealthCheckResponse {
 /**
  * JSONRPCエラーレスポンスを生成するヘルパー関数
  */
-class ErrorResponseBuilder {
-  static missingSessionId(): ErrorResponse {
-    return {
-      jsonrpc: '2.0',
-      error: {
-        code: -32602,
-        message: 'Missing sessionId parameter',
-      },
-      id: null,
-    }
+function missingSessionIdError(): ErrorResponse {
+  return {
+    jsonrpc: '2.0',
+    error: {
+      code: -32602,
+      message: 'Missing sessionId parameter',
+    },
+    id: null,
   }
+}
 
-  static sessionNotFound(): ErrorResponse {
-    return {
-      jsonrpc: '2.0',
-      error: {
-        code: -32001,
-        message: 'No transport found for sessionId',
-      },
-      id: null,
-    }
+function sessionNotFoundError(): ErrorResponse {
+  return {
+    jsonrpc: '2.0',
+    error: {
+      code: -32001,
+      message: 'No transport found for sessionId',
+    },
+    id: null,
   }
+}
 
-  static badRequest(message = 'Bad Request: No valid session ID provided'): ErrorResponse {
-    return {
-      jsonrpc: '2.0',
-      error: {
-        code: -32000,
-        message,
-      },
-      id: null,
-    }
+function badRequestError(message = 'Bad Request: No valid session ID provided'): ErrorResponse {
+  return {
+    jsonrpc: '2.0',
+    error: {
+      code: -32000,
+      message,
+    },
+    id: null,
   }
+}
 
-  static internalError(): ErrorResponse {
-    return {
-      jsonrpc: '2.0',
-      error: {
-        code: -32603,
-        message: 'Internal server error',
-      },
-      id: null,
-    }
+function internalServerError(): ErrorResponse {
+  return {
+    jsonrpc: '2.0',
+    error: {
+      code: -32603,
+      message: 'Internal server error',
+    },
+    id: null,
   }
+}
 
-  static methodNotAllowed(): ErrorResponse {
-    return {
-      jsonrpc: '2.0',
-      error: {
-        code: -32000,
-        message: 'Method not allowed.',
-      },
-      id: null,
-    }
+function methodNotAllowedError(): ErrorResponse {
+  return {
+    jsonrpc: '2.0',
+    error: {
+      code: -32000,
+      message: 'Method not allowed.',
+    },
+    id: null,
   }
 }
 
@@ -218,7 +216,7 @@ class RouteHandlers {
 
       if (!transport) {
         console.log('Invalid request - no session ID and not an initialize request')
-        return c.json(ErrorResponseBuilder.badRequest(), { status: 400 })
+        return c.json(badRequestError(), { status: 400 })
       }
 
       // 新しいトランスポートの場合はサーバーに接続
@@ -231,7 +229,7 @@ class RouteHandlers {
       return toFetchResponse(res)
     } catch (e) {
       console.error('StreamableHTTP connection error:', e)
-      return c.json(ErrorResponseBuilder.internalError(), { status: 500 })
+      return c.json(internalServerError(), { status: 500 })
     }
   }
 
@@ -248,7 +246,7 @@ class RouteHandlers {
       return toFetchResponse(res)
     } catch (e) {
       console.error('SSE connection error:', e)
-      return c.json(ErrorResponseBuilder.internalError(), { status: 500 })
+      return c.json(internalServerError(), { status: 500 })
     }
   }
 
@@ -262,12 +260,12 @@ class RouteHandlers {
     const sessionId = c.req.query('sessionId')
 
     if (!sessionId) {
-      return c.json(ErrorResponseBuilder.missingSessionId(), { status: 400 })
+      return c.json(missingSessionIdError(), { status: 400 })
     }
 
     const transport = this.transportManager.getSSETransport(sessionId)
     if (!transport) {
-      return c.json(ErrorResponseBuilder.sessionNotFound(), { status: 400 })
+      return c.json(sessionNotFoundError(), { status: 400 })
     }
 
     try {
@@ -276,7 +274,7 @@ class RouteHandlers {
       return toFetchResponse(res)
     } catch (e) {
       console.error('Message handling error:', e)
-      return c.json(ErrorResponseBuilder.internalError(), { status: 500 })
+      return c.json(internalServerError(), { status: 500 })
     }
   }
 

@@ -1,7 +1,7 @@
-import { tmpdir } from 'os'
-import { join } from 'path'
+import * as fs from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { type AudioQuery, VoicevoxClient } from '@kajidog/voicevox-client'
-import * as fs from 'fs/promises'
 
 const soundPlay = require('sound-play')
 
@@ -61,7 +61,7 @@ async function testTextToSpeech(client: VoicevoxClient, speaker: number): Promis
   // 2. generateQuery テスト - テキストから音声合成用クエリを生成
   console.log('\n➡️ テキストから音声合成用クエリ生成')
   const query = await client.generateQuery(testText, speaker)
-  console.log('✅ クエリ生成結果 (一部):', JSON.stringify(query).substring(0, 100) + '...')
+  console.log('✅ クエリ生成結果 (一部):', `${JSON.stringify(query).substring(0, 100)}...`)
 
   return query
 }
@@ -145,7 +145,7 @@ async function testAudioQueue(client: VoicevoxClient, query: AudioQuery, speaker
   // クエリを使って音声生成キューに追加
   console.log('➡️ クエリを使って音声生成キューへの追加')
   const enqueueResult = await client.enqueueAudioGeneration(query, speaker)
-  console.log(`✅ キュー追加結果:`, enqueueResult)
+  console.log('✅ キュー追加結果:', enqueueResult)
 }
 
 /**
@@ -242,7 +242,7 @@ async function testGenerateQueryTool(client: VoicevoxClient): Promise<AudioQuery
       console.log(`➡️ テキスト「${text}」を話者${speaker}、速度${speedScale || 1.0}でクエリ生成`)
       const generatedQuery = await client.generateQuery(text, speaker, speedScale)
       const queryJson = JSON.stringify(generatedQuery)
-      console.log('✅ クエリ生成結果 (一部):', queryJson.substring(0, 100) + '...')
+      console.log('✅ クエリ生成結果 (一部):', `${queryJson.substring(0, 100)}...`)
       return {
         content: [{ type: 'text', text: queryJson }],
       }

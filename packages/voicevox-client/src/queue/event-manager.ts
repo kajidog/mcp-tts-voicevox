@@ -9,9 +9,9 @@ export class EventManager {
 
   constructor() {
     // イベントタイプごとのリスナー配列を初期化
-    Object.values(QueueEventType).forEach((eventType) => {
+    for (const eventType of Object.values(QueueEventType)) {
       this.eventListeners.set(eventType, [])
-    })
+    }
   }
 
   /**
@@ -49,12 +49,12 @@ export class EventManager {
    */
   public emitEvent(event: QueueEventType, item?: QueueItem): void {
     const listeners = this.eventListeners.get(event) || []
-    listeners.forEach((listener) => {
+    for (const listener of listeners) {
       try {
         listener(event, item)
       } catch (error) {
         console.error(`イベントリスナーの実行中にエラーが発生しました (${event}):`, error)
       }
-    })
+    }
   }
 }

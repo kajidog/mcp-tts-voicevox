@@ -67,61 +67,60 @@ export class VoicevoxError extends Error {
 }
 
 /**
- * エラーハンドリングユーティリティクラス
+ * エラーハンドリングユーティリティ関数
  * アプリケーション全体で統一されたエラーハンドリングを提供
  */
-export class ErrorHandler {
-  /**
-   * エラーをVoicevoxError形式に変換して例外をスロー
-   */
-  static throw(
-    message: string,
-    code: VoicevoxErrorCode = VoicevoxErrorCode.UNKNOWN_ERROR,
-    originalError?: unknown
-  ): never {
-    console.error(`[${code}] ${message}`, originalError)
-    throw new VoicevoxError(message, code, originalError)
-  }
 
-  /**
-   * APIエラーを処理
-   */
-  static handleApiError(message: string, error: unknown): never {
-    return this.throw(message, VoicevoxErrorCode.API_CONNECTION_ERROR, error)
-  }
+/**
+ * エラーをVoicevoxError形式に変換して例外をスロー
+ */
+export function throwVoicevoxError(
+  message: string,
+  code: VoicevoxErrorCode = VoicevoxErrorCode.UNKNOWN_ERROR,
+  originalError?: unknown
+): never {
+  console.error(`[${code}] ${message}`, originalError)
+  throw new VoicevoxError(message, code, originalError)
+}
 
-  /**
-   * クエリ生成エラーを処理
-   */
-  static handleQueryGenerationError(message: string, error: unknown): never {
-    return this.throw(message, VoicevoxErrorCode.QUERY_GENERATION_ERROR, error)
-  }
+/**
+ * APIエラーを処理
+ */
+export function handleApiError(message: string, error: unknown): never {
+  return throwVoicevoxError(message, VoicevoxErrorCode.API_CONNECTION_ERROR, error)
+}
 
-  /**
-   * 音声合成エラーを処理
-   */
-  static handleSynthesisError(message: string, error: unknown): never {
-    return this.throw(message, VoicevoxErrorCode.SYNTHESIS_ERROR, error)
-  }
+/**
+ * クエリ生成エラーを処理
+ */
+export function handleQueryGenerationError(message: string, error: unknown): never {
+  return throwVoicevoxError(message, VoicevoxErrorCode.QUERY_GENERATION_ERROR, error)
+}
 
-  /**
-   * ファイル操作エラーを処理
-   */
-  static handleFileError(message: string, error: unknown): never {
-    return this.throw(message, VoicevoxErrorCode.FILE_OPERATION_ERROR, error)
-  }
+/**
+ * 音声合成エラーを処理
+ */
+export function handleSynthesisError(message: string, error: unknown): never {
+  return throwVoicevoxError(message, VoicevoxErrorCode.SYNTHESIS_ERROR, error)
+}
 
-  /**
-   * 再生エラーを処理
-   */
-  static handlePlaybackError(message: string, error: unknown): never {
-    return this.throw(message, VoicevoxErrorCode.PLAYBACK_ERROR, error)
-  }
+/**
+ * ファイル操作エラーを処理
+ */
+export function handleFileError(message: string, error: unknown): never {
+  return throwVoicevoxError(message, VoicevoxErrorCode.FILE_OPERATION_ERROR, error)
+}
 
-  /**
-   * キュー操作エラーを処理
-   */
-  static handleQueueError(message: string, error: unknown): never {
-    return this.throw(message, VoicevoxErrorCode.QUEUE_OPERATION_ERROR, error)
-  }
+/**
+ * 再生エラーを処理
+ */
+export function handlePlaybackError(message: string, error: unknown): never {
+  return throwVoicevoxError(message, VoicevoxErrorCode.PLAYBACK_ERROR, error)
+}
+
+/**
+ * キュー操作エラーを処理
+ */
+export function handleQueueError(message: string, error: unknown): never {
+  return throwVoicevoxError(message, VoicevoxErrorCode.QUEUE_OPERATION_ERROR, error)
 }

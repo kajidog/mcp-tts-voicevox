@@ -57,7 +57,7 @@ const mockPlayPromises: Record<
 vi.mock('child_process', () => ({
   spawn: vi.fn().mockImplementation((_command: string, _args: string[]) => {
     const mockProcess = {
-      on: vi.fn().mockImplementation((event: string, callback: Function) => {
+      on: vi.fn().mockImplementation((event: string, callback: (code: number) => void) => {
         if (event === 'close') {
           // 成功を模倣
           setTimeout(() => callback(0), 10)
@@ -89,7 +89,7 @@ vi.mock('os', () => ({
 let mockFsUnlink: any
 
 beforeAll(async () => {
-  const fsPromises = await import('fs/promises')
+  const fsPromises = await import('node:fs/promises')
   mockFsUnlink = fsPromises.unlink as any
 })
 
@@ -98,7 +98,9 @@ describe('VoicevoxQueueManager', () => {
 
   beforeEach(() => {
     vi.clearAllMocks() // 各テスト前にモックをクリア
-    Object.keys(mockPlayPromises).forEach((key) => delete mockPlayPromises[key]) // プレイプロミスもクリア
+    for (const key of Object.keys(mockPlayPromises)) {
+      delete mockPlayPromises[key]
+    } // プレイプロミスもクリア
     queueManager = new VoicevoxQueueManager(mockApi, 2)
   })
 
@@ -106,7 +108,6 @@ describe('VoicevoxQueueManager', () => {
     const text = 'テストテキスト'
     const speaker = 1
     const mockQuery = createMockQuery()
-
     ;(mockApi.generateQuery as any).mockResolvedValue(mockQuery)
     ;(mockApi.synthesize as any).mockResolvedValue(DEFAULT_MOCK_AUDIO_DATA)
 
@@ -145,7 +146,6 @@ describe('VoicevoxQueueManager', () => {
     }
     const speaker = 3
     const mockAudioData = new ArrayBuffer(20)
-
     ;(mockApi.synthesize as any).mockResolvedValue(mockAudioData)
 
     const itemAddedPromise = new Promise<QueueItem>((resolve) => {
@@ -222,7 +222,6 @@ describe('VoicevoxQueueManager', () => {
     const speaker = 1
     const mockQuery = createMockQuery()
     const mockTempFile = 'mock-temp-file.wav'
-
     ;(mockApi.generateQuery as any).mockResolvedValue(mockQuery)
     ;(mockApi.synthesize as any).mockResolvedValue(DEFAULT_MOCK_AUDIO_DATA)
 
@@ -440,7 +439,6 @@ describe('VoicevoxQueueManager', () => {
   it('音声再生中にエラーが発生した場合のハンドリング', async () => {
     const mockQuery = createMockQuery()
     const playError = new Error('再生エラー')
-
     ;(mockApi.generateQuery as any).mockResolvedValue(mockQuery)
     ;(mockApi.synthesize as any).mockResolvedValue(DEFAULT_MOCK_AUDIO_DATA)
 

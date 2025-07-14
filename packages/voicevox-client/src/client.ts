@@ -259,13 +259,12 @@ export class VoicevoxClient {
           text: segment.text,
           speaker: segment.speaker || defaultSpeaker,
         }))
-      } else {
-        // 文字列配列の場合
-        return (input as string[]).map((text) => ({
-          text,
-          speaker: defaultSpeaker,
-        }))
       }
+      // 文字列配列の場合
+      return (input as string[]).map((text) => ({
+        text,
+        speaker: defaultSpeaker,
+      }))
     }
 
     return []
@@ -347,22 +346,19 @@ export class VoicevoxClient {
             .substring(0, 10)
             .replace(/[^a-zA-Z0-9]/g, '_')}-${Date.now()}.wav`
           return await this.player.synthesizeToFile(query, defaultFilename, speakerId)
-        } else {
-          return await this.player.synthesizeToFile(query, outputPath, speakerId)
         }
-      } else {
-        // クエリを使って音声合成
-        const query = { ...textOrQuery, speedScale: speed }
-
-        // 一時ファイル保存またはパス指定の保存
-        if (!outputPath) {
-          // ブラウザ環境ではデフォルトファイル名を生成
-          const defaultFilename = `voice-${Date.now()}.wav`
-          return await this.player.synthesizeToFile(query, defaultFilename, speakerId)
-        } else {
-          return await this.player.synthesizeToFile(query, outputPath, speakerId)
-        }
+        return await this.player.synthesizeToFile(query, outputPath, speakerId)
       }
+      // クエリを使って音声合成
+      const query = { ...textOrQuery, speedScale: speed }
+
+      // 一時ファイル保存またはパス指定の保存
+      if (!outputPath) {
+        // ブラウザ環境ではデフォルトファイル名を生成
+        const defaultFilename = `voice-${Date.now()}.wav`
+        return await this.player.synthesizeToFile(query, defaultFilename, speakerId)
+      }
+      return await this.player.synthesizeToFile(query, outputPath, speakerId)
     } catch (error) {
       throw handleError('音声ファイル生成中にエラーが発生しました', error)
     }
@@ -493,7 +489,7 @@ export class VoicevoxClient {
           await Promise.all(waitPromises)
         }
 
-        return `クエリをキューに追加しました`
+        return 'クエリをキューに追加しました'
       }
 
       // テキスト系の場合
@@ -551,7 +547,7 @@ export class VoicevoxClient {
         await Promise.all(promises)
       }
 
-      return `テキストをキューに追加しました`
+      return 'テキストをキューに追加しました'
     } catch (error) {
       return formatError('音声生成中にエラーが発生しました', error)
     }
