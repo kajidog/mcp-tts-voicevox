@@ -19,9 +19,29 @@ VOICEVOX を使用した音声合成 MCP サーバー
 
 ## インストール
 
+### NPM パッケージとして
+
 ```bash
 npm install -g @kajidog/mcp-tts-voicevox
 ```
+
+### Docker を使用
+
+```bash
+# Docker Compose で起動（推奨）
+git clone https://github.com/kajidog/mcp-tts-voicevox.git
+cd mcp-tts-voicevox
+docker-compose up -d
+
+# Docker Hub から直接利用
+docker run -d \
+  --name mcp-tts-voicevox \
+  -p 3000:3000 \
+  -e MCP_HTTP_MODE=true \
+  kajidog/mcp-tts-voicevox:latest
+```
+
+詳細な Docker セットアップについては、[Docker Setup Guide](docs/docker-setup.md) を参照してください。
 
 ## 使い方
 
@@ -351,6 +371,18 @@ ISC
     ```bash
     pnpm install
     ```
+
+### Docker での開発
+
+Docker環境での開発も可能です：
+
+```bash
+# 開発環境用 Docker Compose で起動
+docker-compose -f docker-compose.dev.yml up -d
+
+# ログを確認
+docker-compose -f docker-compose.dev.yml logs -f mcp-server
+```
 
 ### 主要な開発コマンド
 
