@@ -2,46 +2,48 @@
 
 # MCP TTS VOICEVOX
 
-VOICEVOX を使用した音声合成 MCP サーバー
+**English** | [日本語](README.ja.md)
 
-## 特徴
+A text-to-speech MCP server using VOICEVOX
 
-- **高度な再生制御** - キュー管理・即時再生・同期/非同期制御による柔軟な音声処理
-- **プリフェッチ** - 次の音声を事前に生成し、再生をスムーズに
-- **クロスプラットフォーム対応** - Windows、macOS、Linux で動作（WSL環境での音声再生にも対応）
-- **Stdio/HTTP 対応** - Stdio や SSE、StreamableHttp に対応
-- **複数話者対応** - セグメント単位での個別話者指定が可能
-- **テキスト自動分割** - 長文の自動分割による安定した音声合成
-- **独立したクライアントライブラリ** - [`@kajidog/voicevox-client`](https://www.npmjs.com/package/@kajidog/voicevox-client) として別パッケージで提供
+## Features
 
-## 必要条件
+- **Advanced playback control** - Flexible audio processing with queue management, immediate playback, and synchronous/asynchronous control
+- **Prefetching** - Pre-generates next audio for smooth playback
+- **Cross-platform support** - Works on Windows, macOS, and Linux (including WSL environment audio playback)
+- **Stdio/HTTP support** - Supports Stdio, SSE, and StreamableHttp
+- **Multiple speaker support** - Individual speaker specification per segment
+- **Automatic text segmentation** - Stable audio synthesis through automatic long text segmentation
+- **Independent client library** - Provided as a separate package [`@kajidog/voicevox-client`](https://www.npmjs.com/package/@kajidog/voicevox-client)
 
-- Node.js 18.0.0 以上
-- [VOICEVOX エンジン](https://voicevox.hiroshiba.jp/) または互換エンジン
+## Requirements
 
-## インストール
+- Node.js 18.0.0 or higher
+- [VOICEVOX Engine](https://voicevox.hiroshiba.jp/) or compatible engine
+
+## Installation
 
 ```bash
 npm install -g @kajidog/mcp-tts-voicevox
 ```
 
-## 使い方
+## Usage
 
-### MCP サーバーとして
+### As MCP Server
 
-#### 1. VOICEVOX エンジンを起動
+#### 1. Start VOICEVOX Engine
 
-VOICEVOX エンジンを起動し、デフォルトポート（`http://localhost:50021`）で待機状態にします。
+Start the VOICEVOX Engine and have it wait on the default port (`http://localhost:50021`).
 
-#### 2. MCP サーバーを起動
+#### 2. Start MCP Server
 
-**標準入出力モード（推奨）:**
+**Standard I/O mode (recommended):**
 
 ```bash
 npx @kajidog/mcp-tts-voicevox
 ```
 
-**HTTP サーバーモード:**
+**HTTP server mode:**
 
 ```bash
 # Linux/macOS
@@ -51,113 +53,113 @@ MCP_HTTP_MODE=true npx @kajidog/mcp-tts-voicevox
 $env:MCP_HTTP_MODE='true'; npx @kajidog/mcp-tts-voicevox
 ```
 
-## MCP ツール
+## MCP Tools
 
-### `speak` - テキスト読み上げ
+### `speak` - Text-to-speech
 
-テキストを音声に変換して再生します。
+Converts text to speech and plays it.
 
-**パラメータ:**
+**Parameters:**
 
-- `text`: 文字列（改行区切りで複数テキスト、話者指定は「1:テキスト」形式）
-- `speaker` (オプション): 話者 ID
-- `speedScale` (オプション): 再生速度
-- `immediate` (オプション): 即座に再生開始するか（デフォルト: true）
-- `waitForStart` (オプション): 再生開始まで待機するか（デフォルト: false）
-- `waitForEnd` (オプション): 再生終了まで待機するか（デフォルト: false）
+- `text`: String (multiple texts separated by newlines, speaker specification in "1:text" format)
+- `speaker` (optional): Speaker ID
+- `speedScale` (optional): Playback speed
+- `immediate` (optional): Whether to start playback immediately (default: true)
+- `waitForStart` (optional): Whether to wait for playback to start (default: false)
+- `waitForEnd` (optional): Whether to wait for playback to end (default: false)
 
-**使用例:**
+**Examples:**
 
 ```javascript
-// シンプルなテキスト
-{ "text": "こんにちは\n今日はいい天気ですね" }
+// Simple text
+{ "text": "Hello\nIt's a nice day today" }
 
-// 話者指定
-{ "text": "こんにちは", "speaker": 3 }
+// Speaker specification
+{ "text": "Hello", "speaker": 3 }
 
-// セグメント別話者指定
-{ "text": "1:こんにちは\n3:今日はいい天気ですね" }
+// Per-segment speaker specification
+{ "text": "1:Hello\n3:It's a nice day today" }
 
-// 即座に再生（キューを迂回）
+// Immediate playback (bypass queue)
 {
-  "text": "緊急メッセージです",
+  "text": "Emergency message",
   "immediate": true,
   "waitForEnd": true
 }
 
-// 再生終了まで待機（同期処理）
+// Wait for playback to complete (synchronous processing)
 {
-  "text": "この音声の再生が完了するまで次の処理を待機",
+  "text": "Wait for this audio playback to complete before next processing",
   "waitForEnd": true
 }
 
-// キューに追加するが自動再生しない
+// Add to queue but don't auto-play
 {
-  "text": "手動で再生開始するまで待機",
+  "text": "Wait for manual playback start",
   "immediate": false
 }
 ```
 
-### 高度な再生制御機能
+### Advanced Playback Control Features
 
-#### 即時再生（`immediate: true`）
+#### Immediate Playback (`immediate: true`)
 
-キューを迂回して音声を即座に再生：
+Play audio immediately by bypassing the queue:
 
-- **通常のキューと並行動作**: 既存のキュー再生を妨げません
-- **複数同時再生**: 複数の即時再生を同時に実行可能
-- **緊急通知に最適**: 重要なメッセージを優先的に再生
+- **Parallel operation with regular queue**: Does not interfere with existing queue playback
+- **Multiple simultaneous playback**: Multiple immediate playbacks can run simultaneously
+- **Ideal for urgent notifications**: Prioritizes important messages
 
-#### 同期再生制御（`waitForEnd: true`）
+#### Synchronous Playback Control (`waitForEnd: true`)
 
-再生完了まで待機して処理を同期化：
+Wait for playback completion to synchronize processing:
 
-- **順次処理**: 音声再生後に次の処理を実行
-- **タイミング制御**: 音声と他の処理の連携が可能
-- **UI 同期**: 画面表示と音声のタイミングを合わせる
+- **Sequential processing**: Execute next processing after audio playback
+- **Timing control**: Enables coordination between audio and other processing
+- **UI synchronization**: Align screen display with audio timing
 
 ```javascript
-// 例1: 緊急メッセージを即座に再生し、完了まで待機
+// Example 1: Play urgent message immediately and wait for completion
 {
-  "text": "緊急！すぐに確認してください",
+  "text": "Emergency! Please check immediately",
   "immediate": true,
   "waitForEnd": true
 }
 
-// 例2: ステップバイステップの音声ガイド
+// Example 2: Step-by-step audio guide
 {
-  "text": "手順1: ファイルを開いてください",
+  "text": "Step 1: Please open the file",
   "waitForEnd": true
 }
-// 上記の音声が完了してから次の処理が実行される
+// Next processing executes after the above audio completes
 ```
 
-### その他のツール
+### Other Tools
 
-- `generate_query` - 音声合成用クエリを生成
-- `synthesize_file` - 音声ファイルを生成
-- `stop_speaker` - 再生停止・キュークリア
-- `get_speakers` - 話者一覧取得
-- `get_speaker_detail` - 話者詳細取得
+- `generate_query` - Generate query for speech synthesis
+- `synthesize_file` - Generate audio file
+- `stop_speaker` - Stop playback and clear queue
+- `get_speakers` - Get speaker list
+- `get_speaker_detail` - Get speaker details
 
-## パッケージ構成
+## Package Structure
 
-### @kajidog/mcp-tts-voicevox (このパッケージ)
+### @kajidog/mcp-tts-voicevox (this package)
 
-- **MCP サーバー** - Claude Desktop 等の MCP クライアントと通信
-- **HTTP サーバー** - SSE/StreamableHTTP によるリモート MCP 通信
+- **MCP Server** - Communicates with MCP clients like Claude Desktop
+- **HTTP Server** - Remote MCP communication via SSE/StreamableHTTP
 
-### [@kajidog/voicevox-client](https://www.npmjs.com/package/@kajidog/voicevox-client) (独立パッケージ)
+### [@kajidog/voicevox-client](https://www.npmjs.com/package/@kajidog/voicevox-client) (independent package)
 
-- **汎用ライブラリ** - VOICEVOX エンジンとの通信機能
-- **クロスプラットフォーム** - Node.js、ブラウザ環境対応
-- **高度な再生制御** - 即時再生・同期再生・キュー管理機能
+- **General-purpose library** - Communication functionality with VOICEVOX Engine
+- **Cross-platform** - Node.js and browser environment support
+- **Advanced playback control** - Immediate playback, synchronous playback, and queue management features
 
-## MCP 設定例
+## MCP Configuration Examples
 
-### Claude Desktop での設定
+### Claude Desktop Configuration
 
-`claude_desktop_config.json` ファイルに以下の設定を追加：
+Add the following configuration to your `claude_desktop_config.json` file:
 
 ```json
 {
@@ -170,11 +172,11 @@ $env:MCP_HTTP_MODE='true'; npx @kajidog/mcp-tts-voicevox
 }
 ```
 
-#### SSE モードが必要な場合
+#### When SSE Mode is Required
 
-SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用して SSE↔Stdio 変換を行えます：
+If you need speech synthesis in SSE mode, you can use `mcp-remote` for SSE↔Stdio conversion:
 
-1. **Claude Desktop 設定**
+1. **Claude Desktop Configuration**
 
    ```json
    {
@@ -187,7 +189,7 @@ SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用し
    }
    ```
 
-2. **SSE サーバーの起動**
+2. **Starting SSE Server**
 
    **Mac/Linux:**
 
@@ -203,7 +205,7 @@ SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用し
 
 ````
 
-### AivisSpeech での設定例
+### AivisSpeech Configuration Example
 
 ```json
 {
@@ -220,69 +222,69 @@ SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用し
 }
 ````
 
-## 環境変数
+## Environment Variables
 
-### VOICEVOX 設定
+### VOICEVOX Configuration
 
-- `VOICEVOX_URL`: VOICEVOX エンジンの URL（デフォルト: `http://localhost:50021`）
-- `VOICEVOX_DEFAULT_SPEAKER`: デフォルト話者 ID（デフォルト: `1`）
-- `VOICEVOX_DEFAULT_SPEED_SCALE`: デフォルト再生速度（デフォルト: `1.0`）
+- `VOICEVOX_URL`: VOICEVOX Engine URL (default: `http://localhost:50021`)
+- `VOICEVOX_DEFAULT_SPEAKER`: Default speaker ID (default: `1`)
+- `VOICEVOX_DEFAULT_SPEED_SCALE`: Default playback speed (default: `1.0`)
 
-### 再生オプション設定
+### Playback Options Configuration
 
-- `VOICEVOX_DEFAULT_IMMEDIATE`: キュー追加時に即座に再生開始するか（デフォルト: `true`）
-- `VOICEVOX_DEFAULT_WAIT_FOR_START`: 再生開始まで待機するか（デフォルト: `false`）
-- `VOICEVOX_DEFAULT_WAIT_FOR_END`: 再生終了まで待機するか（デフォルト: `false`）
+- `VOICEVOX_DEFAULT_IMMEDIATE`: Whether to start playback immediately when added to queue (default: `true`)
+- `VOICEVOX_DEFAULT_WAIT_FOR_START`: Whether to wait for playback to start (default: `false`)
+- `VOICEVOX_DEFAULT_WAIT_FOR_END`: Whether to wait for playback to end (default: `false`)
 
-**使用例:**
+**Usage Examples:**
 
 ```bash
-# 例1: 全ての音声再生で完了まで待機（同期処理）
+# Example 1: Wait for completion for all audio playback (synchronous processing)
 export VOICEVOX_DEFAULT_WAIT_FOR_END=true
 npx @kajidog/mcp-tts-voicevox
 
-# 例2: 再生開始と終了の両方を待機
+# Example 2: Wait for both playback start and end
 export VOICEVOX_DEFAULT_WAIT_FOR_START=true
 export VOICEVOX_DEFAULT_WAIT_FOR_END=true
 npx @kajidog/mcp-tts-voicevox
 
-# 例3: 手動制御（自動再生無効）
+# Example 3: Manual control (disable auto-play)
 export VOICEVOX_DEFAULT_IMMEDIATE=false
 npx @kajidog/mcp-tts-voicevox
 ```
 
-これらのオプションにより、アプリケーションの要件に応じて音声再生の挙動を細かく制御できます。
+These options allow fine-grained control of audio playback behavior according to application requirements.
 
-### サーバー設定
+### Server Configuration
 
-- `MCP_HTTP_MODE`: HTTP サーバーモードの有効化（`true` で有効）
-- `MCP_HTTP_PORT`: HTTP サーバーのポート番号（デフォルト: `3000`）
-- `MCP_HTTP_HOST`: HTTP サーバーのホスト（デフォルト: `0.0.0.0`）
+- `MCP_HTTP_MODE`: Enable HTTP server mode (set to `true` to enable)
+- `MCP_HTTP_PORT`: HTTP server port number (default: `3000`)
+- `MCP_HTTP_HOST`: HTTP server host (default: `0.0.0.0`)
 
-## WSL（Windows Subsystem for Linux）での使用
+## Usage with WSL (Windows Subsystem for Linux)
 
-WSL環境から WindowsホストのMCPサーバーに接続する場合の設定方法です。
+Configuration method for connecting from WSL environment to Windows host MCP server.
 
-### 1. Windowsホストでの設定
+### 1. Windows Host Configuration
 
-**AivisSpeechとPowerShellでMCPサーバーを起動:**
+**Starting MCP server with AivisSpeech and PowerShell:**
 
 ```powershell
 $env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; $env:VOICEVOX_URL='http://127.0.0.1:10101'; $env:VOICEVOX_DEFAULT_SPEAKER='888753764'; npx @kajidog/mcp-tts-voicevox
 ```
 
-### 2. WSL環境での設定
+### 2. WSL Environment Configuration
 
-**WindowsホストのIPアドレスを確認:**
+**Check Windows host IP address:**
 
 ```bash
-# WSLからWindowsホストのIPアドレスを取得
+# Get Windows host IP address from WSL
 ip route show | grep default | awk '{print $3}'
 ```
 
-通常は `172.x.x.1` の形式になります。
+Usually in the format `172.x.x.1`.
 
-** Claude Code の .mcp.json の設定例:**
+**Claude Code .mcp.json configuration example:**
 
 ```json
 {
@@ -295,88 +297,88 @@ ip route show | grep default | awk '{print $3}'
 }
 ```
 
-**重要なポイント:**
-- WSL内では `localhost` や `127.0.0.1` はWSL内部を指すため、Windowsホストのサービスにはアクセスできません
-- WSLのゲートウェイIP（通常 `172.x.x.1`）を使用してWindowsホストにアクセスします
-- Windowsのファイアウォールでポートがブロックされていないことを確認してください
+**Important Points:**
+- Within WSL, `localhost` or `127.0.0.1` refers to WSL internal, so cannot access Windows host services
+- Use WSL gateway IP (usually `172.x.x.1`) to access Windows host
+- Ensure the port is not blocked by Windows firewall
 
-**接続テスト:**
+**Connection Test:**
 
 ```bash
-# WSL内でWindowsホストのMCPサーバーへの接続確認
+# Check connection to Windows host MCP server from WSL
 curl http://172.29.176.1:3000
 ```
 
-正常な場合は `404 Not Found` が返されます（ルートパスが存在しないため）。
+If normal, `404 Not Found` will be returned (because root path doesn't exist).
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくある問題
+### Common Issues
 
-1. **VOICEVOX エンジンが起動していない**
+1. **VOICEVOX Engine is not running**
 
    ```bash
    curl http://localhost:50021/speakers
    ```
 
-2. **音声が再生されない**
+2. **Audio is not playing**
 
-   - システムの音声出力デバイスを確認
-   - プラットフォーム固有の音声再生ツールの確認：
-     - **Linux**: `aplay`, `paplay`, `play`, `ffplay` のいずれかが必要
-     - **macOS**: `afplay` (標準でインストール済み)
-     - **Windows**: PowerShell (標準でインストール済み)
+   - Check system audio output device
+   - Check platform-specific audio playback tools:
+     - **Linux**: Requires one of `aplay`, `paplay`, `play`, `ffplay`
+     - **macOS**: `afplay` (pre-installed)
+     - **Windows**: PowerShell (pre-installed)
 
-3. **MCP クライアントで認識されない**
-   - パッケージのインストールを確認：`npm list -g @kajidog/mcp-tts-voicevox`
-   - 設定ファイルの JSON 構文を確認
+3. **Not recognized by MCP client**
+   - Check package installation: `npm list -g @kajidog/mcp-tts-voicevox`
+   - Check JSON syntax in configuration file
 
-## ライセンス
+## License
 
 ISC
 
 [![MseeP.ai Security Assessment Badge](https://mseep.net/pr/kajidog-mcp-tts-voicevox-badge.png)](https://mseep.ai/app/kajidog-mcp-tts-voicevox)
 
-## 開発者向け情報
+## Developer Information
 
-このリポジトリをローカルで開発する場合の手順です。
+Instructions for developing this repository locally.
 
-### セットアップ
+### Setup
 
-1.  リポジトリをクローンします:
+1.  Clone the repository:
     ```bash
     git clone https://github.com/kajidog/mcp-tts-voicevox.git
     cd mcp-tts-voicevox
     ```
-2.  [pnpm](https://pnpm.io/) をインストールします。(まだインストールしていない場合)
-3.  依存関係をインストールします:
+2.  Install [pnpm](https://pnpm.io/) (if not already installed).
+3.  Install dependencies:
     ```bash
     pnpm install
     ```
 
-### 主要な開発コマンド
+### Main Development Commands
 
-プロジェクトルートで以下のコマンドを実行できます。
+You can run the following commands in the project root.
 
--   **すべてのパッケージをビルド:**
+-   **Build all packages:**
     ```bash
     pnpm build
     ```
--   **すべてのテストを実行:**
+-   **Run all tests:**
     ```bash
     pnpm test
     ```
--   **すべてのリンターを実行:**
+-   **Run all linters:**
     ```bash
     pnpm lint
     ```
--   **ルートサーバーを開発モードで起動:**
+-   **Start root server in development mode:**
     ```bash
     pnpm dev
     ```
--   **stdioインターフェースを開発モードで起動:**
+-   **Start stdio interface in development mode:**
     ```bash
     pnpm dev:stdio
     ```
 
-これらのコマンドは、ワークスペース内の関連するパッケージに対しても適切に処理を実行します。
+These commands will also properly handle processing for related packages within the workspace.
