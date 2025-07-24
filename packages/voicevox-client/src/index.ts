@@ -5,3 +5,6 @@ export * from './player'
 export * from './utils'
 export * from './error'
 export * from './queue'
+
+// Effect.ts exports
+export * from './effect'

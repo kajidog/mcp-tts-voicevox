@@ -30,8 +30,8 @@
     "dev:stdio": "NODE_ENV=development ts-node src/stdio.ts",
     "dev:http": "NODE_ENV=development MCP_HTTP_MODE=true ts-node src/index.ts",
     "dev:http:win": "powershell -Command \"$env:NODE_ENV='development'; $env:MCP_HTTP_MODE='true'; ts-node src/index.ts\"",
-    "build": "tsgo && pnpm -r --filter \"./packages/*\" build && node scripts/fix-permissions.js",
-    "build:tsc": "tsc && pnpm -r --filter \"./packages/*\" build:tsc && node scripts/fix-permissions.js",
+    "build": "tsc && pnpm -r --filter \"./packages/*\" build && node scripts/fix-permissions.js",
+    "build:tsgo": "tsgo && pnpm -r --filter \"./packages/*\" build:tsgo && node scripts/fix-permissions.js",
     "build:clean": "rm -rf dist && pnpm -r --filter \"./packages/*\" run build:clean && pnpm build",
     "lint": "biome check . && pnpm -r --filter \"./packages/*\" lint",
     "lint:fix": "biome check --write . && pnpm -r --filter \"./packages/*\" lint:fix",
@@ -39,8 +39,19 @@
     "prepare": "pnpm build",
     "prepublishOnly": "pnpm test && pnpm lint"
   },
-  "files": ["dist", "README.md", "LICENSE", "scripts"],
-  "keywords": ["voicevox", "tts", "text-to-speech", "mcp", "mcp-server"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "scripts"
+  ],
+  "keywords": [
+    "voicevox",
+    "tts",
+    "text-to-speech",
+    "mcp",
+    "mcp-server"
+  ],
   "author": {
     "name": "kajidog",
     "email": "dev@kajidog.com"
@@ -69,9 +80,9 @@
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^20.0.0",
     "@typescript/native-preview": "7.0.0-dev.20250712.1",
-    "vitest": "^2.1.8",
     "ts-node": "^10.9.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^2.1.8"
   },
   "peerDependencies": {
     "typescript": ">=4.5.0"

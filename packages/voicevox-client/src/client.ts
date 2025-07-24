@@ -1,8 +1,12 @@
+import type { Effect } from 'effect'
 import { VoicevoxApi } from './api'
 import { formatError, handleError } from './error'
 import { VoicevoxPlayer } from './player'
 import type { AudioQuery, PlaybackOptions, SpeechSegment, VoicevoxConfig } from './types'
 import { downloadBlob, isBrowser, splitText } from './utils'
+
+// Effect imports (for optional Effect-based APIs)
+import { type VoicevoxEffectError, fromPromise } from './effect'
 
 /**
  * 環境変数から再生オプションを読み取る関数
@@ -24,6 +28,10 @@ function getPlaybackOptionsFromEnv(): PlaybackOptions {
   }
 }
 
+/**
+ * VoicevoxClient - Complete VOICEVOX text-to-speech client
+ * Provides both traditional Promise-based APIs and optional Effect-based APIs
+ */
 export class VoicevoxClient {
   private readonly player: VoicevoxPlayer
   private readonly api: VoicevoxApi
@@ -65,6 +73,10 @@ export class VoicevoxClient {
     this.api = new VoicevoxApi(config.url)
     this.player = new VoicevoxPlayer(config.url)
   }
+
+  // ========================================
+  // Core Promise-based API (primary)
+  // ========================================
 
   /**
    * テキストを音声に変換して再生します
@@ -128,7 +140,7 @@ export class VoicevoxClient {
     options?: PlaybackOptions
   ): Promise<string>
 
-  // 実装
+  // Implementation
   public async speak(
     input: string | string[] | SpeechSegment[],
     speaker?: number,
@@ -164,29 +176,23 @@ export class VoicevoxClient {
         if (firstPromises.end) promises.push(firstPromises.end)
       }
 
-      // 残りのセグメントは非同期で処理
+      // 残りのセグメントを同期的に処理（プリフェッチのため）
       if (segments.length > 1) {
-        const processRemainingSegments = async () => {
-          for (let i = 1; i < segments.length; i++) {
-            const segment = segments[i]
-            const speakerId = this.getSpeakerId(segment.speaker)
-            const query = await this.generateQuery(segment.text, speakerId)
-            query.speedScale = speed
+        for (let i = 1; i < segments.length; i++) {
+          const segment = segments[i]
+          const speakerId = this.getSpeakerId(segment.speaker)
+          const query = await this.generateQuery(segment.text, speakerId)
+          query.speedScale = speed
 
-            const { promises: segmentPromises } = await queueManager.enqueueQueryWithOptions(
-              query,
-              speakerId,
-              { ...options, immediate: false } // 最初以外は自動再生しない
-            )
+          const { promises: segmentPromises } = await queueManager.enqueueQueryWithOptions(
+            query,
+            speakerId,
+            { ...options, immediate: false } // 最初以外は自動再生しない
+          )
 
-            if (segmentPromises.start) promises.push(segmentPromises.start)
-            if (segmentPromises.end) promises.push(segmentPromises.end)
-          }
+          if (segmentPromises.start) promises.push(segmentPromises.start)
+          if (segmentPromises.end) promises.push(segmentPromises.end)
         }
-
-        processRemainingSegments().catch((error) => {
-          console.error('残りのセグメント処理中にエラーが発生しました:', error)
-        })
       }
 
       // 待機オプションに応じて処理
@@ -235,47 +241,11 @@ export class VoicevoxClient {
   }
 
   /**
-   * 入力を統一フォーマット（SpeechSegment[]）に変換
-   * @private
-   */
-  private normalizeInput(input: string | string[] | SpeechSegment[], defaultSpeaker?: number): SpeechSegment[] {
-    if (typeof input === 'string') {
-      // 文字列の場合は分割してセグメント化
-      const segments = splitText(input, this.maxSegmentLength)
-      return segments.map((text) => ({
-        text,
-        speaker: defaultSpeaker,
-      }))
-    }
-
-    if (Array.isArray(input)) {
-      // 配列の場合
-      if (input.length === 0) return []
-
-      // SpeechSegment配列かどうかチェック
-      if (typeof input[0] === 'object' && 'text' in input[0]) {
-        // SpeechSegment配列の場合
-        return (input as SpeechSegment[]).map((segment) => ({
-          text: segment.text,
-          speaker: segment.speaker || defaultSpeaker,
-        }))
-      }
-      // 文字列配列の場合
-      return (input as string[]).map((text) => ({
-        text,
-        speaker: defaultSpeaker,
-      }))
-    }
-
-    return []
-  }
-
-  /**
-   * テキストから音声合成用クエリを生成します
+   * 音声クエリを生成します
    * @param text 変換するテキスト
    * @param speaker 話者ID（オプション）
    * @param speedScale 再生速度（オプション）
-   * @returns 音声合成用クエリ
+   * @returns 音声クエリ
    */
   public async generateQuery(text: string, speaker?: number, speedScale?: number): Promise<AudioQuery> {
     try {
@@ -290,19 +260,14 @@ export class VoicevoxClient {
   }
 
   /**
-   * テキストから直接音声ファイルを生成します
-   * @param textOrQuery テキストまたは音声合成用クエリ
-   * @param outputPath 出力ファイルパス（オプション、省略時は一時ファイル）
+   * 音声ファイルを生成します
+   * @param text 変換するテキスト
+   * @param output 出力先パス
    * @param speaker 話者ID（オプション）
    * @param speedScale 再生速度（オプション）
-   * @returns 生成した音声ファイルのパス
+   * @returns 生成されたファイルのパス
    */
-  public async generateAudioFile(
-    textOrQuery: string | AudioQuery,
-    outputPath?: string,
-    speaker?: number,
-    speedScale?: number
-  ): Promise<string> {
+  public async generateAudioFile(text: string, output: string, speaker?: number, speedScale?: number): Promise<string> {
     try {
       const speakerId = this.getSpeakerId(speaker)
       const speed = this.getSpeedScale(speedScale)
@@ -311,247 +276,147 @@ export class VoicevoxClient {
       if (isBrowser()) {
         // デフォルトのファイル名を設定
         const filename =
-          outputPath ||
-          (typeof textOrQuery === 'string'
-            ? `voice-${textOrQuery.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '_')}-${Date.now()}.wav`
-            : `voice-${Date.now()}.wav`)
+          output || `audio_${new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19)}_speaker${speakerId}.wav`
 
-        // クエリを生成または使用
-        const query =
-          typeof textOrQuery === 'string' ? await this.generateQuery(textOrQuery, speakerId) : { ...textOrQuery }
+        // 音声クエリを作成
+        const query = await this.generateQuery(text, speakerId, speed)
 
-        // 速度設定
-        query.speedScale = speed
-
-        // 音声合成
+        // 音声データを合成
         const audioData = await this.api.synthesize(query, speakerId)
 
-        // 直接ダウンロード処理
-        return await downloadBlob(audioData, filename)
+        // Blobとしてダウンロード
+        const blob = new Blob([audioData], { type: 'audio/wav' })
+        const url = await downloadBlob(blob, filename)
+
+        return `音声ファイルをダウンロードしました: ${filename}`
       }
 
-      // Node.js環境の場合（従来のコード）
-      // キューマネージャーにアクセス
-      const queueManager = this.player.getQueueManager()
-
-      if (typeof textOrQuery === 'string') {
-        // テキストからクエリを生成
-        const query = await this.generateQuery(textOrQuery, speakerId)
-        query.speedScale = speed
-
-        // 一時ファイル保存またはパス指定の保存
-        if (!outputPath) {
-          // ブラウザ環境ではデフォルトファイル名を生成
-          const defaultFilename = `voice-${textOrQuery
-            .substring(0, 10)
-            .replace(/[^a-zA-Z0-9]/g, '_')}-${Date.now()}.wav`
-          return await this.player.synthesizeToFile(query, defaultFilename, speakerId)
-        }
-        return await this.player.synthesizeToFile(query, outputPath, speakerId)
-      }
-      // クエリを使って音声合成
-      const query = { ...textOrQuery, speedScale: speed }
-
-      // 一時ファイル保存またはパス指定の保存
-      if (!outputPath) {
-        // ブラウザ環境ではデフォルトファイル名を生成
-        const defaultFilename = `voice-${Date.now()}.wav`
-        return await this.player.synthesizeToFile(query, defaultFilename, speakerId)
-      }
-      return await this.player.synthesizeToFile(query, outputPath, speakerId)
+      // Node.js環境の場合
+      const query = await this.generateQuery(text, speakerId, speed)
+      const filePath = await this.player.synthesizeToFile(query, output, speakerId)
+      return filePath
     } catch (error) {
-      throw handleError('音声ファイル生成中にエラーが発生しました', error)
+      throw handleError('音声ファイルの生成中にエラーが発生しました', error)
     }
   }
 
   /**
-   * テキストを音声ファイル生成キューに追加します
+   * 利用可能な話者一覧を取得します
+   * @returns 話者一覧
+   */
+  public async getSpeakers(): Promise<any[]> {
+    try {
+      return await this.api.getSpeakers()
+    } catch (error) {
+      throw handleError('話者一覧の取得中にエラーが発生しました', error)
+    }
+  }
+
+  /**
+   * 指定した話者の情報を取得します
+   * @param uuid 話者のUUID
+   * @returns 話者情報
+   */
+  public async getSpeakerInfo(uuid: string): Promise<any> {
+    try {
+      return await this.api.getSpeakerInfo(uuid)
+    } catch (error) {
+      throw handleError('話者情報の取得中にエラーが発生しました', error)
+    }
+  }
+
+  /**
+   * 現在の再生を停止します
+   */
+  public async stopSpeaker(): Promise<string> {
+    try {
+      this.player.pausePlayback()
+      await this.player.clearQueue()
+      return '音声再生を停止しました'
+    } catch (error) {
+      throw handleError('音声停止中にエラーが発生しました', error)
+    }
+  }
+
+  // ========================================
+  // Optional Effect-based API (additional)
+  // ========================================
+
+  /**
+   * Effect-based text-to-speech with structured error handling
    * @param text テキスト
-   * @param speaker 話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @returns 処理結果のメッセージ
+   * @param speaker 話者ID
+   * @param speedScale 再生速度
+   * @returns Effect operation result
    */
-  public async enqueueAudioGeneration(text: string, speaker?: number, speedScale?: number): Promise<string>
-
-  /**
-   * テキスト配列を音声ファイル生成キューに追加します
-   * @param texts テキスト配列
-   * @param speaker 話者ID（オプション、全体のデフォルト）
-   * @param speedScale 再生速度（オプション）
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(texts: string[], speaker?: number, speedScale?: number): Promise<string>
-
-  /**
-   * テキストと話者のペア配列を音声ファイル生成キューに追加します
-   * @param segments テキストと話者のペア配列
-   * @param defaultSpeaker デフォルト話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(
-    segments: SpeechSegment[],
-    defaultSpeaker?: number,
-    speedScale?: number
-  ): Promise<string>
-
-  /**
-   * 音声合成用クエリを音声ファイル生成キューに追加します
-   * @param query 音声合成用クエリ
-   * @param speaker 話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(query: AudioQuery, speaker?: number, speedScale?: number): Promise<string>
-
-  /**
-   * テキストを音声ファイル生成キューに追加します（オプション付き）
-   * @param text テキスト
-   * @param speaker 話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @param options 再生オプション
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(
+  public speakEffect(
     text: string,
     speaker?: number,
-    speedScale?: number,
-    options?: PlaybackOptions
-  ): Promise<string>
-
-  /**
-   * テキスト配列を音声ファイル生成キューに追加します（オプション付き）
-   * @param texts テキスト配列
-   * @param speaker 話者ID（オプション、全体のデフォルト）
-   * @param speedScale 再生速度（オプション）
-   * @param options 再生オプション
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(
-    texts: string[],
-    speaker?: number,
-    speedScale?: number,
-    options?: PlaybackOptions
-  ): Promise<string>
-
-  /**
-   * テキストと話者のペア配列を音声ファイル生成キューに追加します（オプション付き）
-   * @param segments テキストと話者のペア配列
-   * @param defaultSpeaker デフォルト話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @param options 再生オプション
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(
-    segments: SpeechSegment[],
-    defaultSpeaker?: number,
-    speedScale?: number,
-    options?: PlaybackOptions
-  ): Promise<string>
-
-  /**
-   * 音声合成用クエリを音声ファイル生成キューに追加します（オプション付き）
-   * @param query 音声合成用クエリ
-   * @param speaker 話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @param options 再生オプション
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(
-    query: AudioQuery,
-    speaker?: number,
-    speedScale?: number,
-    options?: PlaybackOptions
-  ): Promise<string>
-
-  // 実装
-  public async enqueueAudioGeneration(
-    input: string | string[] | SpeechSegment[] | AudioQuery,
-    speaker?: number,
-    speedScale?: number,
-    options?: PlaybackOptions
-  ): Promise<string> {
-    try {
-      const speed = this.getSpeedScale(speedScale)
-      const queueManager = this.player.getQueueManager()
-
-      // AudioQueryの場合
-      if (typeof input === 'object' && !Array.isArray(input) && 'accent_phrases' in input) {
-        const speakerId = this.getSpeakerId(speaker)
-        const query = { ...input, speedScale: speed }
-        const { promises } = await queueManager.enqueueQueryWithOptions(query, speakerId, options)
-
-        // 待機オプションに応じて処理
-        const waitPromises: Array<Promise<void>> = []
-        if (promises.start) waitPromises.push(promises.start)
-        if (promises.end) waitPromises.push(promises.end)
-        if (waitPromises.length > 0) {
-          await Promise.all(waitPromises)
-        }
-
-        return 'クエリをキューに追加しました'
-      }
-
-      // テキスト系の場合
-      const segments = this.normalizeInput(input as string | string[] | SpeechSegment[], speaker)
-
-      if (segments.length === 0) {
-        return 'テキストが空です'
-      }
-
-      const promises: Array<Promise<void>> = []
-
-      // 最初のセグメントを優先処理
-      if (segments.length > 0) {
-        const firstSegment = segments[0]
-        const speakerId = this.getSpeakerId(firstSegment.speaker)
-        const firstQuery = await this.generateQuery(firstSegment.text, speakerId)
-        firstQuery.speedScale = speed
-
-        const { promises: firstPromises } = await queueManager.enqueueQueryWithOptions(firstQuery, speakerId, {
-          ...this.defaultPlaybackOptions,
-          ...options,
-        })
-
-        if (firstPromises.start) promises.push(firstPromises.start)
-        if (firstPromises.end) promises.push(firstPromises.end)
-      }
-
-      // 残りのセグメントは非同期で処理
-      if (segments.length > 1) {
-        const processRemainingSegments = async () => {
-          for (let i = 1; i < segments.length; i++) {
-            const segment = segments[i]
-            const speakerId = this.getSpeakerId(segment.speaker)
-            const query = await this.generateQuery(segment.text, speakerId)
-            query.speedScale = speed
-
-            const { promises: segmentPromises } = await queueManager.enqueueQueryWithOptions(
-              query,
-              speakerId,
-              { ...options, immediate: false } // 最初以外は自動再生しない
-            )
-
-            if (segmentPromises.start) promises.push(segmentPromises.start)
-            if (segmentPromises.end) promises.push(segmentPromises.end)
-          }
-        }
-
-        processRemainingSegments().catch((error) => {
-          console.error('残りのセグメント処理中にエラーが発生しました:', error)
-        })
-      }
-
-      // 待機オプションに応じて処理
-      if (promises.length > 0) {
-        await Promise.all(promises)
-      }
-
-      return 'テキストをキューに追加しました'
-    } catch (error) {
-      return formatError('音声生成中にエラーが発生しました', error)
-    }
+    speedScale?: number
+  ): Effect.Effect<string, VoicevoxEffectError, never> {
+    return fromPromise(this.speak(text, speaker, speedScale))
   }
+
+  /**
+   * Effect-based audio query generation
+   * @param text テキスト
+   * @param speaker 話者ID
+   * @param speedScale 再生速度
+   * @returns Effect operation result
+   */
+  public generateQueryEffect(
+    text: string,
+    speaker?: number,
+    speedScale?: number
+  ): Effect.Effect<AudioQuery, VoicevoxEffectError, never> {
+    return fromPromise(this.generateQuery(text, speaker, speedScale))
+  }
+
+  /**
+   * Effect-based audio file generation
+   * @param text テキスト
+   * @param output 出力先
+   * @param speaker 話者ID
+   * @param speedScale 再生速度
+   * @returns Effect operation result
+   */
+  public generateAudioFileEffect(
+    text: string,
+    output: string,
+    speaker?: number,
+    speedScale?: number
+  ): Effect.Effect<string, VoicevoxEffectError, never> {
+    return fromPromise(this.generateAudioFile(text, output, speaker, speedScale))
+  }
+
+  /**
+   * Effect-based speaker list retrieval
+   * @returns Effect operation result
+   */
+  public getSpeakersEffect(): Effect.Effect<any[], VoicevoxEffectError, never> {
+    return fromPromise(this.getSpeakers())
+  }
+
+  /**
+   * Effect-based speaker info retrieval
+   * @param uuid 話者UUID
+   * @returns Effect operation result
+   */
+  public getSpeakerInfoEffect(uuid: string): Effect.Effect<any, VoicevoxEffectError, never> {
+    return fromPromise(this.getSpeakerInfo(uuid))
+  }
+
+  /**
+   * Effect-based speaker stop
+   * @returns Effect operation result
+   */
+  public stopSpeakerEffect(): Effect.Effect<string, VoicevoxEffectError, never> {
+    return fromPromise(this.stopSpeaker())
+  }
+
+  // ========================================
+  // Private methods
+  // ========================================
 
   /**
    * 話者IDを取得（指定がない場合はデフォルト値を使用）
@@ -569,46 +434,64 @@ export class VoicevoxClient {
     return speedScale ?? this.defaultSpeedScale
   }
 
+  /**
+   * 入力を統一フォーマット（SpeechSegment[]）に変換
+   * @private
+   */
+  private normalizeInput(input: string | string[] | SpeechSegment[], defaultSpeaker?: number): SpeechSegment[] {
+    if (typeof input === 'string') {
+      // 文字列の場合は分割してセグメント化
+      const segments = splitText(input, this.maxSegmentLength)
+      return segments.map((text) => ({
+        text,
+        speaker: defaultSpeaker,
+      }))
+    }
+
+    if (Array.isArray(input)) {
+      if (input.length === 0) return []
+
+      // 最初の要素で型判定
+      if (typeof input[0] === 'string') {
+        // string[]の場合
+        return (input as string[]).map((text) => ({
+          text,
+          speaker: defaultSpeaker,
+        }))
+      }
+
+      // SpeechSegment[]の場合
+      return (input as SpeechSegment[]).map((segment) => ({
+        text: segment.text,
+        speaker: segment.speaker ?? defaultSpeaker,
+      }))
+    }
+
+    return []
+  }
+
+  /**
+   * 設定値を検証します
+   * @private
+   */
   private validateConfig(config: VoicevoxConfig): void {
     if (!config.url) {
-      throw new Error('VOICEVOXのURLが指定されていません')
+      throw new Error('VOICEVOX APIのURLが指定されていません')
     }
-    try {
-      new URL(config.url)
-    } catch {
-      throw new Error('無効なVOICEVOXのURLです')
+
+    if (!config.url.startsWith('http://') && !config.url.startsWith('https://')) {
+      throw new Error('VOICEVOX APIのURLは http:// または https:// で始まる必要があります')
     }
-  }
 
-  /**
-   * キューをクリア
-   */
-  public async clearQueue(): Promise<void> {
-    return this.player.clearQueue()
-  }
-
-  /**
-   * スピーカー一覧を取得します
-   * @returns スピーカー情報の配列
-   */
-  public async getSpeakers() {
-    try {
-      return await this.api.getSpeakers()
-    } catch (error) {
-      throw handleError('スピーカー一覧取得中にエラーが発生しました', error)
+    if (
+      config.defaultSpeaker !== undefined &&
+      (config.defaultSpeaker < 0 || !Number.isInteger(config.defaultSpeaker))
+    ) {
+      throw new Error('デフォルト話者IDは0以上の整数である必要があります')
     }
-  }
 
-  /**
-   * スピーカーの情報を取得
-   * @param uuid スピーカーUUID
-   * @returns スピーカー情報
-   */
-  public async getSpeakerInfo(uuid: string) {
-    try {
-      return await this.api.getSpeakerInfo(uuid)
-    } catch (error) {
-      throw handleError('スピーカー情報取得中にエラーが発生しました', error)
+    if (config.defaultSpeedScale !== undefined && (config.defaultSpeedScale <= 0 || config.defaultSpeedScale > 2)) {
+      throw new Error('デフォルト再生速度は0より大きく2以下である必要があります')
     }
   }
 }

@@ -22,12 +22,19 @@ vi.mock('../api', () => ({
 
 // プレイヤーのモック
 const mockEnqueueQueryWithOptions = vi.fn()
+const mockEnqueue = vi.fn()
+const mockPausePlayback = vi.fn()
+const mockClearQueue = vi.fn()
+
 vi.mock('../player', () => ({
   VoicevoxPlayer: vi.fn().mockImplementation(() => ({
+    enqueue: mockEnqueue,
+    enqueueQueryWithOptions: mockEnqueueQueryWithOptions,
+    pausePlayback: mockPausePlayback,
+    clearQueue: mockClearQueue,
     getQueueManager: vi.fn().mockReturnValue({
       enqueueQueryWithOptions: mockEnqueueQueryWithOptions,
     }),
-    clearQueue: vi.fn(),
   })),
 }))
 
@@ -47,11 +54,14 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
 
     client = new VoicevoxClient(config)
 
-    // enqueueQueryWithOptions のモックを設定
+    // プレイヤーメソッドのモックを設定
+    mockEnqueue.mockResolvedValue(undefined)
     mockEnqueueQueryWithOptions.mockResolvedValue({
       item: { id: 'test' },
       promises: {},
     })
+    mockPausePlayback.mockReturnValue(undefined)
+    mockClearQueue.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
