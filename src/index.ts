@@ -9,11 +9,6 @@ interface ServerConfig {
   isHttpMode: boolean
 }
 
-interface ServerInfo {
-  address: string
-  port: number
-}
-
 /**
  * 実行環境を判定するユーティリティ
  */
@@ -70,20 +65,10 @@ function getServerConfig(): ServerConfig {
  */
 async function loadHttpApp(isDevelopment: boolean) {
   if (isDevelopment) {
-    const module = await import('./sse')
+    const module = await import('./http')
     return module.default
   }
-  return require('./sse').default
-}
-
-/**
- * HTTP サーバーモジュールをロードする
- */
-async function loadHttpServer(isDevelopment: boolean) {
-  if (isDevelopment) {
-    return await import('@hono/node-server')
-  }
-  return require('@hono/node-server')
+  return require('./http').default
 }
 
 /**
@@ -93,26 +78,25 @@ async function startHttpServer(config: ServerConfig): Promise<void> {
   try {
     console.error('Starting HTTP server with config:', config)
     const app = await loadHttpApp(config.isDevelopment)
-    console.error('App loaded successfully')
-    const server = await loadHttpServer(config.isDevelopment)
-    console.error('Server module loaded successfully')
+    console.error('Express app loaded successfully')
 
-    const serverOptions = {
-      fetch: app.fetch,
-      port: config.port,
-      hostname: config.host,
-    }
-
-    console.error('Attempting to start server with options:', serverOptions)
-
-    server.serve(serverOptions, (info: ServerInfo) => {
-      console.error(`✅ VOICEVOX MCP HTTP server running at http://${info.address}:${info.port}/mcp`)
-      console.error(`📡 SSE endpoint (legacy): http://${info.address}:${info.port}/sse`)
-      console.error(`🔍 Health check: http://${info.address}:${info.port}/health`)
+    const server = app.listen(config.port, config.host, () => {
+      console.error(`✅ VOICEVOX MCP HTTP server running at http://${config.host}:${config.port}/mcp`)
+      console.error(`🔍 Health check: http://${config.host}:${config.port}/health`)
     })
 
-    // サーバー起動の確認を少し待つ
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // Graceful shutdown handler
+    const gracefulShutdown = () => {
+      console.error('Shutting down HTTP server...')
+      server.close(() => {
+        console.error('HTTP server closed')
+        process.exit(0)
+      })
+    }
+
+    process.on('SIGTERM', gracefulShutdown)
+    process.on('SIGINT', gracefulShutdown)
+
     console.error('HTTP server startup completed')
   } catch (error) {
     console.error('❌ HTTP server startup failed:', error)
