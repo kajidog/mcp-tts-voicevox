@@ -203,23 +203,6 @@ SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用し
 
 ````
 
-### AivisSpeech での設定例
-
-```json
-{
-  "mcpServers": {
-    "tts-mcp": {
-      "command": "npx",
-      "args": ["-y", "@kajidog/mcp-tts-voicevox"],
-      "env": {
-        "VOICEVOX_URL": "http://127.0.0.1:10101",
-        "VOICEVOX_DEFAULT_SPEAKER": "888753764"
-      }
-    }
-  }
-}
-````
-
 ## 環境変数
 
 ### VOICEVOX 設定
@@ -265,10 +248,10 @@ WSL環境から WindowsホストのMCPサーバーに接続する場合の設定
 
 ### 1. Windowsホストでの設定
 
-**AivisSpeechとPowerShellでMCPサーバーを起動:**
+**PowerShellでMCPサーバーを起動:**
 
 ```powershell
-$env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; $env:VOICEVOX_URL='http://127.0.0.1:10101'; $env:VOICEVOX_DEFAULT_SPEAKER='888753764'; npx @kajidog/mcp-tts-voicevox
+$env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voicevox
 ```
 
 ### 2. WSL環境での設定
