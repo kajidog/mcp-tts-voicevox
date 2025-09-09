@@ -203,23 +203,6 @@ If you need speech synthesis in SSE mode, you can use `mcp-remote` for SSE↔Std
 
 ````
 
-### AivisSpeech Configuration Example
-
-```json
-{
-  "mcpServers": {
-    "tts-mcp": {
-      "command": "npx",
-      "args": ["-y", "@kajidog/mcp-tts-voicevox"],
-      "env": {
-        "VOICEVOX_URL": "http://127.0.0.1:10101",
-        "VOICEVOX_DEFAULT_SPEAKER": "888753764"
-      }
-    }
-  }
-}
-````
-
 ## Environment Variables
 
 ### VOICEVOX Configuration
@@ -265,10 +248,10 @@ Configuration method for connecting from WSL environment to Windows host MCP ser
 
 ### 1. Windows Host Configuration
 
-**Starting MCP server with AivisSpeech and PowerShell:**
+**Starting MCP server with PowerShell:**
 
 ```powershell
-$env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; $env:VOICEVOX_URL='http://127.0.0.1:10101'; $env:VOICEVOX_DEFAULT_SPEAKER='888753764'; npx @kajidog/mcp-tts-voicevox
+$env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voicevox
 ```
 
 ### 2. WSL Environment Configuration
