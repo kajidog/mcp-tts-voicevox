@@ -128,28 +128,20 @@ export class VoicevoxClient {
         if (firstPromises.end) promises.push(firstPromises.end)
       }
 
-      // 残りのセグメントは非同期で処理
-      if (segments.length > 1) {
-        const processRemainingSegments = async () => {
-          for (let i = 1; i < segments.length; i++) {
-            const segment = segments[i]
-            const speakerId = this.getSpeakerId(segment.speaker)
-            const query = await this.generateQuery(segment.text, speakerId)
-            query.speedScale = speed
+      // 残りのセグメントを順番に処理
+      for (let i = 1; i < segments.length; i++) {
+        const segment = segments[i]
+        const speakerId = this.getSpeakerId(segment.speaker)
+        const query = await this.generateQuery(segment.text, speakerId)
+        query.speedScale = speed
 
-            const { promises: segmentPromises } = await this.queueService.enqueueQuery(query, speakerId, {
-              ...playbackOptions,
-              immediate: false,
-            })
-
-            if (segmentPromises.start) promises.push(segmentPromises.start)
-            if (segmentPromises.end) promises.push(segmentPromises.end)
-          }
-        }
-
-        processRemainingSegments().catch((error) => {
-          console.error('残りのセグメント処理中にエラーが発生しました:', error)
+        const { promises: segmentPromises } = await this.queueService.enqueueQuery(query, speakerId, {
+          ...playbackOptions,
+          immediate: false,
         })
+
+        if (segmentPromises.start) promises.push(segmentPromises.start)
+        if (segmentPromises.end) promises.push(segmentPromises.end)
       }
 
       // 待機オプションに応じて処理
@@ -341,28 +333,20 @@ export class VoicevoxClient {
         if (firstPromises.end) promises.push(firstPromises.end)
       }
 
-      // 残りのセグメントは非同期で処理
-      if (segments.length > 1) {
-        const processRemainingSegments = async () => {
-          for (let i = 1; i < segments.length; i++) {
-            const segment = segments[i]
-            const speakerId = this.getSpeakerId(segment.speaker)
-            const query = await this.generateQuery(segment.text, speakerId)
-            query.speedScale = speed
+      // 残りのセグメントを順番に処理
+      for (let i = 1; i < segments.length; i++) {
+        const segment = segments[i]
+        const speakerId = this.getSpeakerId(segment.speaker)
+        const query = await this.generateQuery(segment.text, speakerId)
+        query.speedScale = speed
 
-            const { promises: segmentPromises } = await this.queueService.enqueueQuery(query, speakerId, {
-              ...playbackOptions,
-              immediate: false,
-            })
-
-            if (segmentPromises.start) promises.push(segmentPromises.start)
-            if (segmentPromises.end) promises.push(segmentPromises.end)
-          }
-        }
-
-        processRemainingSegments().catch((error) => {
-          console.error('残りのセグメント処理中にエラーが発生しました:', error)
+        const { promises: segmentPromises } = await this.queueService.enqueueQuery(query, speakerId, {
+          ...playbackOptions,
+          immediate: false,
         })
+
+        if (segmentPromises.start) promises.push(segmentPromises.start)
+        if (segmentPromises.end) promises.push(segmentPromises.end)
       }
 
       // 待機オプションに応じて処理
