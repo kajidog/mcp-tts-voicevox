@@ -1,29 +1,7 @@
 import { type AudioQuery, VoicevoxClient } from '@kajidog/voicevox-client'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { z } from 'zod'
-
-// 型定義
-const TextSegmentSchema = z.object({
-  text: z.string().describe('Text content to synthesize'),
-  speaker: z.number().optional().describe('Speaker ID for this specific text segment'),
-})
-
-const TextInputSchema = z
-  .string()
-  .describe(
-    'Text string with line breaks and optional speaker prefix "1:Hello\\n2:World". For faster playback start, make the first element short.'
-  )
-
-const CommonParametersSchema = {
-  speaker: z.number().optional().describe('Default speaker ID (optional)'),
-  speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
-}
-
-const PlaybackOptionsSchema = {
-  immediate: z.boolean().optional().describe('Start playback immediately (optional, default: true)'),
-  waitForStart: z.boolean().optional().describe('Wait for playback to start (optional, default: false)'),
-  waitForEnd: z.boolean().optional().describe('Wait for playback to end (optional, default: false)'),
-}
+import * as z from 'zod/v4'
 
 // サーバー初期化
 export const server = new McpServer({
@@ -40,17 +18,17 @@ const voicevoxClient = new VoicevoxClient({
 })
 
 // ユーティリティ関数
-const createErrorResponse = (error: unknown) => ({
+const createErrorResponse = (error: unknown): CallToolResult => ({
   content: [
     {
-      type: 'text' as const,
+      type: 'text',
       text: `エラー: ${error instanceof Error ? error.message : String(error)}`,
     },
   ],
 })
 
-const createSuccessResponse = (text: string) => ({
-  content: [{ type: 'text' as const, text }],
+const createSuccessResponse = (text: string): CallToolResult => ({
+  content: [{ type: 'text', text }],
 })
 
 const parseAudioQuery = (query: string, speedScale?: number): AudioQuery => {
@@ -92,20 +70,27 @@ const processTextInput = async (
   })
 }
 
-// ツール定義
+// ツール登録
 server.registerTool(
   'speak',
   {
     title: 'Speak',
     description: 'Convert text to speech and play it',
     inputSchema: {
-      text: TextInputSchema,
-      ...CommonParametersSchema,
-      ...PlaybackOptionsSchema,
+      text: z
+        .string()
+        .describe(
+          'Text string with line breaks and optional speaker prefix "1:Hello\\n2:World". For faster playback start, make the first element short.'
+        ),
       query: z.string().optional().describe('Voice synthesis query'),
+      speaker: z.number().optional().describe('Default speaker ID (optional)'),
+      speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
+      immediate: z.boolean().optional().describe('Start playback immediately (optional, default: true)'),
+      waitForStart: z.boolean().optional().describe('Wait for playback to start (optional, default: false)'),
+      waitForEnd: z.boolean().optional().describe('Wait for playback to end (optional, default: false)'),
     },
   },
-  async ({ text, speaker, query, speedScale, immediate, waitForStart, waitForEnd }) => {
+  async ({ text, speaker, query, speedScale, immediate, waitForStart, waitForEnd }): Promise<CallToolResult> => {
     try {
       // 環境変数からデフォルトの再生オプションを取得
       const defaultImmediate = process.env.VOICEVOX_DEFAULT_IMMEDIATE !== 'false'
@@ -143,10 +128,11 @@ server.registerTool(
     description: 'Generate a query for voice synthesis',
     inputSchema: {
       text: z.string().describe('Text for voice synthesis'),
-      ...CommonParametersSchema,
+      speaker: z.number().optional().describe('Default speaker ID (optional)'),
+      speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
     },
   },
-  async ({ text, speaker, speedScale }) => {
+  async ({ text, speaker, speedScale }): Promise<CallToolResult> => {
     try {
       const query = await voicevoxClient.generateQuery(text, speaker, speedScale)
       return createSuccessResponse(JSON.stringify(query))
@@ -168,10 +154,11 @@ server.registerTool(
         .describe('Text for voice synthesis (if both query and text provided, query takes precedence)'),
       query: z.string().optional().describe('Voice synthesis query'),
       output: z.string().describe('Output path for the audio file'),
-      ...CommonParametersSchema,
+      speaker: z.number().optional().describe('Default speaker ID (optional)'),
+      speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
     },
   },
-  async ({ text, query, speaker, output, speedScale }) => {
+  async ({ text, query, speaker, output, speedScale }): Promise<CallToolResult> => {
     try {
       if (query) {
         const audioQuery = parseAudioQuery(query, speedScale)
@@ -200,7 +187,7 @@ server.registerTool(
       random_string: z.string().describe('Dummy parameter for no-parameter tools'),
     },
   },
-  async () => {
+  async (): Promise<CallToolResult> => {
     try {
       await voicevoxClient.clearQueue()
       return createSuccessResponse('スピーカーを停止しました')
@@ -215,9 +202,8 @@ server.registerTool(
   {
     title: 'Get Speakers',
     description: 'Get a list of available speakers',
-    inputSchema: {},
   },
-  async () => {
+  async (): Promise<CallToolResult> => {
     try {
       const speakers = await voicevoxClient.getSpeakers()
       const result = speakers.flatMap((speaker: any) =>
@@ -243,7 +229,7 @@ server.registerTool(
       uuid: z.string().describe('Speaker UUID (speaker uuid)'),
     },
   },
-  async ({ uuid }) => {
+  async ({ uuid }): Promise<CallToolResult> => {
     try {
       const allSpeakers = await voicevoxClient.getSpeakers()
       const targetSpeaker = allSpeakers.find((speaker: any) => speaker.speaker_uuid === uuid)
