@@ -60,14 +60,18 @@ This is a VOICEVOX MCP (Model Context Protocol) server that provides text-to-spe
    - **No Library Exports**: Pure MCP server functionality
 
 2. **MCP Server Implementation** (`src/server.ts`):
+   - **MCP SDK**: Version 1.25.1 (Protocol 2025-11-25)
+   - **Tool Registration**: Uses `server.registerTool()` API with title, description, and inputSchema
    - **MCP Tools**: `speak`, `generate_query`, `synthesize_file`, `stop_speaker`, `get_speakers`, `get_speaker_detail`
    - **Text Input Processing**: String-only format with line breaks and speaker prefix support ("1:Hello\n2:World")
-   - **Zod Validation**: Schema-based parameter validation
+   - **Zod Validation**: Schema-based parameter validation (Zod v3.25+)
    - **External Dependency**: Uses `@kajidog/voicevox-client` for functionality
 
 3. **Server Modes**:
    - **Stdio Mode** (`src/stdio.ts`): Standard MCP protocol for Claude Desktop
    - **HTTP/SSE Mode** (`src/sse.ts`): REST API and real-time communication
+     - **Security Middleware**: Origin/Host header validation (MCP spec 2025-11-25 compliant)
+     - **Session ID**: Cryptographically secure UUIDs via `crypto.randomUUID()`
 
 ### Build System
 
@@ -186,9 +190,9 @@ The project uses **TypeScript native compilation (tsgo)** as the default build m
 
 **Main Package**:
 - `@kajidog/voicevox-client`: VOICEVOX functionality
-- `@modelcontextprotocol/sdk`: MCP protocol implementation
+- `@modelcontextprotocol/sdk`: ^1.25.1 - MCP protocol implementation (Protocol 2025-11-25)
 - `hono`: HTTP server framework
-- `zod`: Schema validation
+- `zod`: ^3.25.0 - Schema validation (required for SDK compatibility)
 
 **VoicevoxClient Package**:
 - `axios`: HTTP client for VOICEVOX API

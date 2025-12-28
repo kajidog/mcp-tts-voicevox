@@ -1,6 +1,7 @@
+import { randomUUID } from 'node:crypto'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import { Hono } from 'hono'
+import { type Context, Hono, type Next } from 'hono'
 
 import { toFetchResponse, toReqRes } from 'fetch-to-node'
 import { server } from './server'
@@ -79,6 +80,81 @@ function methodNotAllowedError(): ErrorResponse {
       message: 'Method not allowed.',
     },
     id: null,
+  }
+}
+
+function forbiddenError(message: string): ErrorResponse {
+  return {
+    jsonrpc: '2.0',
+    error: {
+      code: -32000,
+      message,
+    },
+    id: null,
+  }
+}
+
+/**
+ * Origin検証ミドルウェア
+ * MCP仕様2025-11-25に準拠し、不正なOriginヘッダーに403を返す
+ */
+const ALLOWED_ORIGINS = ['http://localhost', 'http://127.0.0.1', 'https://localhost', 'https://127.0.0.1']
+
+function validateOrigin() {
+  return async (c: Context, next: Next) => {
+    const origin = c.req.header('Origin')
+
+    // Originヘッダーがない場合は許可（same-originリクエスト）
+    if (!origin) {
+      return next()
+    }
+
+    // Originをパースしてホスト名を取得（ポート番号は無視）
+    try {
+      const originUrl = new URL(origin)
+      const originWithoutPort = `${originUrl.protocol}//${originUrl.hostname}`
+
+      const isAllowed = ALLOWED_ORIGINS.some((allowed) => {
+        const allowedUrl = new URL(allowed)
+        return originWithoutPort === `${allowedUrl.protocol}//${allowedUrl.hostname}`
+      })
+
+      if (!isAllowed) {
+        console.log(`Rejected request with invalid Origin: ${origin}`)
+        return c.json(forbiddenError('Forbidden: Invalid Origin header'), { status: 403 })
+      }
+    } catch {
+      console.log(`Rejected request with malformed Origin: ${origin}`)
+      return c.json(forbiddenError('Forbidden: Malformed Origin header'), { status: 403 })
+    }
+
+    return next()
+  }
+}
+
+/**
+ * Host検証ミドルウェア
+ * DNS rebinding攻撃対策
+ */
+const ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+
+function validateHost() {
+  return async (c: Context, next: Next) => {
+    const host = c.req.header('Host')
+
+    if (!host) {
+      return next()
+    }
+
+    // ホスト名を取得（ポート番号は除外）
+    const hostname = host.includes(':') ? host.split(':')[0] : host
+
+    if (!ALLOWED_HOSTS.includes(hostname)) {
+      console.log(`Rejected request with invalid Host: ${host}`)
+      return c.json(forbiddenError('Forbidden: Invalid Host header'), { status: 403 })
+    }
+
+    return next()
   }
 }
 
@@ -162,7 +238,7 @@ class TransportManager {
   private createStreamableTransport(): StreamableHTTPServerTransport {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => {
-        const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+        const newSessionId = randomUUID()
         console.log(`Generated new session ID: ${newSessionId}`)
         return newSessionId
       },
@@ -290,6 +366,14 @@ class RouteHandlers {
 const app: Hono = new Hono()
 const transportManager = new TransportManager()
 const routeHandlers = new RouteHandlers(transportManager)
+
+// セキュリティミドルウェアを適用（MCP仕様2025-11-25準拠）
+app.use('/mcp', validateOrigin())
+app.use('/mcp', validateHost())
+app.use('/sse', validateOrigin())
+app.use('/sse', validateHost())
+app.use('/messages', validateOrigin())
+app.use('/messages', validateHost())
 
 // ルート定義
 app.all('/mcp', (c) => routeHandlers.handleStreamableHTTP(c))

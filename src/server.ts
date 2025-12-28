@@ -93,14 +93,17 @@ const processTextInput = async (
 }
 
 // ツール定義
-server.tool(
+server.registerTool(
   'speak',
-  'Convert text to speech and play it',
   {
-    text: TextInputSchema,
-    ...CommonParametersSchema,
-    ...PlaybackOptionsSchema,
-    query: z.string().optional().describe('Voice synthesis query'),
+    title: 'Speak',
+    description: 'Convert text to speech and play it',
+    inputSchema: {
+      text: TextInputSchema,
+      ...CommonParametersSchema,
+      ...PlaybackOptionsSchema,
+      query: z.string().optional().describe('Voice synthesis query'),
+    },
   },
   async ({ text, speaker, query, speedScale, immediate, waitForStart, waitForEnd }) => {
     try {
@@ -133,12 +136,15 @@ server.tool(
   }
 )
 
-server.tool(
+server.registerTool(
   'generate_query',
-  'Generate a query for voice synthesis',
   {
-    text: z.string().describe('Text for voice synthesis'),
-    ...CommonParametersSchema,
+    title: 'Generate Query',
+    description: 'Generate a query for voice synthesis',
+    inputSchema: {
+      text: z.string().describe('Text for voice synthesis'),
+      ...CommonParametersSchema,
+    },
   },
   async ({ text, speaker, speedScale }) => {
     try {
@@ -150,17 +156,20 @@ server.tool(
   }
 )
 
-server.tool(
+server.registerTool(
   'synthesize_file',
-  'Generate an audio file and return its absolute path',
   {
-    text: z
-      .string()
-      .optional()
-      .describe('Text for voice synthesis (if both query and text provided, query takes precedence)'),
-    query: z.string().optional().describe('Voice synthesis query'),
-    output: z.string().describe('Output path for the audio file'),
-    ...CommonParametersSchema,
+    title: 'Synthesize File',
+    description: 'Generate an audio file and return its absolute path',
+    inputSchema: {
+      text: z
+        .string()
+        .optional()
+        .describe('Text for voice synthesis (if both query and text provided, query takes precedence)'),
+      query: z.string().optional().describe('Voice synthesis query'),
+      output: z.string().describe('Output path for the audio file'),
+      ...CommonParametersSchema,
+    },
   },
   async ({ text, query, speaker, output, speedScale }) => {
     try {
@@ -182,11 +191,14 @@ server.tool(
   }
 )
 
-server.tool(
+server.registerTool(
   'stop_speaker',
-  'Stop the current speaker',
   {
-    random_string: z.string().describe('Dummy parameter for no-parameter tools'),
+    title: 'Stop Speaker',
+    description: 'Stop the current speaker',
+    inputSchema: {
+      random_string: z.string().describe('Dummy parameter for no-parameter tools'),
+    },
   },
   async () => {
     try {
@@ -198,27 +210,38 @@ server.tool(
   }
 )
 
-server.tool('get_speakers', 'Get a list of available speakers', {}, async () => {
-  try {
-    const speakers = await voicevoxClient.getSpeakers()
-    const result = speakers.flatMap((speaker: any) =>
-      speaker.styles.map((style: any) => ({
-        uuid: speaker.speaker_uuid,
-        speaker: style.id,
-        name: `${speaker.name}:${style.name}`,
-      }))
-    )
-    return createSuccessResponse(JSON.stringify(result))
-  } catch (error) {
-    return createErrorResponse(error)
-  }
-})
-
-server.tool(
-  'get_speaker_detail',
-  'Get detail of a speaker by id',
+server.registerTool(
+  'get_speakers',
   {
-    uuid: z.string().describe('Speaker UUID (speaker uuid)'),
+    title: 'Get Speakers',
+    description: 'Get a list of available speakers',
+    inputSchema: {},
+  },
+  async () => {
+    try {
+      const speakers = await voicevoxClient.getSpeakers()
+      const result = speakers.flatMap((speaker: any) =>
+        speaker.styles.map((style: any) => ({
+          uuid: speaker.speaker_uuid,
+          speaker: style.id,
+          name: `${speaker.name}:${style.name}`,
+        }))
+      )
+      return createSuccessResponse(JSON.stringify(result))
+    } catch (error) {
+      return createErrorResponse(error)
+    }
+  }
+)
+
+server.registerTool(
+  'get_speaker_detail',
+  {
+    title: 'Get Speaker Detail',
+    description: 'Get detail of a speaker by id',
+    inputSchema: {
+      uuid: z.string().describe('Speaker UUID (speaker uuid)'),
+    },
   },
   async ({ uuid }) => {
     try {

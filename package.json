@@ -60,10 +60,10 @@
   "dependencies": {
     "@hono/node-server": "^1.14.2",
     "@kajidog/voicevox-client": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.8.0",
+    "@modelcontextprotocol/sdk": "^1.25.1",
     "fetch-to-node": "^2.1.0",
     "hono": "^4.7.10",
-    "zod": "^3.22.4"
+    "zod": "^3.25.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

@@ -15,7 +15,7 @@ importers:
         specifier: workspace:*
         version: link:packages/voicevox-client
       '@modelcontextprotocol/sdk':
-        specifier: ^1.8.0
+        specifier: ^1.25.1
         version: 1.25.1(hono@4.11.3)(zod@3.25.76)
       fetch-to-node:
         specifier: ^2.1.0
@@ -24,7 +24,7 @@ importers:
         specifier: ^4.7.10
         version: 4.11.3
       zod:
-        specifier: ^3.22.4
+        specifier: ^3.25.0
         version: 3.25.76
     devDependencies:
       '@biomejs/biome':
