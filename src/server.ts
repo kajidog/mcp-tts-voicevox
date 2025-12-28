@@ -85,7 +85,11 @@ const processTextInput = async (
   }
 ) => {
   const segments = parseStringInput(text)
-  return await voicevoxClient.speak(segments, speaker, speedScale, playbackOptions)
+  return await voicevoxClient.speak(segments, {
+    speaker,
+    speedScale,
+    ...playbackOptions,
+  })
 }
 
 // ツール定義
@@ -113,7 +117,11 @@ server.tool(
 
       if (query) {
         const audioQuery = parseAudioQuery(query, speedScale)
-        const result = await voicevoxClient.enqueueAudioGeneration(audioQuery, speaker, speedScale, playbackOptions)
+        const result = await voicevoxClient.enqueueAudioGeneration(audioQuery, {
+          speaker,
+          speedScale,
+          ...playbackOptions,
+        })
         return createSuccessResponse(result)
       }
 

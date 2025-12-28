@@ -55,7 +55,7 @@ async function testTextToSpeech(client: VoicevoxClient, speaker: number): Promis
 
   // 1. speak テスト - テキストからの音声再生
   console.log('➡️ テキストから直接音声再生')
-  const speakResult = await client.speak(testText, speaker)
+  const speakResult = await client.speak(testText, { speaker })
   console.log('✅ 結果:', speakResult)
 
   // 2. generateQuery テスト - テキストから音声合成用クエリを生成
@@ -144,7 +144,7 @@ async function testAudioQueue(client: VoicevoxClient, query: AudioQuery, speaker
 
   // クエリを使って音声生成キューに追加
   console.log('➡️ クエリを使って音声生成キューへの追加')
-  const enqueueResult = await client.enqueueAudioGeneration(query, speaker)
+  const enqueueResult = await client.enqueueAudioGeneration(query, { speaker })
   console.log('✅ キュー追加結果:', enqueueResult)
 }
 
@@ -200,7 +200,7 @@ async function testSpeakTool(client: VoicevoxClient): Promise<void> {
     try {
       const { text, speaker, speedScale } = args
       console.log(`➡️ テキスト「${text}」を話者${speaker}、速度${speedScale || 1.0}で発話`)
-      const result = await client.speak(text, speaker, speedScale)
+      const result = await client.speak(text, { speaker, speedScale })
       console.log('✅ speak 結果:', result)
       return {
         content: [{ type: 'text', text: result }],

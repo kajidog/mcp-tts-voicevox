@@ -1,0 +1,113 @@
+import { createPlaybackStrategy } from './playback-strategy'
+import type { ActivePlayback, AudioSource, PlaybackCallbacks, PlaybackStrategy } from './types'
+
+/**
+ * 統一された再生サービス
+ * 2つのAudioPlayerを1つに統合し、AbortControllerで停止制御
+ */
+export class PlaybackService {
+  private readonly strategy: PlaybackStrategy
+  private readonly activePlaybacks: Map<string, ActivePlayback> = new Map()
+  private readonly callbacks: PlaybackCallbacks
+
+  constructor(callbacks: PlaybackCallbacks = {}) {
+    this.strategy = createPlaybackStrategy()
+    this.callbacks = callbacks
+  }
+
+  /**
+   * ストリーミング再生が有効かどうか
+   */
+  isStreamingEnabled(): boolean {
+    return this.strategy.supportsStreaming()
+  }
+
+  /**
+   * 音声を再生
+   * @param itemId アイテムID
+   * @param audio 音声ソース（バッファまたはファイル）
+   * @param signal 外部からの中断シグナル（オプション）
+   */
+  async play(itemId: string, audio: AudioSource, signal?: AbortSignal): Promise<void> {
+    // 既存の再生を停止
+    this.stop(itemId)
+
+    const controller = new AbortController()
+    const activePlayback: ActivePlayback = {
+      itemId,
+      controller,
+      startTime: new Date(),
+    }
+    this.activePlaybacks.set(itemId, activePlayback)
+
+    // 外部シグナルとの連携
+    if (signal) {
+      signal.addEventListener('abort', () => controller.abort())
+    }
+
+    try {
+      this.callbacks.onStart?.(itemId)
+
+      if (audio.type === 'buffer' && this.strategy.supportsStreaming()) {
+        await this.strategy.playFromBuffer(audio.data, controller.signal)
+      } else if (audio.type === 'file') {
+        await this.strategy.playFromFile(audio.path, controller.signal)
+      } else if (audio.type === 'buffer') {
+        throw new Error('ストリーミング再生が利用できません。一時ファイルを使用してください。')
+      }
+
+      this.callbacks.onComplete?.(itemId)
+    } catch (error) {
+      // 中断による終了はエラーとして扱わない
+      if (!controller.signal.aborted) {
+        this.callbacks.onError?.(itemId, error as Error)
+        throw error
+      }
+    } finally {
+      this.activePlaybacks.delete(itemId)
+    }
+  }
+
+  /**
+   * 指定アイテムの再生を停止
+   */
+  stop(itemId: string): void {
+    const playback = this.activePlaybacks.get(itemId)
+    if (playback) {
+      playback.controller.abort()
+      this.activePlaybacks.delete(itemId)
+    }
+  }
+
+  /**
+   * 全ての再生を停止
+   */
+  stopAll(): void {
+    for (const [itemId, playback] of this.activePlaybacks) {
+      playback.controller.abort()
+    }
+    this.activePlaybacks.clear()
+    this.strategy.stop()
+  }
+
+  /**
+   * アクティブな再生があるかどうか
+   */
+  isPlaying(): boolean {
+    return this.activePlaybacks.size > 0
+  }
+
+  /**
+   * 指定アイテムが再生中かどうか
+   */
+  isPlayingItem(itemId: string): boolean {
+    return this.activePlaybacks.has(itemId)
+  }
+
+  /**
+   * アクティブな再生の数を取得
+   */
+  getActiveCount(): number {
+    return this.activePlaybacks.size
+  }
+}

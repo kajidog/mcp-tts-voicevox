@@ -92,26 +92,48 @@ The project uses **TypeScript native compilation (tsgo)** as the default build m
 ### VoicevoxClient Package (packages/voicevox-client/)
 
 1. **Client Architecture**:
-   - **VoicevoxClient**: Main client class for VOICEVOX interaction
-   - **Queue System**: Advanced audio processing pipeline
-   - **Audio Management**: File generation and playback handling
+   - **VoicevoxClient**: Main client class (facade pattern) for VOICEVOX interaction
+   - **Options-based API**: Unified `speak(input, options)` signature
+   - **Queue System**: Event-driven audio processing pipeline with state machine
+   - **Streaming Playback**: Direct buffer playback via ffplay (no temp files)
    - **API Layer**: HTTP communication with VOICEVOX engine
 
-2. **Key Components**:
-   - `src/client.ts`: Main VoicevoxClient implementation
-   - `src/api.ts`: VOICEVOX engine API communication
-   - `src/queue/`: Audio queue management system
-   - `src/queue/audio-player.ts`: Cross-platform audio playback (command-line based)
-   - `src/player.ts`: Audio playback coordination
-   - `src/error.ts`: Error handling and types
+2. **Directory Structure**:
+   ```
+   packages/voicevox-client/src/
+   ├── client.ts              # VoicevoxClient (main facade)
+   ├── api.ts                 # VoicevoxApi (VOICEVOX Engine communication)
+   ├── types.ts               # Type definitions
+   ├── error.ts               # Error handling
+   ├── utils.ts               # Utilities
+   │
+   ├── state/                 # State management
+   │   ├── item-state-machine.ts   # Item state transitions (PENDING→GENERATING→READY→PLAYING→DONE)
+   │   └── types.ts
+   │
+   ├── playback/              # Playback functionality
+   │   ├── playback-service.ts     # Unified playback service with AbortController
+   │   ├── playback-strategy.ts    # Platform-specific strategies (Strategy pattern)
+   │   └── types.ts
+   │
+   └── queue/                 # Queue management
+       ├── queue-service.ts        # Queue operations
+       ├── audio-generator.ts      # Audio generation
+       ├── file-manager.ts         # File management
+       ├── event-manager.ts        # Event management
+       └── types.ts
+   ```
 
 3. **Audio Playback Architecture**:
-   - **Cross-platform**: Uses platform-specific command-line tools for audio playback
-   - **macOS**: `afplay` command
-   - **Windows**: PowerShell `MediaPlayer` with proper timing and hidden windows
-   - **Linux**: Auto-detection of available players (`aplay`, `paplay`, `play`, `ffplay`)
+   - **Strategy Pattern**: `PlaybackStrategy` interface with platform-specific implementations
+   - **Streaming Mode**: When `ffplay` is available, plays audio directly from memory buffer
+   - **File Mode Fallback**: Uses platform-native tools when streaming is unavailable
+     - **macOS**: `afplay` command
+     - **Windows**: PowerShell `MediaPlayer` with proper timing and hidden windows
+     - **Linux**: Auto-detection of available players (`aplay`, `paplay`, `play`, `ffplay`)
    - **Browser**: Native HTML5 Audio API with blob URLs
-   - **No external dependencies**: Removed `sound-play` dependency for lighter footprint
+   - **AbortController**: Graceful playback cancellation
+   - **No external dependencies**: Uses platform-native tools only
 
 ### Development Workflow
 
@@ -148,10 +170,11 @@ The project uses **TypeScript native compilation (tsgo)** as the default build m
 - `VOICEVOX_DEFAULT_SPEAKER`: Default speaker ID (default: 1)
 - `VOICEVOX_DEFAULT_SPEED_SCALE`: Default playback speed (default: 1.0)
 
-**Playback Options (new):**
+**Playback Options:**
 - `VOICEVOX_DEFAULT_IMMEDIATE`: Start playback immediately when queued (default: true)
 - `VOICEVOX_DEFAULT_WAIT_FOR_START`: Wait for playback to start (default: false)
 - `VOICEVOX_DEFAULT_WAIT_FOR_END`: Wait for playback to end (default: false)
+- `VOICEVOX_STREAMING_PLAYBACK`: Enable streaming playback via ffplay (default: true when ffplay is available)
 
 **Server Configuration:**
 - `MCP_HTTP_MODE`: Enable HTTP server mode (set to "true")
@@ -189,12 +212,14 @@ The project uses **TypeScript native compilation (tsgo)** as the default build m
 
 ### Audio Playback Development Notes
 
-**When modifying audio playback (`packages/voicevox-client/src/queue/audio-player.ts`)**:
-- Test across platforms: macOS (`afplay`), Windows (PowerShell), Linux (multiple players)
-- Mock `child_process.spawn` in tests with proper event simulation
-- Handle file path escaping for special characters (especially Windows)
-- Use `windowsHide: true` for Windows PowerShell to prevent window flashing
-- Maintain browser compatibility with HTML5 Audio API
+**When modifying audio playback (`packages/voicevox-client/src/playback/`)**:
+- **Strategy Pattern**: Add new strategies by implementing `PlaybackStrategy` interface
+- **Testing**: Mock `child_process.spawn` in tests with proper event simulation (including `kill`, `stdin`)
+- **Platform Testing**: Test across macOS (`afplay`), Windows (PowerShell), Linux (multiple players)
+- **Streaming**: `ffplay` must be available for streaming playback; test both streaming and file modes
+- **Windows**: Use `windowsHide: true` for PowerShell to prevent window flashing
+- **Cancellation**: Use `AbortController` signal for graceful playback stop
+- **Browser**: Maintain `BrowserPlaybackStrategy` compatibility with HTML5 Audio API
 
 ### Important Separation
 

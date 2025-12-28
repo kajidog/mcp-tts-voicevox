@@ -59,7 +59,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.14.2",
-    "@kajidog/voicevox-client": "0.2.0",
+    "@kajidog/voicevox-client": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.8.0",
     "fetch-to-node": "^2.1.0",
     "hono": "^4.7.10",

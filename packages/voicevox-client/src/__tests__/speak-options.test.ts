@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { VoicevoxClient } from '../client'
-import type { PlaybackOptions, VoicevoxConfig } from '../types'
+import { type SpeakOptions, VoicevoxClient } from '../client'
+import type { VoicevoxConfig } from '../types'
 
 // APIのモック
 vi.mock('../api', () => ({
@@ -20,14 +20,22 @@ vi.mock('../api', () => ({
   })),
 }))
 
-// プレイヤーのモック
-const mockEnqueueQueryWithOptions = vi.fn()
-vi.mock('../player', () => ({
-  VoicevoxPlayer: vi.fn().mockImplementation(() => ({
-    getQueueManager: vi.fn().mockReturnValue({
-      enqueueQueryWithOptions: mockEnqueueQueryWithOptions,
-    }),
+// QueueServiceのモック
+const mockEnqueueQuery = vi.fn()
+vi.mock('../queue/queue-service', () => ({
+  QueueService: vi.fn().mockImplementation(() => ({
+    enqueueQuery: mockEnqueueQuery,
+    enqueueText: vi.fn(),
+    startPlayback: vi.fn(),
     clearQueue: vi.fn(),
+    cleanup: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    getQueue: vi.fn().mockReturnValue([]),
+    getFileManager: vi.fn().mockReturnValue({
+      saveTempAudioFile: vi.fn(),
+      saveAudioFile: vi.fn(),
+    }),
   })),
 }))
 
@@ -47,8 +55,8 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
 
     client = new VoicevoxClient(config)
 
-    // enqueueQueryWithOptions のモックを設定
-    mockEnqueueQueryWithOptions.mockResolvedValue({
+    // enqueueQuery のモックを設定
+    mockEnqueueQuery.mockResolvedValue({
       item: { id: 'test' },
       promises: {},
     })
@@ -60,23 +68,19 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
 
   describe('immediate オプションの動作確認', () => {
     it('immediate=true を指定した場合、第1セグメントに immediate=true が渡される', async () => {
-      const options: PlaybackOptions = { immediate: true }
+      const options: SpeakOptions = { immediate: true }
 
-      await client.speak('テスト音声', 1, 1.0, options)
+      await client.speak('テスト音声', options)
 
-      expect(mockEnqueueQueryWithOptions).toHaveBeenCalledWith(
-        expect.any(Object),
-        1,
-        expect.objectContaining({ immediate: true })
-      )
+      expect(mockEnqueueQuery).toHaveBeenCalledWith(expect.any(Object), 1, expect.objectContaining({ immediate: true }))
     })
 
     it('immediate=false を指定した場合、第1セグメントに immediate=false が渡される', async () => {
-      const options: PlaybackOptions = { immediate: false }
+      const options: SpeakOptions = { immediate: false }
 
-      await client.speak('テスト音声', 1, 1.0, options)
+      await client.speak('テスト音声', options)
 
-      expect(mockEnqueueQueryWithOptions).toHaveBeenCalledWith(
+      expect(mockEnqueueQuery).toHaveBeenCalledWith(
         expect.any(Object),
         1,
         expect.objectContaining({ immediate: false })
@@ -84,21 +88,21 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
     })
 
     it('複数セグメントの場合、第2セグメント以降は immediate=false になる', async () => {
-      const options: PlaybackOptions = { immediate: true }
+      const options: SpeakOptions = { immediate: true }
 
-      // VoicevoxClientには話者番号付きではなく、SpeechSegment配列として渡す
+      // SpeechSegment配列として渡す
       const segments = [
         { text: '第1セグメント', speaker: 1 },
         { text: '第2セグメント', speaker: 2 },
       ]
 
-      await client.speak(segments, 1, 1.0, options)
+      await client.speak(segments, options)
 
       // 非同期処理なので少し待つ
       await new Promise((resolve) => setTimeout(resolve, 100))
 
       // 第1セグメント
-      expect(mockEnqueueQueryWithOptions).toHaveBeenNthCalledWith(
+      expect(mockEnqueueQuery).toHaveBeenNthCalledWith(
         1,
         expect.any(Object),
         1,
@@ -106,7 +110,7 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
       )
 
       // 第2セグメント（immediate=false になる）
-      expect(mockEnqueueQueryWithOptions).toHaveBeenNthCalledWith(
+      expect(mockEnqueueQuery).toHaveBeenNthCalledWith(
         2,
         expect.any(Object),
         2,
@@ -117,10 +121,10 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
 
   describe('waitForEnd オプションの動作確認', () => {
     it('waitForEnd=true の場合、すべてのセグメントの Promise が作成される', async () => {
-      const options: PlaybackOptions = { waitForEnd: true }
+      const options: SpeakOptions = { waitForEnd: true }
 
       // Promise を作成するモック
-      mockEnqueueQueryWithOptions.mockResolvedValue({
+      mockEnqueueQuery.mockResolvedValue({
         item: { id: 'test' },
         promises: {
           end: Promise.resolve(),
@@ -132,10 +136,10 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
         { text: '第2セグメント', speaker: 2 },
       ]
 
-      await client.speak(segments, 1, 1.0, options)
+      await client.speak(segments, options)
 
       // 第1セグメント
-      expect(mockEnqueueQueryWithOptions).toHaveBeenNthCalledWith(
+      expect(mockEnqueueQuery).toHaveBeenNthCalledWith(
         1,
         expect.any(Object),
         1,
@@ -143,7 +147,7 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
       )
 
       // 第2セグメント
-      expect(mockEnqueueQueryWithOptions).toHaveBeenNthCalledWith(
+      expect(mockEnqueueQuery).toHaveBeenNthCalledWith(
         2,
         expect.any(Object),
         2,
@@ -152,9 +156,9 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
     })
 
     it('waitForEnd=false の場合、第2セグメント以降は非同期処理される', async () => {
-      const options: PlaybackOptions = { waitForEnd: false }
+      const options: SpeakOptions = { waitForEnd: false }
 
-      mockEnqueueQueryWithOptions.mockResolvedValue({
+      mockEnqueueQuery.mockResolvedValue({
         item: { id: 'test' },
         promises: {},
       })
@@ -164,13 +168,13 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
         { text: '第2セグメント', speaker: 2 },
       ]
 
-      await client.speak(segments, 1, 1.0, options)
+      await client.speak(segments, options)
 
       // 非同期処理なので少し待つ
       await new Promise((resolve) => setTimeout(resolve, 100))
 
       // 第1セグメント
-      expect(mockEnqueueQueryWithOptions).toHaveBeenNthCalledWith(
+      expect(mockEnqueueQuery).toHaveBeenNthCalledWith(
         1,
         expect.any(Object),
         1,
@@ -178,7 +182,7 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
       )
 
       // 第2セグメント（非同期なので実行順序は保証されない）
-      expect(mockEnqueueQueryWithOptions).toHaveBeenCalledWith(
+      expect(mockEnqueueQuery).toHaveBeenCalledWith(
         expect.any(Object),
         2,
         expect.objectContaining({ waitForEnd: false, immediate: false })
@@ -188,9 +192,9 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
 
   describe('waitForStart オプションの動作確認', () => {
     it('waitForStart=true の場合、すべてのセグメントに適用される', async () => {
-      const options: PlaybackOptions = { waitForStart: true }
+      const options: SpeakOptions = { waitForStart: true }
 
-      mockEnqueueQueryWithOptions.mockResolvedValue({
+      mockEnqueueQuery.mockResolvedValue({
         item: { id: 'test' },
         promises: {
           start: Promise.resolve(),
@@ -202,18 +206,18 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
         { text: '第2セグメント', speaker: 2 },
       ]
 
-      await client.speak(segments, 1, 1.0, options)
+      await client.speak(segments, options)
 
       // 非同期処理なので少し待つ
       await new Promise((resolve) => setTimeout(resolve, 100))
 
-      expect(mockEnqueueQueryWithOptions).toHaveBeenCalledWith(
+      expect(mockEnqueueQuery).toHaveBeenCalledWith(
         expect.any(Object),
         1,
         expect.objectContaining({ waitForStart: true })
       )
 
-      expect(mockEnqueueQueryWithOptions).toHaveBeenCalledWith(
+      expect(mockEnqueueQuery).toHaveBeenCalledWith(
         expect.any(Object),
         2,
         expect.objectContaining({ waitForStart: true })
@@ -223,13 +227,13 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
 
   describe('複合オプションのテスト', () => {
     it('immediate=true, waitForStart=true, waitForEnd=true の組み合わせ', async () => {
-      const options: PlaybackOptions = {
+      const options: SpeakOptions = {
         immediate: true,
         waitForStart: true,
         waitForEnd: true,
       }
 
-      mockEnqueueQueryWithOptions.mockResolvedValue({
+      mockEnqueueQuery.mockResolvedValue({
         item: { id: 'test' },
         promises: {
           start: Promise.resolve(),
@@ -242,10 +246,10 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
         { text: '第2セグメント', speaker: 2 },
       ]
 
-      await client.speak(segments, 1, 1.0, options)
+      await client.speak(segments, options)
 
       // 第1セグメント
-      expect(mockEnqueueQueryWithOptions).toHaveBeenNthCalledWith(
+      expect(mockEnqueueQuery).toHaveBeenNthCalledWith(
         1,
         expect.any(Object),
         1,
@@ -257,7 +261,7 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
       )
 
       // 第2セグメント（immediate は false になる）
-      expect(mockEnqueueQueryWithOptions).toHaveBeenNthCalledWith(
+      expect(mockEnqueueQuery).toHaveBeenNthCalledWith(
         2,
         expect.any(Object),
         2,
@@ -276,10 +280,10 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
       const originalConsoleError = console.error
       console.error = vi.fn()
 
-      const options: PlaybackOptions = { waitForEnd: false }
+      const options: SpeakOptions = { waitForEnd: false }
 
       // 第1セグメントは成功、第2セグメントでエラー
-      mockEnqueueQueryWithOptions
+      mockEnqueueQuery
         .mockResolvedValueOnce({
           item: { id: 'test1' },
           promises: {},
@@ -292,12 +296,12 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
       ]
 
       // エラーが発生してもメソッド全体は成功する（非同期処理のため）
-      await expect(client.speak(segments, 1, 1.0, options)).resolves.toBeDefined()
+      await expect(client.speak(segments, options)).resolves.toBeDefined()
 
       // 非同期処理なので少し待つ
       await new Promise((resolve) => setTimeout(resolve, 100))
 
-      expect(mockEnqueueQueryWithOptions).toHaveBeenCalledTimes(2)
+      expect(mockEnqueueQuery).toHaveBeenCalledTimes(2)
 
       // console.errorを元に戻す
       console.error = originalConsoleError

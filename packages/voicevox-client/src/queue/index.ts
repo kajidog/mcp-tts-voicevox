@@ -1,6 +1,5 @@
 export * from './types'
-export * from './manager'
+export * from './queue-service'
 export * from './file-manager'
 export * from './event-manager'
 export * from './audio-generator'
-export * from './audio-player'
