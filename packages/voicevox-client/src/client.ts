@@ -105,15 +105,21 @@ export class VoicevoxClient {
         return 'テキストが空です'
       }
 
-      const promises: Array<Promise<void>> = []
-
-      // 再生オプションをマージ
+      // 再生オプションをマージ（undefined の場合はデフォルト値を使用）
       const playbackOptions: PlaybackOptions = {
-        ...this.defaultPlaybackOptions,
-        immediate: options.immediate,
-        waitForStart: options.waitForStart,
-        waitForEnd: options.waitForEnd,
+        immediate: options.immediate ?? this.defaultPlaybackOptions.immediate,
+        waitForStart: options.waitForStart ?? this.defaultPlaybackOptions.waitForStart,
+        waitForEnd: options.waitForEnd ?? this.defaultPlaybackOptions.waitForEnd,
       }
+
+      // immediate: true の場合、既存のキューをクリア
+      if (playbackOptions.immediate === true) {
+        await this.queueService.clearQueue()
+      }
+
+      // 待機用のPromise
+      let firstStartPromise: Promise<void> | undefined
+      let lastEndPromise: Promise<void> | undefined
 
       // 最初のセグメントを優先的に処理して再生を早く開始
       if (segments.length > 0) {
@@ -122,10 +128,21 @@ export class VoicevoxClient {
         const firstQuery = await this.generateQuery(firstSegment.text, speakerId)
         firstQuery.speedScale = speed
 
-        const { promises: firstPromises } = await this.queueService.enqueueQuery(firstQuery, speakerId, playbackOptions)
+        const { promises: firstPromises } = await this.queueService.enqueueQuery(firstQuery, speakerId, {
+          ...playbackOptions,
+          immediate: false, // キューは既にクリア済みなので、通常のキュー処理を行う
+          waitForStart: playbackOptions.waitForStart,
+          waitForEnd: playbackOptions.waitForEnd,
+        })
 
-        if (firstPromises.start) promises.push(firstPromises.start)
-        if (firstPromises.end) promises.push(firstPromises.end)
+        // waitForStart: 最初のセグメントの開始を待つ
+        if (firstPromises.start) {
+          firstStartPromise = firstPromises.start
+        }
+        // セグメントが1つだけの場合は最後のendもこれ
+        if (firstPromises.end) {
+          lastEndPromise = firstPromises.end
+        }
       }
 
       // 残りのセグメントを順番に処理
@@ -135,18 +152,36 @@ export class VoicevoxClient {
         const query = await this.generateQuery(segment.text, speakerId)
         query.speedScale = speed
 
+        const isLastSegment = i === segments.length - 1
+
         const { promises: segmentPromises } = await this.queueService.enqueueQuery(query, speakerId, {
           ...playbackOptions,
           immediate: false,
+          waitForStart: false, // 残りのセグメントの開始は待たない
+          waitForEnd: isLastSegment ? playbackOptions.waitForEnd : false, // 最後のセグメントのみ終了を待つ
         })
 
-        if (segmentPromises.start) promises.push(segmentPromises.start)
-        if (segmentPromises.end) promises.push(segmentPromises.end)
+        // waitForEnd: 最後のセグメントの終了を待つ
+        if (isLastSegment && segmentPromises.end) {
+          lastEndPromise = segmentPromises.end
+        }
       }
 
       // 待機オプションに応じて処理
-      if (promises.length > 0) {
-        await Promise.all(promises)
+      const waitPromises: Array<Promise<void>> = []
+
+      // waitForStart: 最初のセグメントの再生開始を待つ
+      if (playbackOptions.waitForStart && firstStartPromise) {
+        waitPromises.push(firstStartPromise)
+      }
+
+      // waitForEnd: 最後のセグメントの再生終了を待つ
+      if (playbackOptions.waitForEnd && lastEndPromise) {
+        waitPromises.push(lastEndPromise)
+      }
+
+      if (waitPromises.length > 0) {
+        await Promise.all(waitPromises)
       }
 
       const textSummary = segments.map((s) => s.text).join(' ')
@@ -284,20 +319,30 @@ export class VoicevoxClient {
     try {
       const speed = options.speedScale ?? this.defaultSpeedScale
 
-      // AudioQueryの場合
+      // 再生オプションをマージ（undefined の場合はデフォルト値を使用）
+      const playbackOptions: PlaybackOptions = {
+        immediate: options.immediate ?? this.defaultPlaybackOptions.immediate,
+        waitForStart: options.waitForStart ?? this.defaultPlaybackOptions.waitForStart,
+        waitForEnd: options.waitForEnd ?? this.defaultPlaybackOptions.waitForEnd,
+      }
+
+      // immediate: true の場合、既存のキューをクリア
+      if (playbackOptions.immediate === true) {
+        await this.queueService.clearQueue()
+      }
+
+      // AudioQueryの場合（単一アイテム）
       if (typeof input === 'object' && !Array.isArray(input) && 'accent_phrases' in input) {
         const speakerId = this.getSpeakerId(options.speaker)
         const query = { ...input, speedScale: speed }
-        const playbackOptions: PlaybackOptions = {
-          immediate: options.immediate,
-          waitForStart: options.waitForStart,
-          waitForEnd: options.waitForEnd,
-        }
-        const { promises } = await this.queueService.enqueueQuery(query, speakerId, playbackOptions)
+        const { promises } = await this.queueService.enqueueQuery(query, speakerId, {
+          ...playbackOptions,
+          immediate: false, // キューは既にクリア済み
+        })
 
         const waitPromises: Array<Promise<void>> = []
-        if (promises.start) waitPromises.push(promises.start)
-        if (promises.end) waitPromises.push(promises.end)
+        if (playbackOptions.waitForStart && promises.start) waitPromises.push(promises.start)
+        if (playbackOptions.waitForEnd && promises.end) waitPromises.push(promises.end)
         if (waitPromises.length > 0) {
           await Promise.all(waitPromises)
         }
@@ -312,13 +357,9 @@ export class VoicevoxClient {
         return 'テキストが空です'
       }
 
-      const promises: Array<Promise<void>> = []
-      const playbackOptions: PlaybackOptions = {
-        ...this.defaultPlaybackOptions,
-        immediate: options.immediate,
-        waitForStart: options.waitForStart,
-        waitForEnd: options.waitForEnd,
-      }
+      // 待機用のPromise
+      let firstStartPromise: Promise<void> | undefined
+      let lastEndPromise: Promise<void> | undefined
 
       // 最初のセグメントを優先処理
       if (segments.length > 0) {
@@ -327,10 +368,21 @@ export class VoicevoxClient {
         const firstQuery = await this.generateQuery(firstSegment.text, speakerId)
         firstQuery.speedScale = speed
 
-        const { promises: firstPromises } = await this.queueService.enqueueQuery(firstQuery, speakerId, playbackOptions)
+        const { promises: firstPromises } = await this.queueService.enqueueQuery(firstQuery, speakerId, {
+          ...playbackOptions,
+          immediate: false, // キューは既にクリア済み
+          waitForStart: playbackOptions.waitForStart,
+          waitForEnd: playbackOptions.waitForEnd,
+        })
 
-        if (firstPromises.start) promises.push(firstPromises.start)
-        if (firstPromises.end) promises.push(firstPromises.end)
+        // waitForStart: 最初のセグメントの開始を待つ
+        if (firstPromises.start) {
+          firstStartPromise = firstPromises.start
+        }
+        // セグメントが1つだけの場合は最後のendもこれ
+        if (firstPromises.end) {
+          lastEndPromise = firstPromises.end
+        }
       }
 
       // 残りのセグメントを順番に処理
@@ -340,18 +392,36 @@ export class VoicevoxClient {
         const query = await this.generateQuery(segment.text, speakerId)
         query.speedScale = speed
 
+        const isLastSegment = i === segments.length - 1
+
         const { promises: segmentPromises } = await this.queueService.enqueueQuery(query, speakerId, {
           ...playbackOptions,
           immediate: false,
+          waitForStart: false, // 残りのセグメントの開始は待たない
+          waitForEnd: isLastSegment ? playbackOptions.waitForEnd : false, // 最後のセグメントのみ終了を待つ
         })
 
-        if (segmentPromises.start) promises.push(segmentPromises.start)
-        if (segmentPromises.end) promises.push(segmentPromises.end)
+        // waitForEnd: 最後のセグメントの終了を待つ
+        if (isLastSegment && segmentPromises.end) {
+          lastEndPromise = segmentPromises.end
+        }
       }
 
       // 待機オプションに応じて処理
-      if (promises.length > 0) {
-        await Promise.all(promises)
+      const waitPromises: Array<Promise<void>> = []
+
+      // waitForStart: 最初のセグメントの再生開始を待つ
+      if (playbackOptions.waitForStart && firstStartPromise) {
+        waitPromises.push(firstStartPromise)
+      }
+
+      // waitForEnd: 最後のセグメントの再生終了を待つ
+      if (playbackOptions.waitForEnd && lastEndPromise) {
+        waitPromises.push(lastEndPromise)
+      }
+
+      if (waitPromises.length > 0) {
+        await Promise.all(waitPromises)
       }
 
       return 'テキストをキューに追加しました'
