@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { execSync, spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -11,7 +11,17 @@ import { VoicevoxQueueManager } from '../queue/manager'
 vi.mock('fs')
 vi.mock('path')
 vi.mock('os')
-vi.mock('child_process')
+vi.mock('child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  return {
+    ...actual,
+    spawn: vi.fn(),
+    // ffplayを利用不可にしてストリーミングモードを無効化
+    execSync: vi.fn(() => {
+      throw new Error('ffplay not found')
+    }),
+  }
+})
 vi.mock('axios', () => {
   const mockAxios = vi.fn((config: any) => {
     if (config.method === 'get' && config.url.includes('/speakers')) {

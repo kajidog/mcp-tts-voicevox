@@ -380,7 +380,9 @@ export class VoicevoxQueueManager implements QueueManager {
   private async playImmediately(item: QueueItem): Promise<void> {
     // 音声ファイルが生成されるまで待機
     const checkInterval = setInterval(async () => {
-      if (item.status === QueueItemStatus.READY && item.tempFile) {
+      // ストリーミングモードの場合はaudioDataがあればOK、そうでなければtempFileが必要
+      const isReady = item.status === QueueItemStatus.READY && (item.audioData || item.tempFile)
+      if (isReady) {
         clearInterval(checkInterval)
         this.immediatePlayIntervals.delete(checkInterval)
 
@@ -392,7 +394,15 @@ export class VoicevoxQueueManager implements QueueManager {
         try {
           // 即時再生用プレイヤーで再生
           this.updateItemStatus(item, QueueItemStatus.PLAYING)
-          await this.immediatePlayer.playAudio(item.tempFile)
+
+          // ストリーミング再生が可能かチェック
+          if (item.audioData && this.immediatePlayer.isStreamingEnabled()) {
+            await this.immediatePlayer.playAudioFromBuffer(item.audioData)
+          } else if (item.tempFile) {
+            await this.immediatePlayer.playAudio(item.tempFile)
+          } else {
+            throw new Error('再生対象の音声データまたは一時ファイルが見つかりません')
+          }
 
           // 再生完了
           this.updateItemStatus(item, QueueItemStatus.DONE)
@@ -479,11 +489,14 @@ export class VoicevoxQueueManager implements QueueManager {
     }
 
     try {
-      if (!nextItem.tempFile) {
-        throw new Error('再生対象の一時ファイルが見つかりません')
+      // ストリーミング再生が可能かチェック
+      if (nextItem.audioData && this.audioPlayer.isStreamingEnabled()) {
+        await this.audioPlayer.playAudioFromBuffer(nextItem.audioData)
+      } else if (nextItem.tempFile) {
+        await this.audioPlayer.playAudio(nextItem.tempFile)
+      } else {
+        throw new Error('再生対象の音声データまたは一時ファイルが見つかりません')
       }
-
-      await this.audioPlayer.playAudio(nextItem.tempFile)
 
       // 再生完了
       this.updateItemStatus(nextItem, QueueItemStatus.DONE)

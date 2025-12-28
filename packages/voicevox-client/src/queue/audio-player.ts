@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { execSync, spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import { handleError } from '../error'
@@ -10,6 +10,106 @@ import { isBrowser, isTestEnvironment } from '../utils'
  */
 export class AudioPlayer {
   private audioElement: HTMLAudioElement | null = null
+  private ffplayAvailable: boolean | null = null
+
+  /**
+   * ffplayが利用可能かチェック（結果をキャッシュ）
+   * @returns ffplayが利用可能な場合true
+   */
+  public checkFfplayAvailable(): boolean {
+    if (this.ffplayAvailable !== null) {
+      return this.ffplayAvailable
+    }
+
+    if (isBrowser()) {
+      this.ffplayAvailable = false
+      return false
+    }
+
+    try {
+      const platform = os.platform()
+      if (platform === 'win32') {
+        execSync('where ffplay', { stdio: 'ignore' })
+      } else {
+        execSync('which ffplay', { stdio: 'ignore' })
+      }
+      this.ffplayAvailable = true
+    } catch {
+      this.ffplayAvailable = false
+    }
+
+    return this.ffplayAvailable
+  }
+
+  /**
+   * ストリーミング再生が有効かどうかを判定
+   * 環境変数とffplayの利用可能性をチェック
+   * @returns ストリーミング再生が有効な場合true
+   */
+  public isStreamingEnabled(): boolean {
+    // 環境変数で明示的に無効化されている場合
+    const envValue = process.env.VOICEVOX_STREAMING_PLAYBACK
+    if (envValue === 'false' || envValue === '0') {
+      return false
+    }
+
+    // ffplayが利用可能かチェック
+    return this.checkFfplayAvailable()
+  }
+
+  /**
+   * ArrayBufferから直接音声を再生（ffplay使用）
+   * @param audioData WAV形式の音声データ
+   */
+  public async playAudioFromBuffer(audioData: ArrayBuffer): Promise<void> {
+    if (isBrowser()) {
+      throw new Error('ストリーミング再生はブラウザ環境ではサポートされていません')
+    }
+
+    if (!this.checkFfplayAvailable()) {
+      throw new Error('ffplayが利用できません。ffmpegをインストールしてください。')
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      const platform = os.platform()
+
+      // ffplayでstdinから再生
+      const args = ['-nodisp', '-autoexit', '-i', 'pipe:0']
+
+      const spawnOptions: any = {
+        stdio: ['pipe', 'ignore', 'ignore'],
+      }
+
+      // Windowsではウィンドウを非表示にする
+      if (platform === 'win32') {
+        spawnOptions.windowsHide = true
+      }
+
+      const ffplayProcess = spawn('ffplay', args, spawnOptions)
+
+      ffplayProcess.on('close', (code) => {
+        if (code === 0) {
+          resolve()
+        } else {
+          reject(new Error(`ffplayプロセスがエラーで終了しました (終了コード: ${code})`))
+        }
+      })
+
+      ffplayProcess.on('error', (error) => {
+        reject(new Error(`ffplayプロセスの起動に失敗しました: ${error.message}`))
+      })
+
+      // stdinに音声データを書き込み
+      const buffer = Buffer.from(audioData)
+      ffplayProcess.stdin?.write(buffer, (err) => {
+        if (err) {
+          reject(new Error(`音声データの書き込みに失敗しました: ${err.message}`))
+          return
+        }
+        ffplayProcess.stdin?.end()
+      })
+    })
+  }
 
   /**
    * 音声ファイルを再生
