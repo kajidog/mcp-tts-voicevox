@@ -146,8 +146,35 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
       const ffplayProcess = spawn('ffplay', args, spawnOptions)
       this.activeProcesses.add(ffplayProcess)
 
+      // エラーイベントハンドラを先に設定（中断時のエラーを無視するため）
+      let isAborted = false
+
+      // stdinのエラーハンドラを設定（write EOFエラーを防ぐ）
+      if (ffplayProcess.stdin) {
+        ffplayProcess.stdin.on('error', (err) => {
+          // 中断時や書き込みエラーは無視（既に処理中の場合）
+          if (isAborted || signal?.aborted) {
+            return
+          }
+          // それ以外のエラーはreject（まだresolve/rejectされていない場合）
+        })
+      }
+
       const abortHandler = () => {
-        ffplayProcess.kill()
+        isAborted = true
+        try {
+          // stdinのエラーハンドラを無視設定
+          if (ffplayProcess.stdin) {
+            ffplayProcess.stdin.removeAllListeners('error')
+            ffplayProcess.stdin.on('error', () => { })
+          }
+          // プロセスのエラーハンドラを設定してからkill
+          ffplayProcess.removeAllListeners('error')
+          ffplayProcess.on('error', () => { })
+          ffplayProcess.kill()
+        } catch {
+          // kill失敗は無視
+        }
         resolve()
       }
       signal?.addEventListener('abort', abortHandler)
@@ -155,7 +182,7 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
       ffplayProcess.on('close', (code) => {
         signal?.removeEventListener('abort', abortHandler)
         this.activeProcesses.delete(ffplayProcess)
-        if (code === 0 || signal?.aborted) {
+        if (code === 0 || signal?.aborted || isAborted) {
           resolve()
         } else {
           reject(new Error(`ffplayプロセスがエラーで終了しました (終了コード: ${code})`))
@@ -163,6 +190,10 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
       })
 
       ffplayProcess.on('error', (error) => {
+        // 中断による終了時はエラーを無視
+        if (isAborted || signal?.aborted) {
+          return
+        }
         signal?.removeEventListener('abort', abortHandler)
         this.activeProcesses.delete(ffplayProcess)
         reject(new Error(`ffplayプロセスの起動に失敗しました: ${error.message}`))
@@ -170,6 +201,10 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
 
       const buffer = Buffer.from(data)
       ffplayProcess.stdin?.write(buffer, (err) => {
+        // 中断時は書き込みエラーを無視
+        if (isAborted || signal?.aborted) {
+          return
+        }
         if (err) {
           reject(new Error(`音声データの書き込みに失敗しました: ${err.message}`))
           return
@@ -231,8 +266,19 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
       const audioProcess = spawn(command, args, spawnOptions)
       this.activeProcesses.add(audioProcess)
 
+      // エラーイベントハンドラを先に設定（中断時のエラーを無視するため）
+      let isAborted = false
+
       const abortHandler = () => {
-        audioProcess.kill()
+        isAborted = true
+        try {
+          // プロセスのエラーハンドラを設定してからkill
+          audioProcess.removeAllListeners('error')
+          audioProcess.on('error', () => { })
+          audioProcess.kill()
+        } catch {
+          // kill失敗は無視
+        }
         resolve()
       }
       signal?.addEventListener('abort', abortHandler)
@@ -240,7 +286,7 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
       audioProcess.on('close', (code) => {
         signal?.removeEventListener('abort', abortHandler)
         this.activeProcesses.delete(audioProcess)
-        if (code === 0 || signal?.aborted) {
+        if (code === 0 || signal?.aborted || isAborted) {
           resolve()
         } else {
           reject(new Error(`音声再生プロセスがエラーで終了しました (終了コード: ${code})`))
@@ -248,6 +294,10 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
       })
 
       audioProcess.on('error', (error) => {
+        // 中断による終了時はエラーを無視
+        if (isAborted || signal?.aborted) {
+          return
+        }
         signal?.removeEventListener('abort', abortHandler)
         this.activeProcesses.delete(audioProcess)
         reject(new Error(`音声再生プロセスの起動に失敗しました: ${error.message}`))
@@ -275,8 +325,30 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
   }
 
   stop(): void {
-    for (const process of this.activeProcesses) {
-      process.kill()
+    for (const proc of this.activeProcesses) {
+      try {
+        // プロセスのstdioストリームのエラーを無視（既に終了中の場合のため）
+        if (proc.stdin) {
+          proc.stdin.removeAllListeners('error')
+          proc.stdin.on('error', () => { })
+        }
+        if (proc.stdout) {
+          proc.stdout.removeAllListeners('error')
+          proc.stdout.on('error', () => { })
+        }
+        if (proc.stderr) {
+          proc.stderr.removeAllListeners('error')
+          proc.stderr.on('error', () => { })
+        }
+        // プロセス自体のエラーイベントも無視
+        proc.removeAllListeners('error')
+        proc.on('error', () => { })
+
+        // プロセスを終了
+        proc.kill()
+      } catch {
+        // kill失敗は無視（既に終了している場合など）
+      }
     }
     this.activeProcesses.clear()
   }
