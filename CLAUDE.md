@@ -59,15 +59,24 @@ This is a VOICEVOX MCP (Model Context Protocol) server that provides text-to-spe
    - **Server Management**: Automatic mode selection based on environment
    - **No Library Exports**: Pure MCP server functionality
 
-2. **MCP Server Implementation** (`src/server.ts`):
+2. **Configuration Module** (`src/config.ts`):
+   - **Unified Configuration**: Centralized config parsing for CLI args, env vars, and defaults
+   - **Priority System**: CLI arguments > Environment variables > Default values
+   - **Playback Restrictions**: Options to restrict AI from specifying immediate/waitForStart/waitForEnd
+   - **Tool Disabling**: Configuration to disable specific MCP tools
+   - **CLI Arguments**: `--url`, `--speaker`, `--speed`, `--immediate`, `--restrict-*`, `--disable-tools`, etc.
+
+3. **MCP Server Implementation** (`src/server.ts`):
    - **MCP SDK**: Version 1.25.1 (Protocol 2025-11-25)
    - **Tool Registration**: Uses `server.registerTool()` API with title, description, and inputSchema
-   - **MCP Tools**: `speak`, `generate_query`, `synthesize_file`, `stop_speaker`, `get_speakers`, `get_speaker_detail`
+   - **MCP Tools**: `ping_voicevox`, `speak`, `generate_query`, `synthesize_file`, `stop_speaker`, `get_speakers`, `get_speaker_detail`
+   - **Conditional Registration**: Tools can be disabled via config; uses `registerToolIfEnabled()` helper
+   - **Dynamic Schema**: `buildSpeakInputSchema()` generates schema based on restriction settings
    - **Text Input Processing**: String-only format with line breaks and speaker prefix support ("1:Hello\n2:World")
    - **Zod Validation**: Schema-based parameter validation (Zod v3.25+)
    - **External Dependency**: Uses `@kajidog/voicevox-client` for functionality
 
-3. **Server Modes**:
+4. **Server Modes**:
    - **Stdio Mode** (`src/stdio.ts`): Standard MCP protocol for Claude Desktop
    - **HTTP/SSE Mode** (`src/sse.ts`): REST API and real-time communication
      - **Security Middleware**: Origin/Host header validation (MCP spec 2025-11-25 compliant)
@@ -179,6 +188,14 @@ The project uses **TypeScript native compilation (tsgo)** as the default build m
 - `VOICEVOX_DEFAULT_WAIT_FOR_START`: Wait for playback to start (default: false)
 - `VOICEVOX_DEFAULT_WAIT_FOR_END`: Wait for playback to end (default: false)
 - `VOICEVOX_STREAMING_PLAYBACK`: Enable streaming playback via ffplay (default: true when ffplay is available)
+
+**Playback Restrictions (prevent AI from specifying options):**
+- `VOICEVOX_RESTRICT_IMMEDIATE`: Restrict AI from specifying `immediate` option
+- `VOICEVOX_RESTRICT_WAIT_FOR_START`: Restrict AI from specifying `waitForStart` option
+- `VOICEVOX_RESTRICT_WAIT_FOR_END`: Restrict AI from specifying `waitForEnd` option
+
+**Tool Disabling:**
+- `VOICEVOX_DISABLED_TOOLS`: Comma-separated list of tools to disable (e.g., "generate_query,synthesize_file")
 
 **Server Configuration:**
 - `MCP_HTTP_MODE`: Enable HTTP server mode (set to "true")

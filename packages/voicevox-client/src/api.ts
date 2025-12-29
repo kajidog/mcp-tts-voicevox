@@ -101,6 +101,27 @@ export class VoicevoxApi {
   }
 
   /**
+   * VOICEVOX Engine の接続状態をチェック
+   * @returns 接続情報（connected, version, url）
+   */
+  public async checkHealth(): Promise<{ connected: boolean; version?: string; url: string }> {
+    try {
+      // /version エンドポイントを使用（軽量）
+      const version = await this.makeRequest<string>('get', '/version')
+      return {
+        connected: true,
+        version,
+        url: this.baseUrl,
+      }
+    } catch {
+      return {
+        connected: false,
+        url: this.baseUrl,
+      }
+    }
+  }
+
+  /**
    * APIリクエストを実行
    * @private
    */

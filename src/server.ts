@@ -2,6 +2,10 @@ import { type AudioQuery, type SpeakResult, VoicevoxClient } from '@kajidog/voic
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
+import { getConfig } from './config'
+
+// 設定を取得
+const config = getConfig()
 
 // サーバー初期化
 export const server = new McpServer({
@@ -12,10 +16,20 @@ export const server = new McpServer({
 
 // Voicevoxクライアント初期化
 const voicevoxClient = new VoicevoxClient({
-  url: process.env.VOICEVOX_URL ?? 'http://localhost:50021',
-  defaultSpeaker: Number(process.env.VOICEVOX_DEFAULT_SPEAKER || '1'),
-  defaultSpeedScale: Number(process.env.VOICEVOX_DEFAULT_SPEED_SCALE || '1.0'),
+  url: config.voicevoxUrl,
+  defaultSpeaker: config.defaultSpeaker,
+  defaultSpeedScale: config.defaultSpeedScale,
 })
+
+// 無効化ツールのセット
+const disabledTools = new Set(config.disabledTools)
+
+// 制限設定
+const restrictions = {
+  immediate: config.restrictImmediate,
+  waitForStart: config.restrictWaitForStart,
+  waitForEnd: config.restrictWaitForEnd,
+}
 
 // ユーティリティ関数
 const createErrorResponse = (error: unknown): CallToolResult => ({
@@ -81,42 +95,108 @@ const processTextInput = async (
   })
 }
 
+/**
+ * 条件付きツール登録（無効化されたツールは登録しない）
+ */
+function registerToolIfEnabled(name: string, definition: any, handler: any) {
+  if (disabledTools.has(name)) {
+    console.error(`Tool "${name}" is disabled via configuration`)
+    return
+  }
+  server.registerTool(name, definition, handler)
+}
+
+/**
+ * speak ツールの動的スキーマを構築
+ */
+function buildSpeakInputSchema() {
+  const schema: Record<string, z.ZodType> = {
+    text: z
+      .string()
+      .describe(
+        'Text string with line breaks and optional speaker prefix "1:Hello\\n2:World". For faster playback start, make the first element short.'
+      ),
+    query: z.string().optional().describe('Voice synthesis query'),
+    speaker: z.number().optional().describe('Default speaker ID (optional)'),
+    speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
+  }
+
+  // 制限されていない場合のみスキーマに追加
+  if (!restrictions.immediate) {
+    schema.immediate = z
+      .boolean()
+      .optional()
+      .describe(
+        'If true, stops current playback and plays new audio immediately. If false, waits for current playback to finish. Default depends on environment variable.'
+      )
+  }
+
+  if (!restrictions.waitForStart) {
+    schema.waitForStart = z.boolean().optional().describe('Wait for playback to start (optional, default: false)')
+  }
+
+  if (!restrictions.waitForEnd) {
+    schema.waitForEnd = z.boolean().optional().describe('Wait for playback to end (optional, default: false)')
+  }
+
+  return schema
+}
+
 // ツール登録
-server.registerTool(
+
+// ping_voicevox ツール
+registerToolIfEnabled(
+  'ping_voicevox',
+  {
+    title: 'Ping VOICEVOX',
+    description: 'Check if VOICEVOX Engine is running and reachable',
+  },
+  async (): Promise<CallToolResult> => {
+    try {
+      const health = await voicevoxClient.checkHealth()
+      if (health.connected) {
+        return createSuccessResponse(`VOICEVOX is running at ${health.url} (v${health.version})`)
+      }
+      return createErrorResponse(
+        new Error(`VOICEVOX is not reachable at ${health.url}. Please ensure VOICEVOX Engine is running.`)
+      )
+    } catch (error) {
+      return createErrorResponse(error)
+    }
+  }
+)
+
+// speak ツール
+registerToolIfEnabled(
   'speak',
   {
     title: 'Speak',
     description: 'Convert text to speech and play it',
-    inputSchema: {
-      text: z
-        .string()
-        .describe(
-          'Text string with line breaks and optional speaker prefix "1:Hello\\n2:World". For faster playback start, make the first element short.'
-        ),
-      query: z.string().optional().describe('Voice synthesis query'),
-      speaker: z.number().optional().describe('Default speaker ID (optional)'),
-      speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
-      immediate: z
-        .boolean()
-        .optional()
-        .describe(
-          'If true, stops current playback and plays new audio immediately. If false, waits for current playback to finish. Default depends on environment variable.'
-        ),
-      waitForStart: z.boolean().optional().describe('Wait for playback to start (optional, default: false)'),
-      waitForEnd: z.boolean().optional().describe('Wait for playback to end (optional, default: false)'),
-    },
+    inputSchema: buildSpeakInputSchema(),
   },
-  async ({ text, speaker, query, speedScale, immediate, waitForStart, waitForEnd }): Promise<CallToolResult> => {
+  async ({
+    text,
+    speaker,
+    query,
+    speedScale,
+    immediate,
+    waitForStart,
+    waitForEnd,
+  }: {
+    text: string
+    speaker?: number
+    query?: string
+    speedScale?: number
+    immediate?: boolean
+    waitForStart?: boolean
+    waitForEnd?: boolean
+  }): Promise<CallToolResult> => {
     try {
-      // 環境変数からデフォルトの再生オプションを取得
-      const defaultImmediate = process.env.VOICEVOX_DEFAULT_IMMEDIATE !== 'false'
-      const defaultWaitForStart = process.env.VOICEVOX_DEFAULT_WAIT_FOR_START === 'true'
-      const defaultWaitForEnd = process.env.VOICEVOX_DEFAULT_WAIT_FOR_END === 'true'
-
+      // 設定からデフォルトの再生オプションを取得
       const playbackOptions = {
-        immediate: immediate ?? defaultImmediate,
-        waitForStart: waitForStart ?? defaultWaitForStart,
-        waitForEnd: waitForEnd ?? defaultWaitForEnd,
+        immediate: immediate ?? config.defaultImmediate,
+        waitForStart: waitForStart ?? config.defaultWaitForStart,
+        waitForEnd: waitForEnd ?? config.defaultWaitForEnd,
       }
 
       let result: SpeakResult
@@ -138,7 +218,7 @@ server.registerTool(
   }
 )
 
-server.registerTool(
+registerToolIfEnabled(
   'generate_query',
   {
     title: 'Generate Query',
@@ -149,7 +229,15 @@ server.registerTool(
       speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
     },
   },
-  async ({ text, speaker, speedScale }): Promise<CallToolResult> => {
+  async ({
+    text,
+    speaker,
+    speedScale,
+  }: {
+    text: string
+    speaker?: number
+    speedScale?: number
+  }): Promise<CallToolResult> => {
     try {
       const query = await voicevoxClient.generateQuery(text, speaker, speedScale)
       return createSuccessResponse(JSON.stringify(query))
@@ -159,7 +247,7 @@ server.registerTool(
   }
 )
 
-server.registerTool(
+registerToolIfEnabled(
   'synthesize_file',
   {
     title: 'Synthesize File',
@@ -175,7 +263,19 @@ server.registerTool(
       speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
     },
   },
-  async ({ text, query, speaker, output, speedScale }): Promise<CallToolResult> => {
+  async ({
+    text,
+    query,
+    speaker,
+    output,
+    speedScale,
+  }: {
+    text?: string
+    query?: string
+    speaker?: number
+    output: string
+    speedScale?: number
+  }): Promise<CallToolResult> => {
     try {
       if (query) {
         const audioQuery = parseAudioQuery(query, speedScale)
@@ -195,7 +295,7 @@ server.registerTool(
   }
 )
 
-server.registerTool(
+registerToolIfEnabled(
   'stop_speaker',
   {
     title: 'Stop Speaker',
@@ -214,7 +314,7 @@ server.registerTool(
   }
 )
 
-server.registerTool(
+registerToolIfEnabled(
   'get_speakers',
   {
     title: 'Get Speakers',
@@ -237,7 +337,7 @@ server.registerTool(
   }
 )
 
-server.registerTool(
+registerToolIfEnabled(
   'get_speaker_detail',
   {
     title: 'Get Speaker Detail',
@@ -246,7 +346,7 @@ server.registerTool(
       uuid: z.string().describe('Speaker UUID (speaker uuid)'),
     },
   },
-  async ({ uuid }): Promise<CallToolResult> => {
+  async ({ uuid }: { uuid: string }): Promise<CallToolResult> => {
     try {
       const allSpeakers = await voicevoxClient.getSpeakers()
       const targetSpeaker = allSpeakers.find((speaker: any) => speaker.speaker_uuid === uuid)
@@ -275,3 +375,6 @@ server.registerTool(
     }
   }
 )
+
+// 設定エクスポート（テスト用）
+export { config }

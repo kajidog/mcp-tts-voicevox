@@ -132,6 +132,14 @@ $env:MCP_HTTP_MODE='true'; npx @kajidog/mcp-tts-voicevox
 // 上記の音声が完了してから次の処理が実行される
 ```
 
+### `ping_voicevox` - VOICEVOX 接続確認
+
+VOICEVOX Engine が起動しているかを確認します。
+
+**レスポンス例:**
+- 接続成功: `VOICEVOX is running at http://localhost:50021 (v0.14.0)`
+- 接続失敗: `VOICEVOX is not reachable at http://localhost:50021. Please ensure VOICEVOX Engine is running.`
+
 ### その他のツール
 
 - `generate_query` - 音声合成用クエリを生成
@@ -234,11 +242,94 @@ npx @kajidog/mcp-tts-voicevox
 
 これらのオプションにより、アプリケーションの要件に応じて音声再生の挙動を細かく制御できます。
 
+### 再生オプション制限設定
+
+AI が再生オプションを指定できないよう制限できます。制限されたオプションはツールスキーマから除外され、デフォルト値が使用されます。
+
+- `VOICEVOX_RESTRICT_IMMEDIATE`: AI による `immediate` オプションの指定を制限
+- `VOICEVOX_RESTRICT_WAIT_FOR_START`: AI による `waitForStart` オプションの指定を制限
+- `VOICEVOX_RESTRICT_WAIT_FOR_END`: AI による `waitForEnd` オプションの指定を制限
+
+**使用例:**
+
+```bash
+# AI は immediate を指定できなくなり、常にデフォルト値が使用される
+export VOICEVOX_RESTRICT_IMMEDIATE=true
+npx @kajidog/mcp-tts-voicevox
+```
+
+### ツール無効化設定
+
+不要なツールを無効化できます。無効化されたツールは MCP クライアントに登録されません。
+
+- `VOICEVOX_DISABLED_TOOLS`: カンマ区切りで無効化するツール名を指定
+
+**使用可能なツール名:**
+- `speak`, `ping_voicevox`, `generate_query`, `synthesize_file`, `stop_speaker`, `get_speakers`, `get_speaker_detail`
+
+**使用例:**
+
+```bash
+# generate_query と synthesize_file を無効化
+export VOICEVOX_DISABLED_TOOLS=generate_query,synthesize_file
+npx @kajidog/mcp-tts-voicevox
+```
+
 ### サーバー設定
 
 - `MCP_HTTP_MODE`: HTTP サーバーモードの有効化（`true` で有効）
 - `MCP_HTTP_PORT`: HTTP サーバーのポート番号（デフォルト: `3000`）
 - `MCP_HTTP_HOST`: HTTP サーバーのホスト（デフォルト: `0.0.0.0`）
+
+## コマンドライン引数
+
+環境変数の代わりにコマンドライン引数で設定を指定できます。コマンドライン引数は環境変数より優先されます。
+
+### VOICEVOX 設定
+
+- `--url <value>`: VOICEVOX エンジンの URL
+- `--speaker <value>`: デフォルト話者 ID
+- `--speed <value>`: デフォルト再生速度
+
+### 再生オプション
+
+- `--immediate` / `--no-immediate`: 即時再生の有効/無効
+- `--wait-for-start` / `--no-wait-for-start`: 再生開始待機の有効/無効
+- `--wait-for-end` / `--no-wait-for-end`: 再生終了待機の有効/無効
+
+### 制限設定
+
+- `--restrict-immediate`: AI による immediate 指定を制限
+- `--restrict-wait-for-start`: AI による waitForStart 指定を制限
+- `--restrict-wait-for-end`: AI による waitForEnd 指定を制限
+
+### ツール無効化
+
+- `--disable-tools <tool1,tool2,...>`: 無効化するツールをカンマ区切りで指定
+
+### サーバー設定
+
+- `--http`: HTTP サーバーモードを有効化
+- `--port <value>`: HTTP サーバーのポート番号
+- `--host <value>`: HTTP サーバーのホスト
+
+**使用例:**
+
+```bash
+# カスタム設定でサーバーを起動
+npx @kajidog/mcp-tts-voicevox --url http://192.168.1.100:50021 --speaker 3 --speed 1.2
+
+# HTTP モードでポート指定
+npx @kajidog/mcp-tts-voicevox --http --port 8080
+
+# 再生オプションを制限してサーバーを起動
+npx @kajidog/mcp-tts-voicevox --restrict-immediate --restrict-wait-for-end
+
+# 一部のツールを無効化
+npx @kajidog/mcp-tts-voicevox --disable-tools generate_query,synthesize_file
+```
+
+**優先順位:** コマンドライン引数 > 環境変数 > デフォルト値
 
 ## WSL（Windows Subsystem for Linux）での使用
 

@@ -524,6 +524,14 @@ export class VoicevoxClient {
   }
 
   /**
+   * VOICEVOX Engine の接続状態をチェック
+   * @returns 接続情報（connected, version, url）
+   */
+  public async checkHealth(): Promise<{ connected: boolean; version?: string; url: string }> {
+    return this.api.checkHealth()
+  }
+
+  /**
    * QueueServiceインスタンスを取得
    * 高度な操作のため公開
    */

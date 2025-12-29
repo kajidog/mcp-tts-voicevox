@@ -132,6 +132,14 @@ Wait for playback completion to synchronize processing:
 // Next processing executes after the above audio completes
 ```
 
+### `ping_voicevox` - Check VOICEVOX Connection
+
+Checks if VOICEVOX Engine is running.
+
+**Response examples:**
+- Connected: `VOICEVOX is running at http://localhost:50021 (v0.14.0)`
+- Not connected: `VOICEVOX is not reachable at http://localhost:50021. Please ensure VOICEVOX Engine is running.`
+
 ### Other Tools
 
 - `generate_query` - Generate query for speech synthesis
@@ -234,11 +242,94 @@ npx @kajidog/mcp-tts-voicevox
 
 These options allow fine-grained control of audio playback behavior according to application requirements.
 
+### Playback Option Restriction Settings
+
+You can restrict AI from specifying playback options. Restricted options are excluded from the tool schema and default values are used instead.
+
+- `VOICEVOX_RESTRICT_IMMEDIATE`: Restrict AI from specifying the `immediate` option
+- `VOICEVOX_RESTRICT_WAIT_FOR_START`: Restrict AI from specifying the `waitForStart` option
+- `VOICEVOX_RESTRICT_WAIT_FOR_END`: Restrict AI from specifying the `waitForEnd` option
+
+**Usage Example:**
+
+```bash
+# AI cannot specify immediate, default value is always used
+export VOICEVOX_RESTRICT_IMMEDIATE=true
+npx @kajidog/mcp-tts-voicevox
+```
+
+### Tool Disabling Settings
+
+You can disable unnecessary tools. Disabled tools are not registered with MCP clients.
+
+- `VOICEVOX_DISABLED_TOOLS`: Comma-separated list of tool names to disable
+
+**Available tool names:**
+- `speak`, `ping_voicevox`, `generate_query`, `synthesize_file`, `stop_speaker`, `get_speakers`, `get_speaker_detail`
+
+**Usage Example:**
+
+```bash
+# Disable generate_query and synthesize_file
+export VOICEVOX_DISABLED_TOOLS=generate_query,synthesize_file
+npx @kajidog/mcp-tts-voicevox
+```
+
 ### Server Configuration
 
 - `MCP_HTTP_MODE`: Enable HTTP server mode (set to `true` to enable)
 - `MCP_HTTP_PORT`: HTTP server port number (default: `3000`)
 - `MCP_HTTP_HOST`: HTTP server host (default: `0.0.0.0`)
+
+## Command Line Arguments
+
+You can specify settings via command line arguments instead of environment variables. Command line arguments take priority over environment variables.
+
+### VOICEVOX Configuration
+
+- `--url <value>`: VOICEVOX Engine URL
+- `--speaker <value>`: Default speaker ID
+- `--speed <value>`: Default playback speed
+
+### Playback Options
+
+- `--immediate` / `--no-immediate`: Enable/disable immediate playback
+- `--wait-for-start` / `--no-wait-for-start`: Enable/disable wait for playback start
+- `--wait-for-end` / `--no-wait-for-end`: Enable/disable wait for playback end
+
+### Restriction Settings
+
+- `--restrict-immediate`: Restrict AI from specifying immediate
+- `--restrict-wait-for-start`: Restrict AI from specifying waitForStart
+- `--restrict-wait-for-end`: Restrict AI from specifying waitForEnd
+
+### Tool Disabling
+
+- `--disable-tools <tool1,tool2,...>`: Comma-separated list of tools to disable
+
+### Server Settings
+
+- `--http`: Enable HTTP server mode
+- `--port <value>`: HTTP server port number
+- `--host <value>`: HTTP server host
+
+**Usage Examples:**
+
+```bash
+# Start server with custom settings
+npx @kajidog/mcp-tts-voicevox --url http://192.168.1.100:50021 --speaker 3 --speed 1.2
+
+# HTTP mode with port specification
+npx @kajidog/mcp-tts-voicevox --http --port 8080
+
+# Start server with playback option restrictions
+npx @kajidog/mcp-tts-voicevox --restrict-immediate --restrict-wait-for-end
+
+# Disable some tools
+npx @kajidog/mcp-tts-voicevox --disable-tools generate_query,synthesize_file
+```
+
+**Priority:** Command line arguments > Environment variables > Default values
 
 ## Usage with WSL (Windows Subsystem for Linux)
 

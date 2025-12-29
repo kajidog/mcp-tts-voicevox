@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // MCP TTS Voicevox エントリーポイント
 
+import { getConfig } from './config'
+
 // 型定義
-interface ServerConfig {
+interface IndexServerConfig {
   port: number
   host: string
   isDevelopment: boolean
@@ -35,8 +37,9 @@ function isCLI(): boolean {
     argv1.includes('index.js') ||
     argv1.includes('npx')
 
-  // 環境変数でHTTPモードが明示的に設定されている場合は強制的にCLI実行として扱う
-  const isForceMode = process.env?.MCP_HTTP_MODE === 'true'
+  // 設定からHTTPモードを取得（CLI引数または環境変数）
+  const config = getConfig()
+  const isForceMode = config.httpMode
 
   // npxやCLIからの直接実行を検出
   const isMainModule = require.main === module || process.argv0.includes('node')
@@ -52,16 +55,16 @@ function isNpx(): boolean {
 }
 
 /**
- * サーバー設定を取得する関数
+ * サーバー設定を取得する関数（設定モジュールを使用）
  */
-function getServerConfig(): ServerConfig {
-  const env = process.env || {}
+function getServerConfig(): IndexServerConfig {
+  const config = getConfig()
 
   return {
-    port: Number.parseInt(env.MCP_HTTP_PORT || '3000', 10),
-    host: env.MCP_HTTP_HOST || '0.0.0.0',
-    isDevelopment: env.NODE_ENV === 'development',
-    isHttpMode: env.MCP_HTTP_MODE === 'true',
+    port: config.httpPort,
+    host: config.httpHost,
+    isDevelopment: process.env.NODE_ENV === 'development',
+    isHttpMode: config.httpMode,
   }
 }
 
@@ -89,7 +92,7 @@ async function loadHttpServer(isDevelopment: boolean) {
 /**
  * HTTP サーバーを起動する
  */
-async function startHttpServer(config: ServerConfig): Promise<void> {
+async function startHttpServer(config: IndexServerConfig): Promise<void> {
   try {
     console.error('Starting HTTP server with config:', config)
     const app = await loadHttpApp(config.isDevelopment)
@@ -130,7 +133,7 @@ async function startHttpServer(config: ServerConfig): Promise<void> {
 /**
  * Stdio サーバーを起動する
  */
-async function startStdioServer(config: ServerConfig): Promise<void> {
+async function startStdioServer(config: IndexServerConfig): Promise<void> {
   try {
     if (config.isDevelopment) {
       await import('./stdio')
