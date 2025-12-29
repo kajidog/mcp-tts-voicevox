@@ -44,4 +44,5 @@ export interface ActivePlayback {
   itemId: string
   controller: AbortController
   startTime: Date
+  playPromise?: Promise<void>
 }

@@ -90,7 +90,7 @@ export class BrowserPlaybackStrategy implements PlaybackStrategy {
  */
 export class NodePlaybackStrategy implements PlaybackStrategy {
   private ffplayAvailable: boolean | null = null
-  private currentProcess: ChildProcess | null = null
+  private activeProcesses: Set<ChildProcess> = new Set()
   private linuxPlayer: string | null = null
 
   supportsStreaming(): boolean {
@@ -144,17 +144,17 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
       }
 
       const ffplayProcess = spawn('ffplay', args, spawnOptions)
-      this.currentProcess = ffplayProcess
+      this.activeProcesses.add(ffplayProcess)
 
       const abortHandler = () => {
-        this.stop()
+        ffplayProcess.kill()
         resolve()
       }
       signal?.addEventListener('abort', abortHandler)
 
       ffplayProcess.on('close', (code) => {
         signal?.removeEventListener('abort', abortHandler)
-        this.currentProcess = null
+        this.activeProcesses.delete(ffplayProcess)
         if (code === 0 || signal?.aborted) {
           resolve()
         } else {
@@ -164,7 +164,7 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
 
       ffplayProcess.on('error', (error) => {
         signal?.removeEventListener('abort', abortHandler)
-        this.currentProcess = null
+        this.activeProcesses.delete(ffplayProcess)
         reject(new Error(`ffplayプロセスの起動に失敗しました: ${error.message}`))
       })
 
@@ -229,17 +229,17 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
       }
 
       const audioProcess = spawn(command, args, spawnOptions)
-      this.currentProcess = audioProcess
+      this.activeProcesses.add(audioProcess)
 
       const abortHandler = () => {
-        this.stop()
+        audioProcess.kill()
         resolve()
       }
       signal?.addEventListener('abort', abortHandler)
 
       audioProcess.on('close', (code) => {
         signal?.removeEventListener('abort', abortHandler)
-        this.currentProcess = null
+        this.activeProcesses.delete(audioProcess)
         if (code === 0 || signal?.aborted) {
           resolve()
         } else {
@@ -249,7 +249,7 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
 
       audioProcess.on('error', (error) => {
         signal?.removeEventListener('abort', abortHandler)
-        this.currentProcess = null
+        this.activeProcesses.delete(audioProcess)
         reject(new Error(`音声再生プロセスの起動に失敗しました: ${error.message}`))
       })
     })
@@ -275,10 +275,10 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
   }
 
   stop(): void {
-    if (this.currentProcess) {
-      this.currentProcess.kill()
-      this.currentProcess = null
+    for (const process of this.activeProcesses) {
+      process.kill()
     }
+    this.activeProcesses.clear()
   }
 }
 

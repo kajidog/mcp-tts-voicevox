@@ -150,8 +150,8 @@ export class QueueService {
    * キューをクリア
    */
   async clearQueue(): Promise<void> {
-    // 全ての再生を停止
-    this.playbackService.stopAll()
+    // 全ての再生を停止し、終了まで待機
+    await this.playbackService.stopAllAndWait()
 
     // 全アイテムの一時ファイルを削除
     for (const item of this.stateMachine.getAllItems()) {

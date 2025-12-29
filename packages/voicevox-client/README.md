@@ -176,9 +176,10 @@ enqueueAudioGeneration(
 
 ### Immediate Playback (`immediate: true`)
 
-Start playback immediately when audio is ready:
+Clear existing queue and play audio immediately:
 
 ```typescript
+// Stops current playback, clears queue, and plays new audio
 await client.speak('Urgent notification', {
   immediate: true,
   waitForEnd: true

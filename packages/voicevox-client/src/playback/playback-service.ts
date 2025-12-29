@@ -45,27 +45,33 @@ export class PlaybackService {
       signal.addEventListener('abort', () => controller.abort())
     }
 
-    try {
-      this.callbacks.onStart?.(itemId)
+    // 再生のPromiseを作成して追跡
+    const playPromise = (async () => {
+      try {
+        this.callbacks.onStart?.(itemId)
 
-      if (audio.type === 'buffer' && this.strategy.supportsStreaming()) {
-        await this.strategy.playFromBuffer(audio.data, controller.signal)
-      } else if (audio.type === 'file') {
-        await this.strategy.playFromFile(audio.path, controller.signal)
-      } else if (audio.type === 'buffer') {
-        throw new Error('ストリーミング再生が利用できません。一時ファイルを使用してください。')
-      }
+        if (audio.type === 'buffer' && this.strategy.supportsStreaming()) {
+          await this.strategy.playFromBuffer(audio.data, controller.signal)
+        } else if (audio.type === 'file') {
+          await this.strategy.playFromFile(audio.path, controller.signal)
+        } else if (audio.type === 'buffer') {
+          throw new Error('ストリーミング再生が利用できません。一時ファイルを使用してください。')
+        }
 
-      this.callbacks.onComplete?.(itemId)
-    } catch (error) {
-      // 中断による終了はエラーとして扱わない
-      if (!controller.signal.aborted) {
-        this.callbacks.onError?.(itemId, error as Error)
-        throw error
+        this.callbacks.onComplete?.(itemId)
+      } catch (error) {
+        // 中断による終了はエラーとして扱わない
+        if (!controller.signal.aborted) {
+          this.callbacks.onError?.(itemId, error as Error)
+          throw error
+        }
+      } finally {
+        this.activePlaybacks.delete(itemId)
       }
-    } finally {
-      this.activePlaybacks.delete(itemId)
-    }
+    })()
+
+    activePlayback.playPromise = playPromise
+    return playPromise
   }
 
   /**
@@ -88,6 +94,25 @@ export class PlaybackService {
     }
     this.activePlaybacks.clear()
     this.strategy.stop()
+  }
+
+  /**
+   * 全ての再生を停止し、終了まで待機
+   */
+  async stopAllAndWait(): Promise<void> {
+    const promises: Promise<void>[] = []
+
+    for (const [itemId, playback] of this.activePlaybacks) {
+      playback.controller.abort()
+      if (playback.playPromise) {
+        // エラーは無視（中断による終了は正常）
+        promises.push(playback.playPromise.catch(() => {}))
+      }
+    }
+
+    this.strategy.stop()
+    await Promise.all(promises)
+    this.activePlaybacks.clear()
   }
 
   /**

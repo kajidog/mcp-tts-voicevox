@@ -102,10 +102,10 @@ Converts text to speech and plays it.
 
 #### Immediate Playback (`immediate: true`)
 
-Play audio immediately by bypassing the queue:
+Clear the existing queue and play audio immediately:
 
-- **Parallel operation with regular queue**: Does not interfere with existing queue playback
-- **Multiple simultaneous playback**: Multiple immediate playbacks can run simultaneously
+- **Queue clear**: Stops current playback, clears the queue, then plays new audio
+- **Interrupt playback**: Interrupts current playback to play new audio
 - **Ideal for urgent notifications**: Prioritizes important messages
 
 #### Synchronous Playback Control (`waitForEnd: true`)
