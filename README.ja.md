@@ -201,8 +201,6 @@ SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用し
    $env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voicevox
    ```
 
-````
-
 ## 環境変数
 
 ### VOICEVOX 設定

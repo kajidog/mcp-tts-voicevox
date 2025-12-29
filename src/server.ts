@@ -96,7 +96,12 @@ server.registerTool(
       query: z.string().optional().describe('Voice synthesis query'),
       speaker: z.number().optional().describe('Default speaker ID (optional)'),
       speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
-      immediate: z.boolean().optional().describe('Start playback immediately (optional, default: true)'),
+      immediate: z
+        .boolean()
+        .optional()
+        .describe(
+          'If true, stops current playback and plays new audio immediately. If false, waits for current playback to finish. Default depends on environment variable.'
+        ),
       waitForStart: z.boolean().optional().describe('Wait for playback to start (optional, default: false)'),
       waitForEnd: z.boolean().optional().describe('Wait for playback to end (optional, default: false)'),
     },
@@ -194,7 +199,7 @@ server.registerTool(
   'stop_speaker',
   {
     title: 'Stop Speaker',
-    description: 'Stop the current speaker',
+    description: 'Stop current audio playback',
     inputSchema: {
       random_string: z.string().describe('Dummy parameter for no-parameter tools'),
     },

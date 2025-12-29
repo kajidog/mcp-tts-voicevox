@@ -201,8 +201,6 @@ If you need speech synthesis in SSE mode, you can use `mcp-remote` for SSE↔Std
    $env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voicevox
    ```
 
-````
-
 ## Environment Variables
 
 ### VOICEVOX Configuration
