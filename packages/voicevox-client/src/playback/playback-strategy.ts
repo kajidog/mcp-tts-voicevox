@@ -203,9 +203,29 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
         case 'win32': {
           command = 'powershell'
           const escapedPath = filePath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+          // MediaOpenedイベントを待ってからNaturalDurationを取得し、再生が完了するまで待機
           args = [
             '-c',
-            `Add-Type -AssemblyName presentationCore; $player = New-Object system.windows.media.mediaplayer; $player.open('${escapedPath}'); $player.Volume = 0.5; $player.Play(); Start-Sleep 1; Start-Sleep -s $player.NaturalDuration.TimeSpan.TotalSeconds; Exit;`,
+            `Add-Type -AssemblyName presentationCore; ` +
+            `$player = New-Object System.Windows.Media.MediaPlayer; ` +
+            `$opened = $false; ` +
+            `$ended = $false; ` +
+            `Register-ObjectEvent -InputObject $player -EventName MediaOpened -Action { $global:opened = $true } | Out-Null; ` +
+            `Register-ObjectEvent -InputObject $player -EventName MediaEnded -Action { $global:ended = $true } | Out-Null; ` +
+            `$player.Open('${escapedPath}'); ` +
+            `$player.Volume = 0.5; ` +
+            `$timeout = 0; ` +
+            `while (-not $global:opened -and $timeout -lt 50) { Start-Sleep -Milliseconds 100; $timeout++ } ` +
+            `if ($global:opened) { ` +
+            `$player.Play(); ` +
+            `$duration = 0; ` +
+            `if ($player.NaturalDuration.HasTimeSpan) { $duration = $player.NaturalDuration.TimeSpan.TotalSeconds } ` +
+            `$waitTime = [Math]::Max($duration + 1, 2); ` +
+            `$elapsed = 0; ` +
+            `while (-not $global:ended -and $elapsed -lt $waitTime) { Start-Sleep -Milliseconds 100; $elapsed += 0.1 } ` +
+            `} ` +
+            `$player.Close(); ` +
+            `Exit;`,
           ]
           break
         }
