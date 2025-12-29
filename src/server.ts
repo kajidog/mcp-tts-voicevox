@@ -1,6 +1,6 @@
 import { type AudioQuery, type SpeakResult, VoicevoxClient } from '@kajidog/voicevox-client'
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
 
 // サーバー初期化
