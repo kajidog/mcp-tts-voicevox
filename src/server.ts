@@ -1,4 +1,4 @@
-import { type AudioQuery, VoicevoxClient } from '@kajidog/voicevox-client'
+import { type AudioQuery, type SpeakResult, VoicevoxClient } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import * as z from 'zod/v4'
@@ -30,6 +30,17 @@ const createErrorResponse = (error: unknown): CallToolResult => ({
 const createSuccessResponse = (text: string): CallToolResult => ({
   content: [{ type: 'text', text }],
 })
+
+const formatSpeakResponse = (result: SpeakResult): string => {
+  if (result.status === 'error') {
+    return `Error: ${result.errorMessage}`
+  }
+
+  const statusLabel = result.status === 'played' ? 'Played' : 'Queued'
+  const moreSegments = result.segmentCount > 1 ? ` +${result.segmentCount - 1} more` : ''
+
+  return `${statusLabel} (${result.mode}): "${result.textPreview}"${moreSegments}`
+}
 
 const parseAudioQuery = (query: string, speedScale?: number): AudioQuery => {
   const audioQuery = JSON.parse(query) as AudioQuery
@@ -103,18 +114,19 @@ server.registerTool(
         waitForEnd: waitForEnd ?? defaultWaitForEnd,
       }
 
+      let result: SpeakResult
       if (query) {
         const audioQuery = parseAudioQuery(query, speedScale)
-        const result = await voicevoxClient.enqueueAudioGeneration(audioQuery, {
+        result = await voicevoxClient.enqueueAudioGeneration(audioQuery, {
           speaker,
           speedScale,
           ...playbackOptions,
         })
-        return createSuccessResponse(result)
+      } else {
+        result = await processTextInput(text, speaker, speedScale, playbackOptions)
       }
 
-      const result = await processTextInput(text, speaker, speedScale, playbackOptions)
-      return createSuccessResponse(result)
+      return createSuccessResponse(formatSpeakResponse(result))
     } catch (error) {
       return createErrorResponse(error)
     }

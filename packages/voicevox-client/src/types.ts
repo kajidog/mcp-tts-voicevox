@@ -177,3 +177,19 @@ export interface PlaybackOptions {
   /** 再生終了まで待機するかどうか */
   waitForEnd?: boolean
 }
+
+/**
+ * speak()メソッドの結果
+ */
+export interface SpeakResult {
+  /** 処理状態 */
+  status: 'queued' | 'playing' | 'played' | 'error'
+  /** 再生モード */
+  mode: 'streaming' | 'file'
+  /** テキストプレビュー */
+  textPreview: string
+  /** セグメント数 */
+  segmentCount: number
+  /** エラーメッセージ（status='error'の場合） */
+  errorMessage?: string
+}

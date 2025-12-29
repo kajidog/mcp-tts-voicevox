@@ -2,7 +2,7 @@ import { VoicevoxApi } from './api'
 import { formatError, handleError } from './error'
 import { QueueService } from './queue/queue-service'
 import { QueueEventType, QueueItemStatus } from './queue/types'
-import type { AudioQuery, PlaybackOptions, SpeechSegment, VoicevoxConfig } from './types'
+import type { AudioQuery, PlaybackOptions, SpeakResult, SpeechSegment, VoicevoxConfig } from './types'
 import { downloadBlob, isBrowser, splitText } from './utils'
 
 /**
@@ -91,9 +91,9 @@ export class VoicevoxClient {
    * テキストを音声に変換して再生します（統一API）
    * @param input テキスト、テキスト配列、またはセグメント配列
    * @param options 再生オプション（speaker, speedScale, immediate, waitForStart, waitForEnd）
-   * @returns 処理結果のメッセージ
+   * @returns 処理結果
    */
-  public async speak(input: string | string[] | SpeechSegment[], options: SpeakOptions = {}): Promise<string> {
+  public async speak(input: string | string[] | SpeechSegment[], options: SpeakOptions = {}): Promise<SpeakResult> {
     try {
       const speaker = options.speaker ?? this.defaultSpeaker
       const speed = options.speedScale ?? this.defaultSpeedScale
@@ -102,7 +102,7 @@ export class VoicevoxClient {
       const segments = this.normalizeInput(input, speaker)
 
       if (segments.length === 0) {
-        return 'テキストが空です'
+        return this.createSpeakResult('error', segments, 'Text is empty')
       }
 
       // 再生オプションをマージ（undefined の場合はデフォルト値を使用）
@@ -184,10 +184,10 @@ export class VoicevoxClient {
         await Promise.all(waitPromises)
       }
 
-      const textSummary = segments.map((s) => s.text).join(' ')
-      return `音声生成キューに追加しました: ${textSummary}`
+      const status = playbackOptions.waitForEnd ? 'played' : 'queued'
+      return this.createSpeakResult(status, segments)
     } catch (error) {
-      return formatError('音声生成中にエラーが発生しました', error)
+      return this.createSpeakResult('error', [], error instanceof Error ? error.message : String(error))
     }
   }
 
@@ -310,12 +310,12 @@ export class VoicevoxClient {
    * テキストを音声ファイル生成キューに追加します（統一API）
    * @param input テキスト、テキスト配列、セグメント配列、またはAudioQuery
    * @param options 再生オプション
-   * @returns 処理結果のメッセージ
+   * @returns 処理結果
    */
   public async enqueueAudioGeneration(
     input: string | string[] | SpeechSegment[] | AudioQuery,
     options: SpeakOptions = {}
-  ): Promise<string> {
+  ): Promise<SpeakResult> {
     try {
       const speed = options.speedScale ?? this.defaultSpeedScale
 
@@ -347,14 +347,15 @@ export class VoicevoxClient {
           await Promise.all(waitPromises)
         }
 
-        return 'クエリをキューに追加しました'
+        const status = playbackOptions.waitForEnd ? 'played' : 'queued'
+        return this.createSpeakResult(status, [{ text: '(from query)', speaker: speakerId }])
       }
 
       // テキスト系の場合
       const segments = this.normalizeInput(input as string | string[] | SpeechSegment[], options.speaker)
 
       if (segments.length === 0) {
-        return 'テキストが空です'
+        return this.createSpeakResult('error', segments, 'Text is empty')
       }
 
       // 待機用のPromise
@@ -424,9 +425,10 @@ export class VoicevoxClient {
         await Promise.all(waitPromises)
       }
 
-      return 'テキストをキューに追加しました'
+      const status = playbackOptions.waitForEnd ? 'played' : 'queued'
+      return this.createSpeakResult(status, segments)
     } catch (error) {
-      return formatError('音声生成中にエラーが発生しました', error)
+      return this.createSpeakResult('error', [], error instanceof Error ? error.message : String(error))
     }
   }
 
@@ -444,6 +446,38 @@ export class VoicevoxClient {
    */
   private getSpeedScale(speedScale?: number): number {
     return speedScale ?? this.defaultSpeedScale
+  }
+
+  /**
+   * SpeakResultを生成
+   * @private
+   */
+  private createSpeakResult(
+    status: SpeakResult['status'],
+    segments: SpeechSegment[],
+    errorMessage?: string
+  ): SpeakResult {
+    const isStreaming = this.queueService.isStreamingEnabled()
+    const textPreview = this.createTextPreview(segments, 30)
+    return {
+      status,
+      mode: isStreaming ? 'streaming' : 'file',
+      textPreview,
+      segmentCount: segments.length,
+      errorMessage,
+    }
+  }
+
+  /**
+   * テキストプレビューを生成
+   * @private
+   */
+  private createTextPreview(segments: SpeechSegment[], maxLength: number): string {
+    const fullText = segments.map((s) => s.text).join(' ')
+    if (fullText.length <= maxLength) {
+      return fullText
+    }
+    return `${fullText.substring(0, maxLength - 3)}...`
   }
 
   private validateConfig(config: VoicevoxConfig): void {

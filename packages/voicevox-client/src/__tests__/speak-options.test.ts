@@ -38,6 +38,7 @@ vi.mock('../queue/queue-service', () => ({
       saveTempAudioFile: vi.fn(),
       saveAudioFile: vi.fn(),
     }),
+    isStreamingEnabled: vi.fn().mockReturnValue(true),
   })),
 }))
 
@@ -286,7 +287,7 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
   })
 
   describe('エラー処理の確認', () => {
-    it('第2セグメント以降でエラーが発生してもメソッドはエラーメッセージを返す', async () => {
+    it('第2セグメント以降でエラーが発生してもメソッドはエラー結果を返す', async () => {
       const options: SpeakOptions = { waitForEnd: false, immediate: false }
 
       // 第1セグメントは成功、第2セグメントでエラー
@@ -304,9 +305,67 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
 
       const result = await client.speak(segments, options)
 
-      // エラーメッセージが返される
-      expect(result).toContain('エラー')
+      // エラー結果が返される
+      expect(result.status).toBe('error')
+      expect(result.errorMessage).toContain('第2セグメントエラー')
       expect(mockEnqueueQuery).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  describe('SpeakResult の戻り値確認', () => {
+    it('正常終了時は queued ステータスと streaming モードを返す', async () => {
+      mockEnqueueQuery.mockResolvedValue({
+        item: { id: 'test' },
+        promises: {},
+      })
+
+      const result = await client.speak('テスト音声')
+
+      expect(result.status).toBe('queued')
+      expect(result.mode).toBe('streaming')
+      expect(result.textPreview).toBe('テスト音声')
+      expect(result.segmentCount).toBe(1)
+    })
+
+    it('waitForEnd=true の場合は played ステータスを返す', async () => {
+      mockEnqueueQuery.mockResolvedValue({
+        item: { id: 'test' },
+        promises: { end: Promise.resolve() },
+      })
+
+      const result = await client.speak('テスト音声', { waitForEnd: true })
+
+      expect(result.status).toBe('played')
+    })
+
+    it('長いテキストはプレビューが切り詰められる', async () => {
+      mockEnqueueQuery.mockResolvedValue({
+        item: { id: 'test' },
+        promises: {},
+      })
+
+      const longText = 'これは非常に長いテキストで、30文字を超えています。プレビューは切り詰められるべきです。'
+      const result = await client.speak(longText)
+
+      expect(result.textPreview.length).toBeLessThanOrEqual(33) // 30 + "..."
+      expect(result.textPreview).toContain('...')
+    })
+
+    it('複数セグメントの場合は segmentCount が正しく設定される', async () => {
+      mockEnqueueQuery.mockResolvedValue({
+        item: { id: 'test' },
+        promises: {},
+      })
+
+      const segments = [
+        { text: '第1セグメント', speaker: 1 },
+        { text: '第2セグメント', speaker: 2 },
+        { text: '第3セグメント', speaker: 3 },
+      ]
+
+      const result = await client.speak(segments, { immediate: false })
+
+      expect(result.segmentCount).toBe(3)
     })
   })
 })

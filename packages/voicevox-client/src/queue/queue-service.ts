@@ -257,6 +257,13 @@ export class QueueService {
   }
 
   /**
+   * ストリーミング再生が有効かどうか
+   */
+  isStreamingEnabled(): boolean {
+    return this.playbackService.isStreamingEnabled()
+  }
+
+  /**
    * APIインスタンスを取得
    */
   getApi(): VoicevoxApi {

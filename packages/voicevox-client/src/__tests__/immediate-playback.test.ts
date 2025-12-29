@@ -39,6 +39,7 @@ vi.mock('../queue/queue-service', () => ({
       saveTempAudioFile: vi.fn(),
       saveAudioFile: vi.fn(),
     }),
+    isStreamingEnabled: vi.fn().mockReturnValue(true),
   })),
 }))
 

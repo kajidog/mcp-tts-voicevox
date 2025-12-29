@@ -318,8 +318,6 @@ curl http://172.29.176.1:3000
 
 ISC
 
-[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/kajidog-mcp-tts-voicevox-badge.png)](https://mseep.ai/app/kajidog-mcp-tts-voicevox)
-
 ## 開発者向け情報
 
 このリポジトリをローカルで開発する場合の手順です。
