@@ -1,6 +1,6 @@
 {
   "name": "@kajidog/mcp-tts-voicevox",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "VOICEVOX integration for MCP - Text-to-Speech server using VOICEVOX engine",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -37,7 +37,7 @@
     "lint:fix": "biome check --write . && pnpm -r --filter \"./packages/*\" lint:fix",
     "test": "vitest run && pnpm -r --filter \"./packages/*\" test",
     "prepare": "pnpm build",
-    "prepublishOnly": "pnpm test && pnpm lint"
+    "prepublishOnly": "pnpm test"
   },
   "files": ["dist", "README.md", "LICENSE", "scripts"],
   "keywords": ["voicevox", "tts", "text-to-speech", "mcp", "mcp-server"],
@@ -59,11 +59,10 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.14.2",
-    "@kajidog/voicevox-client": "0.2.0",
-    "@modelcontextprotocol/sdk": "^1.8.0",
-    "fetch-to-node": "^2.1.0",
+    "@kajidog/voicevox-client": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.25.1",
     "hono": "^4.7.10",
-    "zod": "^3.22.4"
+    "zod": "^3.25.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

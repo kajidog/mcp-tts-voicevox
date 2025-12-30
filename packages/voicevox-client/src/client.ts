@@ -1,8 +1,19 @@
 import { VoicevoxApi } from './api'
 import { formatError, handleError } from './error'
-import { VoicevoxPlayer } from './player'
-import type { AudioQuery, PlaybackOptions, SpeechSegment, VoicevoxConfig } from './types'
+import { QueueService } from './queue/queue-service'
+import { QueueEventType, QueueItemStatus } from './queue/types'
+import type { AudioQuery, PlaybackOptions, SpeakResult, SpeechSegment, VoicevoxConfig } from './types'
 import { downloadBlob, isBrowser, splitText } from './utils'
+
+/**
+ * 話者オプション（統一API用）
+ */
+export interface SpeakOptions extends PlaybackOptions {
+  /** 話者ID */
+  speaker?: number
+  /** 再生速度 */
+  speedScale?: number
+}
 
 /**
  * 環境変数から再生オプションを読み取る関数
@@ -25,10 +36,14 @@ function getPlaybackOptionsFromEnv(): PlaybackOptions {
 }
 
 export class VoicevoxClient {
-  private readonly player: VoicevoxPlayer
+  private readonly queueService: QueueService
   private readonly api: VoicevoxApi
   private readonly defaultSpeaker: number
   private readonly defaultSpeedScale: number
+  private readonly defaultVolumeScale?: number
+  private readonly defaultPitchScale?: number
+  private readonly defaultPrePhonemeLength?: number
+  private readonly defaultPostPhonemeLength?: number
   private readonly defaultPlaybackOptions: PlaybackOptions
   private readonly maxSegmentLength: number
 
@@ -36,13 +51,17 @@ export class VoicevoxClient {
     this.validateConfig(config)
     this.defaultSpeaker = config.defaultSpeaker ?? 1
     this.defaultSpeedScale = config.defaultSpeedScale ?? 1.0
+    this.defaultVolumeScale = config.defaultVolumeScale
+    this.defaultPitchScale = config.defaultPitchScale
+    this.defaultPrePhonemeLength = config.defaultPrePhonemeLength
+    this.defaultPostPhonemeLength = config.defaultPostPhonemeLength
 
     // 設定から再生オプションを取得し、環境変数でオーバーライド
     const envOptions = getPlaybackOptionsFromEnv()
     this.defaultPlaybackOptions = {
-      immediate: true, // デフォルト値
-      waitForStart: false, // デフォルト値
-      waitForEnd: false, // デフォルト値
+      immediate: true,
+      waitForStart: false,
+      waitForEnd: false,
     }
 
     // 設定オブジェクトの値で上書き
@@ -50,7 +69,7 @@ export class VoicevoxClient {
       Object.assign(this.defaultPlaybackOptions, config.defaultPlaybackOptions)
     }
 
-    // 環境変数の値でオーバーライド（undefinedでない場合のみ）
+    // 環境変数の値でオーバーライド
     if (envOptions.immediate !== undefined) {
       this.defaultPlaybackOptions.immediate = envOptions.immediate
     }
@@ -61,92 +80,56 @@ export class VoicevoxClient {
       this.defaultPlaybackOptions.waitForEnd = envOptions.waitForEnd
     }
 
-    this.maxSegmentLength = 150
+    this.maxSegmentLength = config.maxSegmentLength ?? 150
     this.api = new VoicevoxApi(config.url)
-    this.player = new VoicevoxPlayer(config.url)
+    this.queueService = new QueueService(this.api, {
+      useStreaming: config.useStreaming,
+    })
+
+    // デフォルトで再生を開始
+    this.queueService.startPlayback()
+
+    // エラーイベントのログ記録
+    this.queueService.addEventListener(QueueEventType.ERROR, (_, item) => {
+      if (item) {
+        console.error(`音声合成エラー: ${item.text} (${item.error?.message || '不明なエラー'})`)
+      }
+    })
   }
 
   /**
-   * テキストを音声に変換して再生します
-   * @param text 変換するテキスト
-   * @param speaker 話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @returns 処理結果のメッセージ
+   * テキストを音声に変換して再生します（統一API）
+   * @param input テキスト、テキスト配列、またはセグメント配列
+   * @param options 再生オプション（speaker, speedScale, immediate, waitForStart, waitForEnd）
+   * @returns 処理結果
    */
-  public async speak(text: string, speaker?: number, speedScale?: number): Promise<string>
-
-  /**
-   * テキスト配列を音声に変換して再生します
-   * @param texts 変換するテキストの配列
-   * @param speaker 話者ID（オプション、全体のデフォルト）
-   * @param speedScale 再生速度（オプション）
-   * @returns 処理結果のメッセージ
-   */
-  public async speak(texts: string[], speaker?: number, speedScale?: number): Promise<string>
-
-  /**
-   * テキストと話者のペア配列を音声に変換して再生します
-   * @param segments テキストと話者のペア配列
-   * @param defaultSpeaker デフォルト話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @returns 処理結果のメッセージ
-   */
-  public async speak(segments: SpeechSegment[], defaultSpeaker?: number, speedScale?: number): Promise<string>
-
-  /**
-   * テキストを音声に変換して再生します（オプション付き）
-   * @param text 変換するテキスト
-   * @param speaker 話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @param options 再生オプション
-   * @returns 処理結果のメッセージ
-   */
-  public async speak(text: string, speaker?: number, speedScale?: number, options?: PlaybackOptions): Promise<string>
-
-  /**
-   * テキスト配列を音声に変換して再生します（オプション付き）
-   * @param texts 変換するテキストの配列
-   * @param speaker 話者ID（オプション、全体のデフォルト）
-   * @param speedScale 再生速度（オプション）
-   * @param options 再生オプション
-   * @returns 処理結果のメッセージ
-   */
-  public async speak(texts: string[], speaker?: number, speedScale?: number, options?: PlaybackOptions): Promise<string>
-
-  /**
-   * テキストと話者のペア配列を音声に変換して再生します（オプション付き）
-   * @param segments テキストと話者のペア配列
-   * @param defaultSpeaker デフォルト話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @param options 再生オプション
-   * @returns 処理結果のメッセージ
-   */
-  public async speak(
-    segments: SpeechSegment[],
-    defaultSpeaker?: number,
-    speedScale?: number,
-    options?: PlaybackOptions
-  ): Promise<string>
-
-  // 実装
-  public async speak(
-    input: string | string[] | SpeechSegment[],
-    speaker?: number,
-    speedScale?: number,
-    options?: PlaybackOptions
-  ): Promise<string> {
+  public async speak(input: string | string[] | SpeechSegment[], options: SpeakOptions = {}): Promise<SpeakResult> {
     try {
-      const speed = this.getSpeedScale(speedScale)
-      const queueManager = this.player.getQueueManager()
+      const speaker = options.speaker ?? this.defaultSpeaker
+      const speed = options.speedScale ?? this.defaultSpeedScale
 
       // 入力を統一フォーマットに変換
       const segments = this.normalizeInput(input, speaker)
 
       if (segments.length === 0) {
-        return 'テキストが空です'
+        return this.createSpeakResult('error', segments, 'Text is empty')
       }
 
-      const promises: Array<Promise<void>> = []
+      // 再生オプションをマージ（undefined の場合はデフォルト値を使用）
+      const playbackOptions: PlaybackOptions = {
+        immediate: options.immediate ?? this.defaultPlaybackOptions.immediate,
+        waitForStart: options.waitForStart ?? this.defaultPlaybackOptions.waitForStart,
+        waitForEnd: options.waitForEnd ?? this.defaultPlaybackOptions.waitForEnd,
+      }
+
+      // immediate: true の場合、既存のキューをクリア
+      if (playbackOptions.immediate === true) {
+        await this.queueService.clearQueue()
+      }
+
+      // 待機用のPromise
+      let firstStartPromise: Promise<void> | undefined
+      let lastEndPromise: Promise<void> | undefined
 
       // 最初のセグメントを優先的に処理して再生を早く開始
       if (segments.length > 0) {
@@ -155,82 +138,66 @@ export class VoicevoxClient {
         const firstQuery = await this.generateQuery(firstSegment.text, speakerId)
         firstQuery.speedScale = speed
 
-        const { promises: firstPromises } = await queueManager.enqueueQueryWithOptions(firstQuery, speakerId, {
-          ...this.defaultPlaybackOptions,
-          ...options,
+        const { promises: firstPromises } = await this.queueService.enqueueQuery(firstQuery, speakerId, {
+          ...playbackOptions,
+          immediate: false, // キューは既にクリア済みなので、通常のキュー処理を行う
+          waitForStart: playbackOptions.waitForStart,
+          waitForEnd: playbackOptions.waitForEnd,
         })
 
-        if (firstPromises.start) promises.push(firstPromises.start)
-        if (firstPromises.end) promises.push(firstPromises.end)
+        // waitForStart: 最初のセグメントの開始を待つ
+        if (firstPromises.start) {
+          firstStartPromise = firstPromises.start
+        }
+        // セグメントが1つだけの場合は最後のendもこれ
+        if (firstPromises.end) {
+          lastEndPromise = firstPromises.end
+        }
       }
 
-      // 残りのセグメントは非同期で処理
-      if (segments.length > 1) {
-        const processRemainingSegments = async () => {
-          for (let i = 1; i < segments.length; i++) {
-            const segment = segments[i]
-            const speakerId = this.getSpeakerId(segment.speaker)
-            const query = await this.generateQuery(segment.text, speakerId)
-            query.speedScale = speed
+      // 残りのセグメントを順番に処理
+      for (let i = 1; i < segments.length; i++) {
+        const segment = segments[i]
+        const speakerId = this.getSpeakerId(segment.speaker)
+        const query = await this.generateQuery(segment.text, speakerId)
+        query.speedScale = speed
 
-            const { promises: segmentPromises } = await queueManager.enqueueQueryWithOptions(
-              query,
-              speakerId,
-              { ...options, immediate: false } // 最初以外は自動再生しない
-            )
+        const isLastSegment = i === segments.length - 1
 
-            if (segmentPromises.start) promises.push(segmentPromises.start)
-            if (segmentPromises.end) promises.push(segmentPromises.end)
-          }
-        }
-
-        processRemainingSegments().catch((error) => {
-          console.error('残りのセグメント処理中にエラーが発生しました:', error)
+        const { promises: segmentPromises } = await this.queueService.enqueueQuery(query, speakerId, {
+          ...playbackOptions,
+          immediate: false,
+          waitForStart: false, // 残りのセグメントの開始は待たない
+          waitForEnd: isLastSegment ? playbackOptions.waitForEnd : false, // 最後のセグメントのみ終了を待つ
         })
+
+        // waitForEnd: 最後のセグメントの終了を待つ
+        if (isLastSegment && segmentPromises.end) {
+          lastEndPromise = segmentPromises.end
+        }
       }
 
       // 待機オプションに応じて処理
-      if (promises.length > 0) {
-        await Promise.all(promises)
+      const waitPromises: Array<Promise<void>> = []
+
+      // waitForStart: 最初のセグメントの再生開始を待つ
+      if (playbackOptions.waitForStart && firstStartPromise) {
+        waitPromises.push(firstStartPromise)
       }
 
-      const textSummary = segments.map((s) => s.text).join(' ')
-      return `音声生成キューに追加しました: ${textSummary}`
-    } catch (error) {
-      return formatError('音声生成中にエラーが発生しました', error)
-    }
-  }
-
-  /**
-   * テキストを音声に変換して再生します（オプション付き）
-   * @param text 変換するテキスト
-   * @param options 再生オプション
-   * @returns 音声再生のPromise
-   */
-  public async speakWithOptions(
-    text: string,
-    options?: PlaybackOptions & { speaker?: number; speedScale?: number }
-  ): Promise<{ promises: { start?: Promise<void>; end?: Promise<void> } }> {
-    try {
-      const speaker = options?.speaker ?? this.defaultSpeaker
-      const speedScale = options?.speedScale ?? this.defaultSpeedScale
-
-      // オプションから speaker と speedScale を除外
-      const playbackOptions: PlaybackOptions = {
-        immediate: options?.immediate,
-        waitForStart: options?.waitForStart,
-        waitForEnd: options?.waitForEnd,
+      // waitForEnd: 最後のセグメントの再生終了を待つ
+      if (playbackOptions.waitForEnd && lastEndPromise) {
+        waitPromises.push(lastEndPromise)
       }
 
-      // 音声クエリを生成
-      const query = await this.generateQuery(text, speaker, speedScale)
+      if (waitPromises.length > 0) {
+        await Promise.all(waitPromises)
+      }
 
-      // オプション付きでキューに追加
-      const result = await this.player.enqueueQueryWithOptions(query, speaker, playbackOptions)
-
-      return { promises: result.promises }
+      const status = playbackOptions.waitForEnd ? 'played' : 'queued'
+      return this.createSpeakResult(status, segments)
     } catch (error) {
-      throw handleError('音声生成中にエラーが発生しました', error)
+      return this.createSpeakResult('error', [], error instanceof Error ? error.message : String(error))
     }
   }
 
@@ -283,6 +250,21 @@ export class VoicevoxClient {
       // 直接APIを使用してクエリを生成
       const query = await this.api.generateQuery(text, speakerId)
       query.speedScale = this.getSpeedScale(speedScale)
+
+      // デフォルト値を適用
+      if (this.defaultVolumeScale !== undefined) {
+        query.volumeScale = this.defaultVolumeScale
+      }
+      if (this.defaultPitchScale !== undefined) {
+        query.pitchScale = this.defaultPitchScale
+      }
+      if (this.defaultPrePhonemeLength !== undefined) {
+        query.prePhonemeLength = this.defaultPrePhonemeLength
+      }
+      if (this.defaultPostPhonemeLength !== undefined) {
+        query.postPhonemeLength = this.defaultPostPhonemeLength
+      }
+
       return query
     } catch (error) {
       throw handleError('クエリ生成中にエラーが発生しました', error)
@@ -306,200 +288,104 @@ export class VoicevoxClient {
     try {
       const speakerId = this.getSpeakerId(speaker)
       const speed = this.getSpeedScale(speedScale)
+      const fileManager = this.queueService.getFileManager()
 
       // ブラウザ環境の場合
       if (isBrowser()) {
-        // デフォルトのファイル名を設定
         const filename =
           outputPath ||
           (typeof textOrQuery === 'string'
             ? `voice-${textOrQuery.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '_')}-${Date.now()}.wav`
             : `voice-${Date.now()}.wav`)
 
-        // クエリを生成または使用
         const query =
           typeof textOrQuery === 'string' ? await this.generateQuery(textOrQuery, speakerId) : { ...textOrQuery }
-
-        // 速度設定
         query.speedScale = speed
 
-        // 音声合成
         const audioData = await this.api.synthesize(query, speakerId)
-
-        // 直接ダウンロード処理
         return await downloadBlob(audioData, filename)
       }
 
-      // Node.js環境の場合（従来のコード）
-      // キューマネージャーにアクセス
-      const queueManager = this.player.getQueueManager()
-
+      // Node.js環境の場合
       if (typeof textOrQuery === 'string') {
-        // テキストからクエリを生成
         const query = await this.generateQuery(textOrQuery, speakerId)
         query.speedScale = speed
+        const audioData = await this.api.synthesize(query, speakerId)
 
-        // 一時ファイル保存またはパス指定の保存
         if (!outputPath) {
-          // ブラウザ環境ではデフォルトファイル名を生成
-          const defaultFilename = `voice-${textOrQuery
-            .substring(0, 10)
-            .replace(/[^a-zA-Z0-9]/g, '_')}-${Date.now()}.wav`
-          return await this.player.synthesizeToFile(query, defaultFilename, speakerId)
+          return await fileManager.saveTempAudioFile(audioData)
         }
-        return await this.player.synthesizeToFile(query, outputPath, speakerId)
+        return await fileManager.saveAudioFile(audioData, outputPath)
       }
+
       // クエリを使って音声合成
       const query = { ...textOrQuery, speedScale: speed }
+      const audioData = await this.api.synthesize(query, speakerId)
 
-      // 一時ファイル保存またはパス指定の保存
       if (!outputPath) {
-        // ブラウザ環境ではデフォルトファイル名を生成
-        const defaultFilename = `voice-${Date.now()}.wav`
-        return await this.player.synthesizeToFile(query, defaultFilename, speakerId)
+        return await fileManager.saveTempAudioFile(audioData)
       }
-      return await this.player.synthesizeToFile(query, outputPath, speakerId)
+      return await fileManager.saveAudioFile(audioData, outputPath)
     } catch (error) {
       throw handleError('音声ファイル生成中にエラーが発生しました', error)
     }
   }
 
   /**
-   * テキストを音声ファイル生成キューに追加します
-   * @param text テキスト
-   * @param speaker 話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(text: string, speaker?: number, speedScale?: number): Promise<string>
-
-  /**
-   * テキスト配列を音声ファイル生成キューに追加します
-   * @param texts テキスト配列
-   * @param speaker 話者ID（オプション、全体のデフォルト）
-   * @param speedScale 再生速度（オプション）
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(texts: string[], speaker?: number, speedScale?: number): Promise<string>
-
-  /**
-   * テキストと話者のペア配列を音声ファイル生成キューに追加します
-   * @param segments テキストと話者のペア配列
-   * @param defaultSpeaker デフォルト話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(
-    segments: SpeechSegment[],
-    defaultSpeaker?: number,
-    speedScale?: number
-  ): Promise<string>
-
-  /**
-   * 音声合成用クエリを音声ファイル生成キューに追加します
-   * @param query 音声合成用クエリ
-   * @param speaker 話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(query: AudioQuery, speaker?: number, speedScale?: number): Promise<string>
-
-  /**
-   * テキストを音声ファイル生成キューに追加します（オプション付き）
-   * @param text テキスト
-   * @param speaker 話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
+   * テキストを音声ファイル生成キューに追加します（統一API）
+   * @param input テキスト、テキスト配列、セグメント配列、またはAudioQuery
    * @param options 再生オプション
-   * @returns 処理結果のメッセージ
+   * @returns 処理結果
    */
-  public async enqueueAudioGeneration(
-    text: string,
-    speaker?: number,
-    speedScale?: number,
-    options?: PlaybackOptions
-  ): Promise<string>
-
-  /**
-   * テキスト配列を音声ファイル生成キューに追加します（オプション付き）
-   * @param texts テキスト配列
-   * @param speaker 話者ID（オプション、全体のデフォルト）
-   * @param speedScale 再生速度（オプション）
-   * @param options 再生オプション
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(
-    texts: string[],
-    speaker?: number,
-    speedScale?: number,
-    options?: PlaybackOptions
-  ): Promise<string>
-
-  /**
-   * テキストと話者のペア配列を音声ファイル生成キューに追加します（オプション付き）
-   * @param segments テキストと話者のペア配列
-   * @param defaultSpeaker デフォルト話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @param options 再生オプション
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(
-    segments: SpeechSegment[],
-    defaultSpeaker?: number,
-    speedScale?: number,
-    options?: PlaybackOptions
-  ): Promise<string>
-
-  /**
-   * 音声合成用クエリを音声ファイル生成キューに追加します（オプション付き）
-   * @param query 音声合成用クエリ
-   * @param speaker 話者ID（オプション）
-   * @param speedScale 再生速度（オプション）
-   * @param options 再生オプション
-   * @returns 処理結果のメッセージ
-   */
-  public async enqueueAudioGeneration(
-    query: AudioQuery,
-    speaker?: number,
-    speedScale?: number,
-    options?: PlaybackOptions
-  ): Promise<string>
-
-  // 実装
   public async enqueueAudioGeneration(
     input: string | string[] | SpeechSegment[] | AudioQuery,
-    speaker?: number,
-    speedScale?: number,
-    options?: PlaybackOptions
-  ): Promise<string> {
+    options: SpeakOptions = {}
+  ): Promise<SpeakResult> {
     try {
-      const speed = this.getSpeedScale(speedScale)
-      const queueManager = this.player.getQueueManager()
+      const speed = options.speedScale ?? this.defaultSpeedScale
 
-      // AudioQueryの場合
+      // 再生オプションをマージ（undefined の場合はデフォルト値を使用）
+      const playbackOptions: PlaybackOptions = {
+        immediate: options.immediate ?? this.defaultPlaybackOptions.immediate,
+        waitForStart: options.waitForStart ?? this.defaultPlaybackOptions.waitForStart,
+        waitForEnd: options.waitForEnd ?? this.defaultPlaybackOptions.waitForEnd,
+      }
+
+      // immediate: true の場合、既存のキューをクリア
+      if (playbackOptions.immediate === true) {
+        await this.queueService.clearQueue()
+      }
+
+      // AudioQueryの場合（単一アイテム）
       if (typeof input === 'object' && !Array.isArray(input) && 'accent_phrases' in input) {
-        const speakerId = this.getSpeakerId(speaker)
+        const speakerId = this.getSpeakerId(options.speaker)
         const query = { ...input, speedScale: speed }
-        const { promises } = await queueManager.enqueueQueryWithOptions(query, speakerId, options)
+        const { promises } = await this.queueService.enqueueQuery(query, speakerId, {
+          ...playbackOptions,
+          immediate: false, // キューは既にクリア済み
+        })
 
-        // 待機オプションに応じて処理
         const waitPromises: Array<Promise<void>> = []
-        if (promises.start) waitPromises.push(promises.start)
-        if (promises.end) waitPromises.push(promises.end)
+        if (playbackOptions.waitForStart && promises.start) waitPromises.push(promises.start)
+        if (playbackOptions.waitForEnd && promises.end) waitPromises.push(promises.end)
         if (waitPromises.length > 0) {
           await Promise.all(waitPromises)
         }
 
-        return 'クエリをキューに追加しました'
+        const status = playbackOptions.waitForEnd ? 'played' : 'queued'
+        return this.createSpeakResult(status, [{ text: '(from query)', speaker: speakerId }])
       }
 
       // テキスト系の場合
-      const segments = this.normalizeInput(input as string | string[] | SpeechSegment[], speaker)
+      const segments = this.normalizeInput(input as string | string[] | SpeechSegment[], options.speaker)
 
       if (segments.length === 0) {
-        return 'テキストが空です'
+        return this.createSpeakResult('error', segments, 'Text is empty')
       }
 
-      const promises: Array<Promise<void>> = []
+      // 待機用のPromise
+      let firstStartPromise: Promise<void> | undefined
+      let lastEndPromise: Promise<void> | undefined
 
       // 最初のセグメントを優先処理
       if (segments.length > 0) {
@@ -508,48 +394,66 @@ export class VoicevoxClient {
         const firstQuery = await this.generateQuery(firstSegment.text, speakerId)
         firstQuery.speedScale = speed
 
-        const { promises: firstPromises } = await queueManager.enqueueQueryWithOptions(firstQuery, speakerId, {
-          ...this.defaultPlaybackOptions,
-          ...options,
+        const { promises: firstPromises } = await this.queueService.enqueueQuery(firstQuery, speakerId, {
+          ...playbackOptions,
+          immediate: false, // キューは既にクリア済み
+          waitForStart: playbackOptions.waitForStart,
+          waitForEnd: playbackOptions.waitForEnd,
         })
 
-        if (firstPromises.start) promises.push(firstPromises.start)
-        if (firstPromises.end) promises.push(firstPromises.end)
+        // waitForStart: 最初のセグメントの開始を待つ
+        if (firstPromises.start) {
+          firstStartPromise = firstPromises.start
+        }
+        // セグメントが1つだけの場合は最後のendもこれ
+        if (firstPromises.end) {
+          lastEndPromise = firstPromises.end
+        }
       }
 
-      // 残りのセグメントは非同期で処理
-      if (segments.length > 1) {
-        const processRemainingSegments = async () => {
-          for (let i = 1; i < segments.length; i++) {
-            const segment = segments[i]
-            const speakerId = this.getSpeakerId(segment.speaker)
-            const query = await this.generateQuery(segment.text, speakerId)
-            query.speedScale = speed
+      // 残りのセグメントを順番に処理
+      for (let i = 1; i < segments.length; i++) {
+        const segment = segments[i]
+        const speakerId = this.getSpeakerId(segment.speaker)
+        const query = await this.generateQuery(segment.text, speakerId)
+        query.speedScale = speed
 
-            const { promises: segmentPromises } = await queueManager.enqueueQueryWithOptions(
-              query,
-              speakerId,
-              { ...options, immediate: false } // 最初以外は自動再生しない
-            )
+        const isLastSegment = i === segments.length - 1
 
-            if (segmentPromises.start) promises.push(segmentPromises.start)
-            if (segmentPromises.end) promises.push(segmentPromises.end)
-          }
-        }
-
-        processRemainingSegments().catch((error) => {
-          console.error('残りのセグメント処理中にエラーが発生しました:', error)
+        const { promises: segmentPromises } = await this.queueService.enqueueQuery(query, speakerId, {
+          ...playbackOptions,
+          immediate: false,
+          waitForStart: false, // 残りのセグメントの開始は待たない
+          waitForEnd: isLastSegment ? playbackOptions.waitForEnd : false, // 最後のセグメントのみ終了を待つ
         })
+
+        // waitForEnd: 最後のセグメントの終了を待つ
+        if (isLastSegment && segmentPromises.end) {
+          lastEndPromise = segmentPromises.end
+        }
       }
 
       // 待機オプションに応じて処理
-      if (promises.length > 0) {
-        await Promise.all(promises)
+      const waitPromises: Array<Promise<void>> = []
+
+      // waitForStart: 最初のセグメントの再生開始を待つ
+      if (playbackOptions.waitForStart && firstStartPromise) {
+        waitPromises.push(firstStartPromise)
       }
 
-      return 'テキストをキューに追加しました'
+      // waitForEnd: 最後のセグメントの再生終了を待つ
+      if (playbackOptions.waitForEnd && lastEndPromise) {
+        waitPromises.push(lastEndPromise)
+      }
+
+      if (waitPromises.length > 0) {
+        await Promise.all(waitPromises)
+      }
+
+      const status = playbackOptions.waitForEnd ? 'played' : 'queued'
+      return this.createSpeakResult(status, segments)
     } catch (error) {
-      return formatError('音声生成中にエラーが発生しました', error)
+      return this.createSpeakResult('error', [], error instanceof Error ? error.message : String(error))
     }
   }
 
@@ -569,6 +473,38 @@ export class VoicevoxClient {
     return speedScale ?? this.defaultSpeedScale
   }
 
+  /**
+   * SpeakResultを生成
+   * @private
+   */
+  private createSpeakResult(
+    status: SpeakResult['status'],
+    segments: SpeechSegment[],
+    errorMessage?: string
+  ): SpeakResult {
+    const isStreaming = this.queueService.isStreamingEnabled()
+    const textPreview = this.createTextPreview(segments, 30)
+    return {
+      status,
+      mode: isStreaming ? 'streaming' : 'file',
+      textPreview,
+      segmentCount: segments.length,
+      errorMessage,
+    }
+  }
+
+  /**
+   * テキストプレビューを生成
+   * @private
+   */
+  private createTextPreview(segments: SpeechSegment[], maxLength: number): string {
+    const fullText = segments.map((s) => s.text).join(' ')
+    if (fullText.length <= maxLength) {
+      return fullText
+    }
+    return `${fullText.substring(0, maxLength - 3)}...`
+  }
+
   private validateConfig(config: VoicevoxConfig): void {
     if (!config.url) {
       throw new Error('VOICEVOXのURLが指定されていません')
@@ -584,7 +520,7 @@ export class VoicevoxClient {
    * キューをクリア
    */
   public async clearQueue(): Promise<void> {
-    return this.player.clearQueue()
+    return this.queueService.clearQueue()
   }
 
   /**
@@ -610,5 +546,63 @@ export class VoicevoxClient {
     } catch (error) {
       throw handleError('スピーカー情報取得中にエラーが発生しました', error)
     }
+  }
+
+  /**
+   * VOICEVOX Engine の接続状態をチェック
+   * @returns 接続情報（connected, version, url）
+   */
+  public async checkHealth(): Promise<{ connected: boolean; version?: string; url: string }> {
+    return this.api.checkHealth()
+  }
+
+  /**
+   * QueueServiceインスタンスを取得
+   * 高度な操作のため公開
+   */
+  public getQueueService(): QueueService {
+    return this.queueService
+  }
+
+  /**
+   * 再生を開始
+   */
+  public startPlayback(): void {
+    this.queueService.startPlayback()
+  }
+
+  /**
+   * 再生を一時停止
+   */
+  public pausePlayback(): void {
+    this.queueService.pausePlayback()
+  }
+
+  /**
+   * 再生を再開
+   */
+  public resumePlayback(): void {
+    this.queueService.resumePlayback()
+  }
+
+  /**
+   * キュー内のアイテム数を取得
+   */
+  public getQueueLength(): number {
+    return this.queueService.getQueue().length
+  }
+
+  /**
+   * キューが空かどうかを確認
+   */
+  public isQueueEmpty(): boolean {
+    return this.queueService.getQueue().length === 0
+  }
+
+  /**
+   * キューが再生中かどうかを確認
+   */
+  public isPlaying(): boolean {
+    return this.queueService.getQueue().some((item) => item.status === QueueItemStatus.PLAYING)
   }
 }

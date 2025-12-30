@@ -1,231 +1,175 @@
-import { spawn } from 'node:child_process'
-import * as fs from 'node:fs'
-import * as os from 'node:os'
-import * as path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { VoicevoxApi } from '../api'
-import { VoicevoxClient } from '../client'
-import { VoicevoxQueueManager } from '../queue/manager'
+import { type SpeakOptions, VoicevoxClient } from '../client'
+import type { VoicevoxConfig } from '../types'
 
-// モック設定
-vi.mock('fs')
-vi.mock('path')
-vi.mock('os')
-vi.mock('child_process')
-vi.mock('axios', () => {
-  const mockAxios = vi.fn((config: any) => {
-    if (config.method === 'get' && config.url.includes('/speakers')) {
-      return Promise.resolve({
-        status: 200,
-        data: [
-          {
-            speaker_uuid: 'test-uuid',
-            name: 'Test Speaker',
-            styles: [{ id: 0, name: 'Normal' }],
-          },
-        ],
-      })
-    }
-    if (config.method === 'post' && config.url.includes('/audio_query')) {
-      return Promise.resolve({
-        status: 200,
-        data: {
-          accent_phrases: [],
-          speedScale: 1.0,
-          pitchScale: 0.0,
-          intonationScale: 1.0,
-          volumeScale: 1.0,
-          prePhonemeLength: 0.1,
-          postPhonemeLength: 0.1,
-          outputSamplingRate: 24000,
-          outputStereo: false,
-          kana: '',
-        },
-      })
-    }
-    if (config.method === 'post' && config.url.includes('/synthesis')) {
-      return Promise.resolve({
-        status: 200,
-        data: Buffer.from('mock audio data'),
-      })
-    }
-    return Promise.reject(new Error('Not found'))
-  })
+// APIのモック
+vi.mock('../api', () => ({
+  VoicevoxApi: vi.fn().mockImplementation(() => ({
+    generateQuery: vi.fn().mockResolvedValue({
+      accent_phrases: [],
+      speedScale: 1.0,
+      pitchScale: 0.0,
+      intonationScale: 1.0,
+      volumeScale: 1.0,
+      prePhonemeLength: 0.1,
+      postPhonemeLength: 0.1,
+      outputSamplingRate: 24000,
+      outputStereo: false,
+    }),
+    synthesize: vi.fn().mockResolvedValue(new ArrayBuffer(1024)),
+  })),
+}))
 
-  mockAxios.isAxiosError = vi.fn().mockReturnValue(false)
-  mockAxios.create = vi.fn().mockReturnValue(mockAxios)
+// QueueServiceのモック
+const mockEnqueueQuery = vi.fn()
+const mockClearQueue = vi.fn()
+const mockStartPlayback = vi.fn()
 
-  return {
-    default: mockAxios,
-    isAxiosError: mockAxios.isAxiosError,
-  }
-})
-
-const mockedFs = fs as any
-const mockedPath = path as any
-const mockedOs = os as any
-const mockedSpawn = spawn as any
+vi.mock('../queue/queue-service', () => ({
+  QueueService: vi.fn().mockImplementation(() => ({
+    enqueueQuery: mockEnqueueQuery,
+    enqueueText: vi.fn(),
+    startPlayback: mockStartPlayback,
+    clearQueue: mockClearQueue,
+    cleanup: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    getQueue: vi.fn().mockReturnValue([]),
+    getFileManager: vi.fn().mockReturnValue({
+      saveTempAudioFile: vi.fn(),
+      saveAudioFile: vi.fn(),
+    }),
+    isStreamingEnabled: vi.fn().mockReturnValue(true),
+  })),
+}))
 
 describe('Immediate Playback', () => {
+  const originalEnv = process.env
   let client: VoicevoxClient
-  let mockProcess: any
 
   beforeEach(() => {
+    vi.resetModules()
     vi.clearAllMocks()
+    process.env = { ...originalEnv }
 
-    // OSをmacOSとして設定
-    mockedOs.platform.mockReturnValue('darwin')
-    mockedOs.tmpdir.mockReturnValue('/tmp')
-
-    // ファイルシステムのモック
-    mockedFs.existsSync.mockReturnValue(true)
-    mockedFs.writeFileSync.mockImplementation(() => {})
-    mockedFs.unlinkSync.mockImplementation(() => {})
-    mockedPath.join.mockImplementation((...args) => args.join('/'))
-
-    // child_processのモック
-    mockProcess = {
-      on: vi.fn((event, callback) => {
-        if (event === 'close') {
-          // 100ms後に正常終了
-          setTimeout(() => callback(0), 100)
-        }
-      }),
-      stderr: { on: vi.fn() },
-      stdout: { on: vi.fn() },
-    }
-    mockedSpawn.mockReturnValue(mockProcess as any)
-
-    // Axios mock is already configured in vi.mock above
-
-    client = new VoicevoxClient({
+    const config: VoicevoxConfig = {
       url: 'http://localhost:50021',
       defaultSpeaker: 1,
-      defaultSpeedScale: 1.0,
+    }
+
+    client = new VoicevoxClient(config)
+
+    // enqueueQuery のモックを設定
+    mockEnqueueQuery.mockResolvedValue({
+      item: { id: 'test' },
+      promises: {},
     })
   })
 
   afterEach(() => {
-    vi.useRealTimers()
-    vi.clearAllTimers()
-    // クライアントのクリーンアップ
-    if (client) {
-      const player = (client as any).player
-      if (player?.queueManager) {
-        player.queueManager.cleanup()
-      }
-    }
+    process.env = originalEnv
   })
 
   it('should play immediately when immediate option is true', async () => {
-    const text1 = 'これは即時再生です'
-    const text2 = 'これは通常のキュー再生です'
-    const text3 = 'これも即時再生です'
+    const options: SpeakOptions = { immediate: true }
 
-    // 3つの音声を追加（1つ目と3つ目は即時再生）
-    const promise1 = client.speakWithOptions(text1, {
-      immediate: true,
-      waitForEnd: true,
-    })
-    const promise2 = client.speakWithOptions(text2, {
-      immediate: false,
-      waitForEnd: true,
-    })
-    const promise3 = client.speakWithOptions(text3, {
-      immediate: true,
-      waitForEnd: true,
-    })
+    await client.speak('テスト音声', options)
 
-    // 再生開始を待つ
-    await new Promise((resolve) => setTimeout(resolve, 200))
-
-    // spawn呼び出しを確認
-    const spawnCalls = mockedSpawn.mock.calls
-
-    // 即時再生の音声が同時に再生されていることを確認
-    // （通常のキュー再生より前に、または並行して再生される）
-    expect(spawnCalls.length).toBeGreaterThanOrEqual(2)
-
-    // 最初の2つの呼び出しが即時再生であることを確認
-    const firstTwoFiles = spawnCalls.slice(0, 2).map((call) => call[1][0])
-
-    // ファイルパスに音声データが含まれていることを確認
-    expect(firstTwoFiles.every((file) => file.includes('.wav'))).toBe(true)
+    // immediate=true の場合、clearQueue が呼ばれる
+    expect(mockClearQueue).toHaveBeenCalledTimes(1)
+    // enqueueQuery も呼ばれる
+    expect(mockEnqueueQuery).toHaveBeenCalled()
   })
 
   it('should handle multiple immediate playbacks concurrently', async () => {
-    const immediateTexts = ['即時再生1', '即時再生2', '即時再生3']
+    const options: SpeakOptions = { immediate: true }
 
     // 複数の即時再生を同時に開始
-    const promises = immediateTexts.map((text) =>
-      client.speakWithOptions(text, {
-        immediate: true,
-        waitForEnd: true,
-      })
-    )
+    await Promise.all([
+      client.speak('即時再生1', options),
+      client.speak('即時再生2', options),
+      client.speak('即時再生3', options),
+    ])
 
-    // 少し待機
-    await new Promise((resolve) => setTimeout(resolve, 150))
-
-    // 複数のspawnが呼ばれていることを確認
-    expect(mockedSpawn).toHaveBeenCalledTimes(3)
-
-    // すべてが異なるファイルを再生していることを確認
-    const playedFiles = mockedSpawn.mock.calls.map((call) => call[1][0])
-    const uniqueFiles = new Set(playedFiles)
-    expect(uniqueFiles.size).toBe(3)
+    // 各speakでclearQueueが呼ばれる
+    expect(mockClearQueue).toHaveBeenCalledTimes(3)
+    // enqueueQueryが各再生で呼ばれる
+    expect(mockEnqueueQuery).toHaveBeenCalledTimes(3)
   })
 
   it('should not affect normal queue when immediate playback is used', async () => {
     // まず通常のキューに音声を追加
-    const normalPromise1 = client.speakWithOptions('通常1', {
-      immediate: false,
-      waitForEnd: true,
-    })
-    const normalPromise2 = client.speakWithOptions('通常2', {
-      immediate: false,
-      waitForEnd: true,
-    })
+    await client.speak('通常1', { immediate: false })
+    await client.speak('通常2', { immediate: false })
 
-    // 少し待ってから即時再生を追加
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    // immediate=false ではclearQueueは呼ばれない
+    expect(mockClearQueue).not.toHaveBeenCalled()
 
-    const immediatePromise = client.speakWithOptions('即時', {
-      immediate: true,
-      waitForEnd: true,
-    })
+    // 即時再生を追加
+    await client.speak('即時', { immediate: true })
 
-    // 再生開始を待つ
-    await new Promise((resolve) => setTimeout(resolve, 200))
-
-    // spawn呼び出しを確認
-    const spawnCalls = mockedSpawn.mock.calls
-
-    // 少なくとも2つの再生が開始されていることを確認
-    // （通常のキューと即時再生が並行して動作）
-    expect(spawnCalls.length).toBeGreaterThanOrEqual(2)
+    // 即時再生でclearQueueが呼ばれる
+    expect(mockClearQueue).toHaveBeenCalledTimes(1)
   })
 
   it('should work with waitForStart option', async () => {
-    const { promises } = await client.speakWithOptions('テスト音声', {
-      immediate: true,
-      waitForStart: true,
-      waitForEnd: false,
+    let startResolved = false
+
+    mockEnqueueQuery.mockResolvedValueOnce({
+      item: { id: 'test1' },
+      promises: {
+        start: new Promise<void>((resolve) => {
+          setTimeout(() => {
+            startResolved = true
+            resolve()
+          }, 50)
+        }),
+      },
     })
 
-    // waitForStartのPromiseが解決されることを確認
-    await expect(promises.start).resolves.toBeUndefined()
+    const options: SpeakOptions = {
+      immediate: true,
+      waitForStart: true,
+    }
+
+    await client.speak('テスト音声', options)
+
+    // waitForStart=true なので start Promise が解決されている
+    expect(startResolved).toBe(true)
   })
 
   it('should work with both waitForStart and waitForEnd options', async () => {
-    const { promises } = await client.speakWithOptions('テスト音声', {
+    let startResolved = false
+    let endResolved = false
+
+    mockEnqueueQuery.mockResolvedValueOnce({
+      item: { id: 'test1' },
+      promises: {
+        start: new Promise<void>((resolve) => {
+          setTimeout(() => {
+            startResolved = true
+            resolve()
+          }, 30)
+        }),
+        end: new Promise<void>((resolve) => {
+          setTimeout(() => {
+            endResolved = true
+            resolve()
+          }, 60)
+        }),
+      },
+    })
+
+    const options: SpeakOptions = {
       immediate: true,
       waitForStart: true,
       waitForEnd: true,
-    })
+    }
 
-    // 両方のPromiseが解決されることを確認
-    await expect(promises.start).resolves.toBeUndefined()
-    await expect(promises.end).resolves.toBeUndefined()
+    await client.speak('テスト音声', options)
+
+    // 両方の Promise が解決されている
+    expect(startResolved).toBe(true)
+    expect(endResolved).toBe(true)
   })
 })

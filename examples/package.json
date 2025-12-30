@@ -1,14 +1,17 @@
 {
   "name": "voicevox-mcp-examples",
   "version": "1.0.0",
-  "description": "Examples for VOICEVOX MCP Server",
+  "description": "Examples for VOICEVOX Client",
   "private": true,
   "scripts": {
-    "test-voicevox": "ts-node test-voicevox.ts"
+    "basic": "ts-node basic.ts",
+    "queue": "ts-node queue.ts",
+    "prefetch": "ts-node prefetch.ts",
+    "file": "ts-node file-generation.ts",
+    "file-playback": "ts-node file-playback.ts"
   },
   "dependencies": {
-    "@kajidog/voicevox-client": "file:../packages/voicevox-client",
-    "sound-play": "^1.1.0"
+    "@kajidog/voicevox-client": "file:../packages/voicevox-client"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

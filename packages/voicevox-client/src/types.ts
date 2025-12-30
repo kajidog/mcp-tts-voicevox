@@ -8,8 +8,25 @@ export interface VoicevoxConfig {
   defaultSpeaker: number
   /** デフォルトの再生速度 */
   defaultSpeedScale?: number
+  /** デフォルトの音量 (0.0 - 2.0, デフォルト: 1.0) */
+  defaultVolumeScale?: number
+  /** デフォルトの音高 (-0.15 - 0.15, デフォルト: 0.0) */
+  defaultPitchScale?: number
+  /** 音声の前の無音時間（秒） */
+  defaultPrePhonemeLength?: number
+  /** 音声の後の無音時間（秒） */
+  defaultPostPhonemeLength?: number
+  /** テキスト分割時の最大文字数（デフォルト: 150） */
+  maxSegmentLength?: number
   /** デフォルトの再生オプション */
   defaultPlaybackOptions?: PlaybackOptions
+  /**
+   * ストリーミング再生を使用するかどうか
+   * - true: ストリーミング再生（ffplayを使用、バッファから直接再生）
+   * - false: 一時ファイル再生（プラットフォームのデフォルトプレイヤーを使用）
+   * - undefined: 環境変数 VOICEVOX_STREAMING_PLAYBACK または自動判定
+   */
+  useStreaming?: boolean
 }
 
 /**
@@ -176,4 +193,20 @@ export interface PlaybackOptions {
   waitForStart?: boolean
   /** 再生終了まで待機するかどうか */
   waitForEnd?: boolean
+}
+
+/**
+ * speak()メソッドの結果
+ */
+export interface SpeakResult {
+  /** 処理状態 */
+  status: 'queued' | 'playing' | 'played' | 'error'
+  /** 再生モード */
+  mode: 'streaming' | 'file'
+  /** テキストプレビュー */
+  textPreview: string
+  /** セグメント数 */
+  segmentCount: number
+  /** エラーメッセージ（status='error'の場合） */
+  errorMessage?: string
 }

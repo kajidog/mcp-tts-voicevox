@@ -1,0 +1,272 @@
+/**
+ * MCP TTS VOICEVOX 設定モジュール
+ *
+ * 優先順位: CLI引数 > 環境変数 > デフォルト値
+ */
+
+// 設定型定義
+export interface ServerConfig {
+  // VOICEVOX設定
+  voicevoxUrl: string
+  defaultSpeaker: number
+  defaultSpeedScale: number
+  useStreaming?: boolean
+
+  // 再生オプションのデフォルト
+  defaultImmediate: boolean
+  defaultWaitForStart: boolean
+  defaultWaitForEnd: boolean
+
+  // 制限設定（AIがオプションを指定できなくする）
+  restrictImmediate: boolean
+  restrictWaitForStart: boolean
+  restrictWaitForEnd: boolean
+
+  // 無効化ツール
+  disabledTools: string[]
+
+  // サーバー設定
+  httpMode: boolean
+  httpPort: number
+  httpHost: string
+
+  // セキュリティ設定（許可するホスト/オリジン）
+  allowedHosts: string[]
+  allowedOrigins: string[]
+}
+
+// デフォルト設定
+const defaultConfig: ServerConfig = {
+  voicevoxUrl: 'http://localhost:50021',
+  defaultSpeaker: 1,
+  defaultSpeedScale: 1.0,
+  useStreaming: undefined,
+  defaultImmediate: true,
+  defaultWaitForStart: false,
+  defaultWaitForEnd: false,
+  restrictImmediate: false,
+  restrictWaitForStart: false,
+  restrictWaitForEnd: false,
+  disabledTools: [],
+  httpMode: false,
+  httpPort: 3000,
+  httpHost: '0.0.0.0',
+  allowedHosts: ['localhost', '127.0.0.1', '[::1]'],
+  allowedOrigins: ['http://localhost', 'http://127.0.0.1', 'https://localhost', 'https://127.0.0.1'],
+}
+
+/**
+ * CLI引数をパースする
+ */
+export function parseCliArgs(argv: string[] = process.argv.slice(2)): Partial<ServerConfig> {
+  const config: Partial<ServerConfig> = {}
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    const nextArg = argv[i + 1]
+
+    switch (arg) {
+      case '--url':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.voicevoxUrl = nextArg
+          i++
+        }
+        break
+      case '--speaker':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.defaultSpeaker = Number(nextArg)
+          i++
+        }
+        break
+      case '--speed':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.defaultSpeedScale = Number(nextArg)
+          i++
+        }
+        break
+      case '--use-streaming':
+        config.useStreaming = true
+        break
+      case '--no-use-streaming':
+        config.useStreaming = false
+        break
+      case '--immediate':
+        config.defaultImmediate = true
+        break
+      case '--no-immediate':
+        config.defaultImmediate = false
+        break
+      case '--wait-for-start':
+        config.defaultWaitForStart = true
+        break
+      case '--no-wait-for-start':
+        config.defaultWaitForStart = false
+        break
+      case '--wait-for-end':
+        config.defaultWaitForEnd = true
+        break
+      case '--no-wait-for-end':
+        config.defaultWaitForEnd = false
+        break
+      case '--restrict-immediate':
+        config.restrictImmediate = true
+        break
+      case '--restrict-wait-for-start':
+        config.restrictWaitForStart = true
+        break
+      case '--restrict-wait-for-end':
+        config.restrictWaitForEnd = true
+        break
+      case '--disable-tools':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.disabledTools = nextArg.split(',').map((t) => t.trim())
+          i++
+        }
+        break
+      case '--http':
+        config.httpMode = true
+        break
+      case '--port':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.httpPort = Number(nextArg)
+          i++
+        }
+        break
+      case '--host':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.httpHost = nextArg
+          i++
+        }
+        break
+      case '--allowed-hosts':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.allowedHosts = nextArg.split(',').map((h) => h.trim())
+          i++
+        }
+        break
+      case '--allowed-origins':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.allowedOrigins = nextArg.split(',').map((o) => o.trim())
+          i++
+        }
+        break
+    }
+  }
+
+  return config
+}
+
+/**
+ * 環境変数から設定を読み込む
+ */
+export function parseEnvVars(env: NodeJS.ProcessEnv = process.env): Partial<ServerConfig> {
+  const config: Partial<ServerConfig> = {}
+
+  if (env.VOICEVOX_URL) {
+    config.voicevoxUrl = env.VOICEVOX_URL
+  }
+
+  if (env.VOICEVOX_DEFAULT_SPEAKER) {
+    config.defaultSpeaker = Number(env.VOICEVOX_DEFAULT_SPEAKER)
+  }
+
+  if (env.VOICEVOX_DEFAULT_SPEED_SCALE) {
+    config.defaultSpeedScale = Number(env.VOICEVOX_DEFAULT_SPEED_SCALE)
+  }
+
+  if (env.VOICEVOX_USE_STREAMING !== undefined) {
+    config.useStreaming = env.VOICEVOX_USE_STREAMING === 'true'
+  }
+
+  // immediate は 'false' 以外は true（既存の動作を維持）
+  if (env.VOICEVOX_DEFAULT_IMMEDIATE !== undefined) {
+    config.defaultImmediate = env.VOICEVOX_DEFAULT_IMMEDIATE !== 'false'
+  }
+
+  if (env.VOICEVOX_DEFAULT_WAIT_FOR_START === 'true') {
+    config.defaultWaitForStart = true
+  }
+
+  if (env.VOICEVOX_DEFAULT_WAIT_FOR_END === 'true') {
+    config.defaultWaitForEnd = true
+  }
+
+  if (env.VOICEVOX_RESTRICT_IMMEDIATE === 'true') {
+    config.restrictImmediate = true
+  }
+
+  if (env.VOICEVOX_RESTRICT_WAIT_FOR_START === 'true') {
+    config.restrictWaitForStart = true
+  }
+
+  if (env.VOICEVOX_RESTRICT_WAIT_FOR_END === 'true') {
+    config.restrictWaitForEnd = true
+  }
+
+  if (env.VOICEVOX_DISABLED_TOOLS) {
+    config.disabledTools = env.VOICEVOX_DISABLED_TOOLS.split(',').map((t) => t.trim())
+  }
+
+  if (env.MCP_HTTP_MODE === 'true') {
+    config.httpMode = true
+  }
+
+  if (env.MCP_HTTP_PORT) {
+    config.httpPort = Number(env.MCP_HTTP_PORT)
+  }
+
+  if (env.MCP_HTTP_HOST) {
+    config.httpHost = env.MCP_HTTP_HOST
+  }
+
+  if (env.MCP_ALLOWED_HOSTS) {
+    config.allowedHosts = env.MCP_ALLOWED_HOSTS.split(',').map((h) => h.trim())
+  }
+
+  if (env.MCP_ALLOWED_ORIGINS) {
+    config.allowedOrigins = env.MCP_ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+  }
+
+  return config
+}
+
+/**
+ * undefinedのプロパティを除去する
+ */
+function filterUndefined<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined)) as Partial<T>
+}
+
+/**
+ * 設定を取得する（優先順位: CLI引数 > 環境変数 > デフォルト値）
+ */
+export function getConfig(argv?: string[], env?: NodeJS.ProcessEnv): ServerConfig {
+  const cliConfig = parseCliArgs(argv)
+  const envConfig = parseEnvVars(env)
+
+  return {
+    ...defaultConfig,
+    ...filterUndefined(envConfig),
+    ...filterUndefined(cliConfig),
+  }
+}
+
+// シングルトンとしてエクスポート（キャッシュ）
+let cachedConfig: ServerConfig | null = null
+
+/**
+ * キャッシュされた設定を取得する
+ */
+export function getCachedConfig(): ServerConfig {
+  if (!cachedConfig) {
+    cachedConfig = getConfig()
+  }
+  return cachedConfig
+}
+
+/**
+ * キャッシュをリセットする（テスト用）
+ */
+export function resetConfigCache(): void {
+  cachedConfig = null
+}

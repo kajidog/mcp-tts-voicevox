@@ -1,8 +1,20 @@
 import type { VoicevoxApi } from '../api'
+import type { ItemStateMachine } from '../state/item-state-machine'
+import type { QueueItemData } from '../state/types'
 import type { AudioQuery } from '../types'
 import { isBrowser } from '../utils'
 import type { AudioFileManager } from './file-manager'
 import { type QueueItem, QueueItemStatus } from './types'
+
+/**
+ * 生成完了コールバック
+ */
+export type GenerationCompleteCallback = (item: QueueItemData, audioData: ArrayBuffer, tempFile: string) => void
+
+/**
+ * 生成エラーコールバック
+ */
+export type GenerationErrorCallback = (item: QueueItemData, error: Error) => void
 
 /**
  * 音声生成クラス
@@ -111,6 +123,69 @@ export class AudioGenerator {
       item.error = error instanceof Error ? error : new Error(String(error))
       updateStatus(item, QueueItemStatus.ERROR)
       throw error
+    }
+  }
+
+  /**
+   * テキストから音声データを生成（状態マシン連携版）
+   * PrefetchManagerと連携して使用する
+   * @param item 処理対象のキューアイテム
+   * @param stateMachine アイテムの状態マシン
+   * @param onComplete 生成完了コールバック
+   * @param onError 生成エラーコールバック
+   */
+  public async generateForItem(
+    item: QueueItemData,
+    stateMachine: ItemStateMachine,
+    onComplete: GenerationCompleteCallback,
+    onError: GenerationErrorCallback
+  ): Promise<void> {
+    try {
+      stateMachine.transition('startGeneration')
+
+      const query = await this.generateQuery(item.text, item.speaker)
+      const audioData = await this.api.synthesize(query, item.speaker)
+      const tempFile = await this.fileManager.saveTempAudioFile(audioData)
+
+      onComplete(item, audioData, tempFile)
+    } catch (error) {
+      stateMachine.transition('generationFailed')
+      const err = error instanceof Error ? error : new Error(String(error))
+      onError(item, err)
+    }
+  }
+
+  /**
+   * クエリから音声データを生成（状態マシン連携版）
+   * PrefetchManagerと連携して使用する
+   * @param item 処理対象のキューアイテム（queryが必須）
+   * @param stateMachine アイテムの状態マシン
+   * @param onComplete 生成完了コールバック
+   * @param onError 生成エラーコールバック
+   */
+  public async generateFromQueryForItem(
+    item: QueueItemData,
+    stateMachine: ItemStateMachine,
+    onComplete: GenerationCompleteCallback,
+    onError: GenerationErrorCallback
+  ): Promise<void> {
+    if (!item.query) {
+      const err = new Error('Query is required for generateFromQueryForItem')
+      onError(item, err)
+      return
+    }
+
+    try {
+      stateMachine.transition('startGeneration')
+
+      const audioData = await this.api.synthesize(item.query, item.speaker)
+      const tempFile = await this.fileManager.saveTempAudioFile(audioData)
+
+      onComplete(item, audioData, tempFile)
+    } catch (error) {
+      stateMachine.transition('generationFailed')
+      const err = error instanceof Error ? error : new Error(String(error))
+      onError(item, err)
     }
   }
 }

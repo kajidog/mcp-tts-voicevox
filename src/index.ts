@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // MCP TTS Voicevox エントリーポイント
 
+import { getConfig } from './config'
+
 // 型定義
-interface ServerConfig {
+interface IndexServerConfig {
   port: number
   host: string
   isDevelopment: boolean
@@ -35,8 +37,9 @@ function isCLI(): boolean {
     argv1.includes('index.js') ||
     argv1.includes('npx')
 
-  // 環境変数でHTTPモードが明示的に設定されている場合は強制的にCLI実行として扱う
-  const isForceMode = process.env?.MCP_HTTP_MODE === 'true'
+  // 設定からHTTPモードを取得（CLI引数または環境変数）
+  const config = getConfig()
+  const isForceMode = config.httpMode
 
   // npxやCLIからの直接実行を検出
   const isMainModule = require.main === module || process.argv0.includes('node')
@@ -52,16 +55,16 @@ function isNpx(): boolean {
 }
 
 /**
- * サーバー設定を取得する関数
+ * サーバー設定を取得する関数（設定モジュールを使用）
  */
-function getServerConfig(): ServerConfig {
-  const env = process.env || {}
+function getServerConfig(): IndexServerConfig {
+  const config = getConfig()
 
   return {
-    port: Number.parseInt(env.MCP_HTTP_PORT || '3000', 10),
-    host: env.MCP_HTTP_HOST || '0.0.0.0',
-    isDevelopment: env.NODE_ENV === 'development',
-    isHttpMode: env.MCP_HTTP_MODE === 'true',
+    port: config.httpPort,
+    host: config.httpHost,
+    isDevelopment: process.env.NODE_ENV === 'development',
+    isHttpMode: config.httpMode,
   }
 }
 
@@ -70,10 +73,10 @@ function getServerConfig(): ServerConfig {
  */
 async function loadHttpApp(isDevelopment: boolean) {
   if (isDevelopment) {
-    const module = await import('./sse')
+    const module = await import('./http')
     return module.default
   }
-  return require('./sse').default
+  return require('./http').default
 }
 
 /**
@@ -89,7 +92,7 @@ async function loadHttpServer(isDevelopment: boolean) {
 /**
  * HTTP サーバーを起動する
  */
-async function startHttpServer(config: ServerConfig): Promise<void> {
+async function startHttpServer(config: IndexServerConfig): Promise<void> {
   try {
     console.error('Starting HTTP server with config:', config)
     const app = await loadHttpApp(config.isDevelopment)
@@ -107,7 +110,6 @@ async function startHttpServer(config: ServerConfig): Promise<void> {
 
     server.serve(serverOptions, (info: ServerInfo) => {
       console.error(`✅ VOICEVOX MCP HTTP server running at http://${info.address}:${info.port}/mcp`)
-      console.error(`📡 SSE endpoint (legacy): http://${info.address}:${info.port}/sse`)
       console.error(`🔍 Health check: http://${info.address}:${info.port}/health`)
     })
 
@@ -130,7 +132,7 @@ async function startHttpServer(config: ServerConfig): Promise<void> {
 /**
  * Stdio サーバーを起動する
  */
-async function startStdioServer(config: ServerConfig): Promise<void> {
+async function startStdioServer(config: IndexServerConfig): Promise<void> {
   try {
     if (config.isDevelopment) {
       await import('./stdio')
@@ -156,12 +158,75 @@ async function startStdioServer(config: ServerConfig): Promise<void> {
 }
 
 /**
+ * ヘルプメッセージを表示する
+ */
+function printHelp() {
+  console.log(`
+Usage: npx @kajidog/mcp-tts-voicevox [options]
+
+Options:
+  --help, -h                  Show this help message
+  --version, -v               Show version number
+
+  Voicevox Configuration:
+  --url <url>                 VOICEVOX Engine URL (default: http://localhost:50021)
+  --speaker <id>              Default speaker ID (default: 1)
+  --speed <scale>             Default playback speed (default: 1.0)
+
+  Playback Options:
+  --use-streaming             Enable streaming playback (ffplay required)
+  --no-use-streaming          Disable streaming playback
+  --immediate                 Enable immediate playback (default)
+  --no-immediate              Disable immediate playback
+  --wait-for-start            Wait for playback to start
+  --no-wait-for-start         Do not wait for playback to start (default)
+  --wait-for-end              Wait for playback to end
+  --no-wait-for-end           Do not wait for playback to end (default)
+
+  Restriction Options:
+  --restrict-immediate        Restrict AI from using immediate option
+  --restrict-wait-for-start   Restrict AI from using waitForStart option
+  --restrict-wait-for-end     Restrict AI from using waitForEnd option
+
+  Tool Options:
+  --disable-tools <tools>     Comma-separated list of tools to disable
+                              (Allowed: speak, ping_voicevox, generate_query, synthesize_file,
+                               stop_speaker, get_speakers, get_speaker_detail)
+
+  Server Options:
+  --http                      Enable HTTP server mode (remote MCP)
+  --port <port>               HTTP server port (default: 3000)
+  --host <host>               HTTP server host (default: 0.0.0.0)
+  --allowed-hosts <hosts>     Comma-separated list of allowed hosts (default: localhost,127.0.0.1,[::1])
+  --allowed-origins <origins> Comma-separated list of allowed origins
+
+Examples:
+  npx @kajidog/mcp-tts-voicevox --url http://192.168.1.50:50021 --speaker 3
+  npx @kajidog/mcp-tts-voicevox --http --port 8080
+  npx @kajidog/mcp-tts-voicevox --disable-tools generate_query,synthesize_file
+`)
+}
+
+/**
  * MCP サーバーを起動する
  */
 async function startMCPServer(): Promise<void> {
   // 環境チェック
   if (!isNodejs()) {
     throw new Error('❌ Node.js environment required')
+  }
+
+  // ヘルプオプションの確認
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    printHelp()
+    process.exit(0)
+  }
+
+  // バージョンオプションの確認
+  if (process.argv.includes('--version') || process.argv.includes('-v')) {
+    const packageJson = require('../package.json')
+    console.log(`@kajidog/mcp-tts-voicevox v${packageJson.version}`)
+    process.exit(0)
   }
 
   // CLI実行またはNPX実行の場合のみサーバーを起動

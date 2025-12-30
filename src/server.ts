@@ -1,57 +1,61 @@
-import { type AudioQuery, VoicevoxClient } from '@kajidog/voicevox-client'
+import { type AudioQuery, type SpeakResult, VoicevoxClient } from '@kajidog/voicevox-client'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { z } from 'zod'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+import * as z from 'zod/v4'
+import { getConfig } from './config'
 
-// 型定義
-const TextSegmentSchema = z.object({
-  text: z.string().describe('Text content to synthesize'),
-  speaker: z.number().optional().describe('Speaker ID for this specific text segment'),
-})
-
-const TextInputSchema = z
-  .string()
-  .describe(
-    'Text string with line breaks and optional speaker prefix "1:Hello\\n2:World". For faster playback start, make the first element short.'
-  )
-
-const CommonParametersSchema = {
-  speaker: z.number().optional().describe('Default speaker ID (optional)'),
-  speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
-}
-
-const PlaybackOptionsSchema = {
-  immediate: z.boolean().optional().describe('Start playback immediately (optional, default: true)'),
-  waitForStart: z.boolean().optional().describe('Wait for playback to start (optional, default: false)'),
-  waitForEnd: z.boolean().optional().describe('Wait for playback to end (optional, default: false)'),
-}
+// 設定を取得
+const config = getConfig()
 
 // サーバー初期化
 export const server = new McpServer({
   name: 'MCP TTS Voicevox',
-  version: '0.2.3',
+  version: '0.3.0',
   description: 'A Voicevox server that converts text to speech for playback and saving.',
 })
 
 // Voicevoxクライアント初期化
 const voicevoxClient = new VoicevoxClient({
-  url: process.env.VOICEVOX_URL ?? 'http://localhost:50021',
-  defaultSpeaker: Number(process.env.VOICEVOX_DEFAULT_SPEAKER || '1'),
-  defaultSpeedScale: Number(process.env.VOICEVOX_DEFAULT_SPEED_SCALE || '1.0'),
+  url: config.voicevoxUrl,
+  defaultSpeaker: config.defaultSpeaker,
+  defaultSpeedScale: config.defaultSpeedScale,
+  useStreaming: config.useStreaming,
 })
 
+// 無効化ツールのセット
+const disabledTools = new Set(config.disabledTools)
+
+// 制限設定
+const restrictions = {
+  immediate: config.restrictImmediate,
+  waitForStart: config.restrictWaitForStart,
+  waitForEnd: config.restrictWaitForEnd,
+}
+
 // ユーティリティ関数
-const createErrorResponse = (error: unknown) => ({
+const createErrorResponse = (error: unknown): CallToolResult => ({
   content: [
     {
-      type: 'text' as const,
+      type: 'text',
       text: `エラー: ${error instanceof Error ? error.message : String(error)}`,
     },
   ],
 })
 
-const createSuccessResponse = (text: string) => ({
-  content: [{ type: 'text' as const, text }],
+const createSuccessResponse = (text: string): CallToolResult => ({
+  content: [{ type: 'text', text }],
 })
+
+const formatSpeakResponse = (result: SpeakResult): string => {
+  if (result.status === 'error') {
+    return `Error: ${result.errorMessage}`
+  }
+
+  const statusLabel = result.status === 'played' ? 'Played' : 'Queued'
+  const moreSegments = result.segmentCount > 1 ? ` +${result.segmentCount - 1} more` : ''
+
+  return `${statusLabel} (${result.mode}): "${result.textPreview}"${moreSegments}`
+}
 
 const parseAudioQuery = (query: string, speedScale?: number): AudioQuery => {
   const audioQuery = JSON.parse(query) as AudioQuery
@@ -85,54 +89,156 @@ const processTextInput = async (
   }
 ) => {
   const segments = parseStringInput(text)
-  return await voicevoxClient.speak(segments, speaker, speedScale, playbackOptions)
+  return await voicevoxClient.speak(segments, {
+    speaker,
+    speedScale,
+    ...playbackOptions,
+  })
 }
 
-// ツール定義
-server.tool(
-  'speak',
-  'Convert text to speech and play it',
-  {
-    text: TextInputSchema,
-    ...CommonParametersSchema,
-    ...PlaybackOptionsSchema,
+/**
+ * 条件付きツール登録（無効化されたツールは登録しない）
+ */
+function registerToolIfEnabled(name: string, definition: any, handler: any) {
+  if (disabledTools.has(name)) {
+    console.error(`Tool "${name}" is disabled via configuration`)
+    return
+  }
+  server.registerTool(name, definition, handler)
+}
+
+/**
+ * speak ツールの動的スキーマを構築
+ */
+function buildSpeakInputSchema() {
+  const schema: Record<string, z.ZodType> = {
+    text: z
+      .string()
+      .describe(
+        'Text string with line breaks and optional speaker prefix "1:Hello\\n2:World". For faster playback start, make the first element short.'
+      ),
     query: z.string().optional().describe('Voice synthesis query'),
+    speaker: z.number().optional().describe('Default speaker ID (optional)'),
+    speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
+  }
+
+  // 制限されていない場合のみスキーマに追加
+  if (!restrictions.immediate) {
+    schema.immediate = z
+      .boolean()
+      .optional()
+      .describe(
+        'If true, stops current playback and plays new audio immediately. If false, waits for current playback to finish. Default depends on environment variable.'
+      )
+  }
+
+  if (!restrictions.waitForStart) {
+    schema.waitForStart = z.boolean().optional().describe('Wait for playback to start (optional, default: false)')
+  }
+
+  if (!restrictions.waitForEnd) {
+    schema.waitForEnd = z.boolean().optional().describe('Wait for playback to end (optional, default: false)')
+  }
+
+  return schema
+}
+
+// ツール登録
+
+// ping_voicevox ツール
+registerToolIfEnabled(
+  'ping_voicevox',
+  {
+    title: 'Ping VOICEVOX',
+    description: 'Check if VOICEVOX Engine is running and reachable',
   },
-  async ({ text, speaker, query, speedScale, immediate, waitForStart, waitForEnd }) => {
+  async (): Promise<CallToolResult> => {
     try {
-      // 環境変数からデフォルトの再生オプションを取得
-      const defaultImmediate = process.env.VOICEVOX_DEFAULT_IMMEDIATE !== 'false'
-      const defaultWaitForStart = process.env.VOICEVOX_DEFAULT_WAIT_FOR_START === 'true'
-      const defaultWaitForEnd = process.env.VOICEVOX_DEFAULT_WAIT_FOR_END === 'true'
-
-      const playbackOptions = {
-        immediate: immediate ?? defaultImmediate,
-        waitForStart: waitForStart ?? defaultWaitForStart,
-        waitForEnd: waitForEnd ?? defaultWaitForEnd,
+      const health = await voicevoxClient.checkHealth()
+      if (health.connected) {
+        return createSuccessResponse(`VOICEVOX is running at ${health.url} (v${health.version})`)
       }
-
-      if (query) {
-        const audioQuery = parseAudioQuery(query, speedScale)
-        const result = await voicevoxClient.enqueueAudioGeneration(audioQuery, speaker, speedScale, playbackOptions)
-        return createSuccessResponse(result)
-      }
-
-      const result = await processTextInput(text, speaker, speedScale, playbackOptions)
-      return createSuccessResponse(result)
+      return createErrorResponse(
+        new Error(`VOICEVOX is not reachable at ${health.url}. Please ensure VOICEVOX Engine is running.`)
+      )
     } catch (error) {
       return createErrorResponse(error)
     }
   }
 )
 
-server.tool(
-  'generate_query',
-  'Generate a query for voice synthesis',
+// speak ツール
+registerToolIfEnabled(
+  'speak',
   {
-    text: z.string().describe('Text for voice synthesis'),
-    ...CommonParametersSchema,
+    title: 'Speak',
+    description: 'Convert text to speech and play it',
+    inputSchema: buildSpeakInputSchema(),
   },
-  async ({ text, speaker, speedScale }) => {
+  async ({
+    text,
+    speaker,
+    query,
+    speedScale,
+    immediate,
+    waitForStart,
+    waitForEnd,
+  }: {
+    text: string
+    speaker?: number
+    query?: string
+    speedScale?: number
+    immediate?: boolean
+    waitForStart?: boolean
+    waitForEnd?: boolean
+  }): Promise<CallToolResult> => {
+    try {
+      // 設定からデフォルトの再生オプションを取得
+      const playbackOptions = {
+        immediate: immediate ?? config.defaultImmediate,
+        waitForStart: waitForStart ?? config.defaultWaitForStart,
+        waitForEnd: waitForEnd ?? config.defaultWaitForEnd,
+      }
+
+      let result: SpeakResult
+      if (query) {
+        const audioQuery = parseAudioQuery(query, speedScale)
+        result = await voicevoxClient.enqueueAudioGeneration(audioQuery, {
+          speaker,
+          speedScale,
+          ...playbackOptions,
+        })
+      } else {
+        result = await processTextInput(text, speaker, speedScale, playbackOptions)
+      }
+
+      return createSuccessResponse(formatSpeakResponse(result))
+    } catch (error) {
+      return createErrorResponse(error)
+    }
+  }
+)
+
+registerToolIfEnabled(
+  'generate_query',
+  {
+    title: 'Generate Query',
+    description: 'Generate a query for voice synthesis',
+    inputSchema: {
+      text: z.string().describe('Text for voice synthesis'),
+      speaker: z.number().optional().describe('Default speaker ID (optional)'),
+      speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
+    },
+  },
+  async ({
+    text,
+    speaker,
+    speedScale,
+  }: {
+    text: string
+    speaker?: number
+    speedScale?: number
+  }): Promise<CallToolResult> => {
     try {
       const query = await voicevoxClient.generateQuery(text, speaker, speedScale)
       return createSuccessResponse(JSON.stringify(query))
@@ -142,19 +248,35 @@ server.tool(
   }
 )
 
-server.tool(
+registerToolIfEnabled(
   'synthesize_file',
-  'Generate an audio file and return its absolute path',
   {
-    text: z
-      .string()
-      .optional()
-      .describe('Text for voice synthesis (if both query and text provided, query takes precedence)'),
-    query: z.string().optional().describe('Voice synthesis query'),
-    output: z.string().describe('Output path for the audio file'),
-    ...CommonParametersSchema,
+    title: 'Synthesize File',
+    description: 'Generate an audio file and return its absolute path',
+    inputSchema: {
+      text: z
+        .string()
+        .optional()
+        .describe('Text for voice synthesis (if both query and text provided, query takes precedence)'),
+      query: z.string().optional().describe('Voice synthesis query'),
+      output: z.string().describe('Output path for the audio file'),
+      speaker: z.number().optional().describe('Default speaker ID (optional)'),
+      speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
+    },
   },
-  async ({ text, query, speaker, output, speedScale }) => {
+  async ({
+    text,
+    query,
+    speaker,
+    output,
+    speedScale,
+  }: {
+    text?: string
+    query?: string
+    speaker?: number
+    output: string
+    speedScale?: number
+  }): Promise<CallToolResult> => {
     try {
       if (query) {
         const audioQuery = parseAudioQuery(query, speedScale)
@@ -174,13 +296,16 @@ server.tool(
   }
 )
 
-server.tool(
+registerToolIfEnabled(
   'stop_speaker',
-  'Stop the current speaker',
   {
-    random_string: z.string().describe('Dummy parameter for no-parameter tools'),
+    title: 'Stop Speaker',
+    description: 'Stop current audio playback',
+    inputSchema: {
+      random_string: z.string().describe('Dummy parameter for no-parameter tools'),
+    },
   },
-  async () => {
+  async (): Promise<CallToolResult> => {
     try {
       await voicevoxClient.clearQueue()
       return createSuccessResponse('スピーカーを停止しました')
@@ -190,29 +315,39 @@ server.tool(
   }
 )
 
-server.tool('get_speakers', 'Get a list of available speakers', {}, async () => {
-  try {
-    const speakers = await voicevoxClient.getSpeakers()
-    const result = speakers.flatMap((speaker: any) =>
-      speaker.styles.map((style: any) => ({
-        uuid: speaker.speaker_uuid,
-        speaker: style.id,
-        name: `${speaker.name}:${style.name}`,
-      }))
-    )
-    return createSuccessResponse(JSON.stringify(result))
-  } catch (error) {
-    return createErrorResponse(error)
-  }
-})
-
-server.tool(
-  'get_speaker_detail',
-  'Get detail of a speaker by id',
+registerToolIfEnabled(
+  'get_speakers',
   {
-    uuid: z.string().describe('Speaker UUID (speaker uuid)'),
+    title: 'Get Speakers',
+    description: 'Get a list of available speakers',
   },
-  async ({ uuid }) => {
+  async (): Promise<CallToolResult> => {
+    try {
+      const speakers = await voicevoxClient.getSpeakers()
+      const result = speakers.flatMap((speaker: any) =>
+        speaker.styles.map((style: any) => ({
+          uuid: speaker.speaker_uuid,
+          speaker: style.id,
+          name: `${speaker.name}:${style.name}`,
+        }))
+      )
+      return createSuccessResponse(JSON.stringify(result))
+    } catch (error) {
+      return createErrorResponse(error)
+    }
+  }
+)
+
+registerToolIfEnabled(
+  'get_speaker_detail',
+  {
+    title: 'Get Speaker Detail',
+    description: 'Get detail of a speaker by id',
+    inputSchema: {
+      uuid: z.string().describe('Speaker UUID (speaker uuid)'),
+    },
+  },
+  async ({ uuid }: { uuid: string }): Promise<CallToolResult> => {
     try {
       const allSpeakers = await voicevoxClient.getSpeakers()
       const targetSpeaker = allSpeakers.find((speaker: any) => speaker.speaker_uuid === uuid)
@@ -241,3 +376,6 @@ server.tool(
     }
   }
 )
+
+// 設定エクスポート（テスト用）
+export { config }
