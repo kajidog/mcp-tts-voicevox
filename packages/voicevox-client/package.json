@@ -1,6 +1,6 @@
 {
   "name": "@kajidog/voicevox-client",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "VOICEVOX client library for text-to-speech synthesis with queue management",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -31,8 +31,17 @@
     "prepare": "pnpm build",
     "prepublishOnly": "pnpm lint"
   },
-  "files": ["dist", "README.md", "LICENSE"],
-  "keywords": ["voicevox", "tts", "text-to-speech", "audio", "synthesis", "queue"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "voicevox",
+    "tts",
+    "text-to-speech",
+    "audio"
+  ],
   "author": {
     "name": "kajidog",
     "email": "dev@kajidog.com"
@@ -68,5 +77,9 @@
   "peerDependencies": {
     "typescript": ">=4.5.0"
   },
-  "browserslist": ["> 1%", "last 2 versions", "not dead"]
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
 }

@@ -10,7 +10,7 @@ const config = getConfig()
 // サーバー初期化
 export const server = new McpServer({
   name: 'MCP TTS Voicevox',
-  version: '0.2.3',
+  version: '0.3.0',
   description: 'A Voicevox server that converts text to speech for playback and saving.',
 })
 
