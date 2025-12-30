@@ -218,7 +218,7 @@ SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用し
 - `VOICEVOX_DEFAULT_SPEED_SCALE`: デフォルト再生速度（デフォルト: `1.0`）
 
 ### 再生オプション設定
-
+- `VOICEVOX_USE_STREAMING`: ストリーミング再生を有効化（`ffplay`が必要）。再生開始までの遅延を短縮します。（デフォルト: `false` または自動判定）
 - `VOICEVOX_DEFAULT_IMMEDIATE`: キュー追加時に即座に再生開始するか（デフォルト: `true`）
 - `VOICEVOX_DEFAULT_WAIT_FOR_START`: 再生開始まで待機するか（デフォルト: `false`）
 - `VOICEVOX_DEFAULT_WAIT_FOR_END`: 再生終了まで待機するか（デフォルト: `false`）
@@ -285,6 +285,11 @@ npx @kajidog/mcp-tts-voicevox
 
 環境変数の代わりにコマンドライン引数で設定を指定できます。コマンドライン引数は環境変数より優先されます。
 
+### 全般
+
+- `--help`, `-h`: ヘルプメッセージを表示
+- `--version`, `-v`: バージョン番号を表示
+
 ### VOICEVOX 設定
 
 - `--url <value>`: VOICEVOX エンジンの URL
@@ -293,6 +298,7 @@ npx @kajidog/mcp-tts-voicevox
 
 ### 再生オプション
 
+- `--use-streaming` / `--no-use-streaming`: ストリーミング再生の有効/無効
 - `--immediate` / `--no-immediate`: 即時再生の有効/無効
 - `--wait-for-start` / `--no-wait-for-start`: 再生開始待機の有効/無効
 - `--wait-for-end` / `--no-wait-for-end`: 再生終了待機の有効/無効

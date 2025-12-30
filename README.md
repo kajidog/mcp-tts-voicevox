@@ -218,7 +218,7 @@ If you need speech synthesis in SSE mode, you can use `mcp-remote` for SSE↔Std
 - `VOICEVOX_DEFAULT_SPEED_SCALE`: Default playback speed (default: `1.0`)
 
 ### Playback Options Configuration
-
+- `VOICEVOX_USE_STREAMING`: Enable streaming playback (requires `ffplay`). Improves playback start latency. (default: `false` or auto-detect)
 - `VOICEVOX_DEFAULT_IMMEDIATE`: Whether to start playback immediately when added to queue (default: `true`)
 - `VOICEVOX_DEFAULT_WAIT_FOR_START`: Whether to wait for playback to start (default: `false`)
 - `VOICEVOX_DEFAULT_WAIT_FOR_END`: Whether to wait for playback to end (default: `false`)
@@ -285,6 +285,11 @@ npx @kajidog/mcp-tts-voicevox
 
 You can specify settings via command line arguments instead of environment variables. Command line arguments take priority over environment variables.
 
+### General
+
+- `--help`, `-h`: Show help message
+- `--version`, `-v`: Show version number
+
 ### VOICEVOX Configuration
 
 - `--url <value>`: VOICEVOX Engine URL
@@ -293,6 +298,7 @@ You can specify settings via command line arguments instead of environment varia
 
 ### Playback Options
 
+- `--use-streaming` / `--no-use-streaming`: Enable/disable streaming playback
 - `--immediate` / `--no-immediate`: Enable/disable immediate playback
 - `--wait-for-start` / `--no-wait-for-start`: Enable/disable wait for playback start
 - `--wait-for-end` / `--no-wait-for-end`: Enable/disable wait for playback end

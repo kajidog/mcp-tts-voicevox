@@ -40,6 +40,10 @@ export class VoicevoxClient {
   private readonly api: VoicevoxApi
   private readonly defaultSpeaker: number
   private readonly defaultSpeedScale: number
+  private readonly defaultVolumeScale?: number
+  private readonly defaultPitchScale?: number
+  private readonly defaultPrePhonemeLength?: number
+  private readonly defaultPostPhonemeLength?: number
   private readonly defaultPlaybackOptions: PlaybackOptions
   private readonly maxSegmentLength: number
 
@@ -47,6 +51,10 @@ export class VoicevoxClient {
     this.validateConfig(config)
     this.defaultSpeaker = config.defaultSpeaker ?? 1
     this.defaultSpeedScale = config.defaultSpeedScale ?? 1.0
+    this.defaultVolumeScale = config.defaultVolumeScale
+    this.defaultPitchScale = config.defaultPitchScale
+    this.defaultPrePhonemeLength = config.defaultPrePhonemeLength
+    this.defaultPostPhonemeLength = config.defaultPostPhonemeLength
 
     // 設定から再生オプションを取得し、環境変数でオーバーライド
     const envOptions = getPlaybackOptionsFromEnv()
@@ -72,7 +80,7 @@ export class VoicevoxClient {
       this.defaultPlaybackOptions.waitForEnd = envOptions.waitForEnd
     }
 
-    this.maxSegmentLength = 150
+    this.maxSegmentLength = config.maxSegmentLength ?? 150
     this.api = new VoicevoxApi(config.url)
     this.queueService = new QueueService(this.api, {
       useStreaming: config.useStreaming,
@@ -242,6 +250,21 @@ export class VoicevoxClient {
       // 直接APIを使用してクエリを生成
       const query = await this.api.generateQuery(text, speakerId)
       query.speedScale = this.getSpeedScale(speedScale)
+
+      // デフォルト値を適用
+      if (this.defaultVolumeScale !== undefined) {
+        query.volumeScale = this.defaultVolumeScale
+      }
+      if (this.defaultPitchScale !== undefined) {
+        query.pitchScale = this.defaultPitchScale
+      }
+      if (this.defaultPrePhonemeLength !== undefined) {
+        query.prePhonemeLength = this.defaultPrePhonemeLength
+      }
+      if (this.defaultPostPhonemeLength !== undefined) {
+        query.postPhonemeLength = this.defaultPostPhonemeLength
+      }
+
       return query
     } catch (error) {
       throw handleError('クエリ生成中にエラーが発生しました', error)

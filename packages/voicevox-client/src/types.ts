@@ -8,6 +8,16 @@ export interface VoicevoxConfig {
   defaultSpeaker: number
   /** デフォルトの再生速度 */
   defaultSpeedScale?: number
+  /** デフォルトの音量 (0.0 - 2.0, デフォルト: 1.0) */
+  defaultVolumeScale?: number
+  /** デフォルトの音高 (-0.15 - 0.15, デフォルト: 0.0) */
+  defaultPitchScale?: number
+  /** 音声の前の無音時間（秒） */
+  defaultPrePhonemeLength?: number
+  /** 音声の後の無音時間（秒） */
+  defaultPostPhonemeLength?: number
+  /** テキスト分割時の最大文字数（デフォルト: 150） */
+  maxSegmentLength?: number
   /** デフォルトの再生オプション */
   defaultPlaybackOptions?: PlaybackOptions
   /**

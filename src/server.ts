@@ -19,6 +19,7 @@ const voicevoxClient = new VoicevoxClient({
   url: config.voicevoxUrl,
   defaultSpeaker: config.defaultSpeaker,
   defaultSpeedScale: config.defaultSpeedScale,
+  useStreaming: config.useStreaming,
 })
 
 // 無効化ツールのセット

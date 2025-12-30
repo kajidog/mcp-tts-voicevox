@@ -159,12 +159,73 @@ async function startStdioServer(config: IndexServerConfig): Promise<void> {
 }
 
 /**
+ * ヘルプメッセージを表示する
+ */
+function printHelp() {
+  console.log(`
+Usage: npx @kajidog/mcp-tts-voicevox [options]
+
+Options:
+  --help, -h                  Show this help message
+  --version, -v               Show version number
+
+  Voicevox Configuration:
+  --url <url>                 VOICEVOX Engine URL (default: http://localhost:50021)
+  --speaker <id>              Default speaker ID (default: 1)
+  --speed <scale>             Default playback speed (default: 1.0)
+
+  Playback Options:
+  --use-streaming             Enable streaming playback (ffplay required)
+  --no-use-streaming          Disable streaming playback
+  --immediate                 Enable immediate playback (default)
+  --no-immediate              Disable immediate playback
+  --wait-for-start            Wait for playback to start
+  --no-wait-for-start         Do not wait for playback to start (default)
+  --wait-for-end              Wait for playback to end
+  --no-wait-for-end           Do not wait for playback to end (default)
+
+  Restriction Options:
+  --restrict-immediate        Restrict AI from using immediate option
+  --restrict-wait-for-start   Restrict AI from using waitForStart option
+  --restrict-wait-for-end     Restrict AI from using waitForEnd option
+
+  Tool Options:
+  --disable-tools <tools>     Comma-separated list of tools to disable
+                              (Allowed: speak, ping_voicevox, generate_query, synthesize_file,
+                               stop_speaker, get_speakers, get_speaker_detail)
+
+  Server Options:
+  --http                      Enable HTTP server mode (SSE support)
+  --port <port>               HTTP server port (default: 3000)
+  --host <host>               HTTP server host (default: 0.0.0.0)
+
+Examples:
+  npx @kajidog/mcp-tts-voicevox --url http://192.168.1.50:50021 --speaker 3
+  npx @kajidog/mcp-tts-voicevox --http --port 8080
+  npx @kajidog/mcp-tts-voicevox --disable-tools generate_query,synthesize_file
+`)
+}
+
+/**
  * MCP サーバーを起動する
  */
 async function startMCPServer(): Promise<void> {
   // 環境チェック
   if (!isNodejs()) {
     throw new Error('❌ Node.js environment required')
+  }
+
+  // ヘルプオプションの確認
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    printHelp()
+    process.exit(0)
+  }
+
+  // バージョンオプションの確認
+  if (process.argv.includes('--version') || process.argv.includes('-v')) {
+    const packageJson = require('../package.json')
+    console.log(`@kajidog/mcp-tts-voicevox v${packageJson.version}`)
+    process.exit(0)
   }
 
   // CLI実行またはNPX実行の場合のみサーバーを起動
