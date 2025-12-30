@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid'
 import type { VoicevoxApi } from '../api'
 import { PlaybackService } from '../playback'
 import type { AudioSource } from '../playback/types'
-import { type QueueEventCallbacks, type QueueItemData, QueueItemStatus, QueueState, QueueStateMachine } from '../state'
+import { type QueueEventCallbacks, type QueueItemData, QueueItemStatus, QueueStateMachine } from '../state'
 import type { AudioQuery, PlaybackOptions } from '../types'
 import { isBrowser } from '../utils'
 import { AudioGenerator } from './audio-generator'
@@ -154,22 +154,26 @@ export class QueueService {
     const wasPlaying = this.isPlaying
 
     // 新しい再生が開始されないように、先に再生状態をリセット
-    // これにより、stopAllAndWait()中に次のアイテムが再生されるのを防ぐ
     this.isPlaying = false
     this.isPaused = false
+
+    // アイテムのコピーを保存（ファイル削除用）
+    const itemsToClean = [...this.stateMachine.getAllItems()]
+
+    // 先に状態マシンをクリア（新しい再生を防ぐ）
+    // これにより、stopAllAndWait()中にtryStartNextPlayback()が呼ばれても
+    // getNextReadyItem()がundefinedを返すので再生が開始されない
+    this.stateMachine.dispatch({ type: 'CLEAR' })
 
     // 全ての再生を停止し、終了まで待機
     await this.playbackService.stopAllAndWait()
 
-    // 全アイテムの一時ファイルを削除
-    for (const item of this.stateMachine.getAllItems()) {
+    // 一時ファイルを削除
+    for (const item of itemsToClean) {
       if (item.tempFile) {
         await this.fileManager.deleteTempFile(item.tempFile)
       }
     }
-
-    // 状態マシンをクリア
-    this.stateMachine.dispatch({ type: 'CLEAR' })
 
     // 再生状態を復元（新しいアイテムが再生できるように）
     this.isPlaying = wasPlaying
@@ -386,7 +390,7 @@ export class QueueService {
     }
   }
 
-  private handleItemReady(item: QueueItemData): void {
+  private handleItemReady(_item: QueueItemData): void {
     // プリフェッチを開始
     this.prefetchAudio()
 
