@@ -228,9 +228,9 @@ npx @kajidog/mcp-tts-voicevox --disable-tools generate_query,synthesize_file
 </details>
 
 <details>
-<summary><b>HTTP/SSE モードで使う</b></summary>
+<summary><b>HTTP モードで使う</b></summary>
 
-リモート接続や SSE が必要な場合：
+リモート接続が必要な場合：
 
 **サーバー起動：**
 
@@ -249,7 +249,7 @@ $env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voice
   "mcpServers": {
     "tts-mcp-proxy": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "http://localhost:3000/sse"]
+      "args": ["-y", "mcp-remote", "http://localhost:3000/mcp"]
     }
   }
 }
@@ -281,8 +281,8 @@ ip route show | grep default | awk '{print $3}'
 {
   "mcpServers": {
     "tts": {
-      "type": "sse",
-      "url": "http://172.29.176.1:3000/sse"
+      "type": "http",
+      "url": "http://172.29.176.1:3000/mcp"
     }
   }
 }

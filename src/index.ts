@@ -73,10 +73,10 @@ function getServerConfig(): IndexServerConfig {
  */
 async function loadHttpApp(isDevelopment: boolean) {
   if (isDevelopment) {
-    const module = await import('./sse')
+    const module = await import('./http')
     return module.default
   }
-  return require('./sse').default
+  return require('./http').default
 }
 
 /**
@@ -110,7 +110,6 @@ async function startHttpServer(config: IndexServerConfig): Promise<void> {
 
     server.serve(serverOptions, (info: ServerInfo) => {
       console.error(`✅ VOICEVOX MCP HTTP server running at http://${info.address}:${info.port}/mcp`)
-      console.error(`📡 SSE endpoint (legacy): http://${info.address}:${info.port}/sse`)
       console.error(`🔍 Health check: http://${info.address}:${info.port}/health`)
     })
 
@@ -195,7 +194,7 @@ Options:
                                stop_speaker, get_speakers, get_speaker_detail)
 
   Server Options:
-  --http                      Enable HTTP server mode (SSE support)
+  --http                      Enable HTTP server mode (remote MCP)
   --port <port>               HTTP server port (default: 3000)
   --host <host>               HTTP server host (default: 0.0.0.0)
 
