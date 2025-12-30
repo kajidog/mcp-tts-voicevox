@@ -8,6 +8,7 @@ import { isBrowser } from '../utils'
 import { AudioGenerator } from './audio-generator'
 import { EventManager } from './event-manager'
 import { AudioFileManager } from './file-manager'
+import { PrefetchManager } from './prefetch-manager'
 import { type QueueEventListener, QueueEventType, type QueueItem } from './types'
 
 /**
@@ -37,19 +38,19 @@ export class QueueService {
   private readonly audioGenerator: AudioGenerator
   private readonly playbackService: PlaybackService
   private readonly stateMachine: QueueStateMachine
-  private readonly prefetchSize: number
+  private readonly prefetchManager: PrefetchManager
 
   private isPlaying = false
   private isPaused = false
 
   constructor(apiInstance: VoicevoxApi, prefetchSize = 2) {
     this.api = apiInstance
-    this.prefetchSize = prefetchSize
 
     // 依存コンポーネントを初期化
     this.fileManager = new AudioFileManager()
     this.eventManager = new EventManager()
     this.audioGenerator = new AudioGenerator(this.api, this.fileManager)
+    this.prefetchManager = new PrefetchManager(prefetchSize)
 
     // 再生サービスを初期化
     this.playbackService = new PlaybackService({
@@ -82,8 +83,11 @@ export class QueueService {
     // 状態マシンにアイテムを追加
     this.stateMachine.dispatch({ type: 'ENQUEUE', item })
 
-    // 非同期で音声生成を開始
-    this.generateAudioAsync(item)
+    // PrefetchManagerに追加（生成はまだ開始しない）
+    this.prefetchManager.addPendingItem(item.id)
+
+    // プリフェッチをトリガー（生成タイミングの制御はPrefetchManagerが行う）
+    this.triggerPrefetch()
 
     // 即時再生の処理
     if (options.immediate === true) {
@@ -105,8 +109,11 @@ export class QueueService {
     // 状態マシンにアイテムを追加
     this.stateMachine.dispatch({ type: 'ENQUEUE', item })
 
-    // 非同期で音声生成を開始
-    this.generateAudioFromQueryAsync(item)
+    // PrefetchManagerに追加（生成はまだ開始しない）
+    this.prefetchManager.addPendingItem(item.id)
+
+    // プリフェッチをトリガー（生成タイミングの制御はPrefetchManagerが行う）
+    this.triggerPrefetch()
 
     // 即時再生の処理
     if (options.immediate === true) {
@@ -127,6 +134,9 @@ export class QueueService {
     if (!item) {
       return false
     }
+
+    // PrefetchManagerからも削除
+    this.prefetchManager.removeItem(itemId)
 
     // 一時ファイルがあれば削除
     if (item.tempFile) {
@@ -156,6 +166,9 @@ export class QueueService {
     // 新しい再生が開始されないように、先に再生状態をリセット
     this.isPlaying = false
     this.isPaused = false
+
+    // PrefetchManagerをクリア
+    this.prefetchManager.clear()
 
     // アイテムのコピーを保存（ファイル削除用）
     const itemsToClean = [...this.stateMachine.getAllItems()]
@@ -288,6 +301,9 @@ export class QueueService {
     // 全ての再生を停止
     this.playbackService.stopAll()
 
+    // PrefetchManagerをクリア
+    this.prefetchManager.clear()
+
     // blobURLをリリース
     if (isBrowser()) {
       this.fileManager.releaseAllBlobUrls()
@@ -342,61 +358,56 @@ export class QueueService {
     return { item, promises }
   }
 
-  private async generateAudioAsync(item: QueueItemData): Promise<void> {
-    const sm = this.stateMachine.getItemStateMachine(item.id)
-    if (!sm) return
-
-    try {
-      sm.transition('startGeneration')
-      const query = await this.audioGenerator.generateQuery(item.text, item.speaker)
-      this.stateMachine.updateItem(item.id, { query })
-
-      const audioData = await this.api.synthesize(query, item.speaker)
-      const tempFile = await this.fileManager.saveTempAudioFile(audioData)
-
-      this.stateMachine.updateItem(item.id, { audioData, tempFile })
-      sm.transition('generationComplete')
-      this.stateMachine.dispatch({ type: 'ITEM_READY', itemId: item.id })
-    } catch (error) {
-      sm.transition('generationFailed')
-      this.stateMachine.dispatch({
-        type: 'ERROR',
-        itemId: item.id,
-        error: error instanceof Error ? error : new Error(String(error)),
-      })
-    }
-  }
-
-  private async generateAudioFromQueryAsync(item: QueueItemData): Promise<void> {
-    const sm = this.stateMachine.getItemStateMachine(item.id)
-    if (!sm || !item.query) return
-
-    try {
-      sm.transition('startGeneration')
-
-      const audioData = await this.api.synthesize(item.query, item.speaker)
-      const tempFile = await this.fileManager.saveTempAudioFile(audioData)
-
-      this.stateMachine.updateItem(item.id, { audioData, tempFile })
-      sm.transition('generationComplete')
-      this.stateMachine.dispatch({ type: 'ITEM_READY', itemId: item.id })
-    } catch (error) {
-      sm.transition('generationFailed')
-      this.stateMachine.dispatch({
-        type: 'ERROR',
-        itemId: item.id,
-        error: error instanceof Error ? error : new Error(String(error)),
-      })
-    }
-  }
-
   private handleItemReady(_item: QueueItemData): void {
-    // プリフェッチを開始
-    this.prefetchAudio()
-
     // キュー処理を開始（アイドル状態の場合）
     if (this.isPlaying && !this.isPaused) {
       this.processQueue()
+    }
+  }
+
+  /**
+   * プリフェッチをトリガー
+   * PrefetchManagerから生成すべきアイテムを取得し、生成を開始する
+   */
+  private triggerPrefetch(): void {
+    const itemsToGenerate = this.prefetchManager.getItemsToGenerate()
+
+    for (const itemId of itemsToGenerate) {
+      const item = this.stateMachine.getItem(itemId)
+      if (!item) continue
+
+      const sm = this.stateMachine.getItemStateMachine(itemId)
+      if (!sm) continue
+
+      // 生成待ちキューから削除し、生成中カウントを増やす
+      this.prefetchManager.removeItem(itemId)
+      this.prefetchManager.incrementGenerating()
+
+      // 生成完了/エラー時のコールバック
+      const onComplete = (completedItem: QueueItemData, audioData: ArrayBuffer, tempFile: string) => {
+        this.prefetchManager.decrementGenerating()
+        this.stateMachine.updateItem(completedItem.id, { audioData, tempFile })
+        sm.transition('generationComplete')
+        this.stateMachine.dispatch({ type: 'ITEM_READY', itemId: completedItem.id })
+
+        // 次のプリフェッチをトリガー
+        this.triggerPrefetch()
+      }
+
+      const onError = (errorItem: QueueItemData, error: Error) => {
+        this.prefetchManager.decrementGenerating()
+        this.stateMachine.dispatch({ type: 'ERROR', itemId: errorItem.id, error })
+
+        // エラー時も次のプリフェッチをトリガー
+        this.triggerPrefetch()
+      }
+
+      // AudioGeneratorを使用して生成
+      if (item.query) {
+        this.audioGenerator.generateFromQueryForItem(item, sm, onComplete, onError)
+      } else {
+        this.audioGenerator.generateForItem(item, sm, onComplete, onError)
+      }
     }
   }
 
@@ -453,29 +464,8 @@ export class QueueService {
     // 状態マシンに再生開始を要求
     this.stateMachine.dispatch({ type: 'START_PLAYBACK' })
 
-    // プリフェッチを開始
-    this.prefetchAudio()
-  }
-
-  private async prefetchAudio(): Promise<void> {
-    const items = this.stateMachine.getAllItems()
-    const pendingItems = items.filter((item) => item.status === QueueItemStatus.PENDING)
-    const processingOrReadyCount = items.filter(
-      (item) => item.status === QueueItemStatus.READY || item.status === QueueItemStatus.GENERATING
-    ).length
-
-    const prefetchNeeded = this.prefetchSize - processingOrReadyCount
-
-    if (prefetchNeeded > 0 && pendingItems.length > 0) {
-      const itemsToPrefetch = pendingItems.slice(0, prefetchNeeded)
-      for (const item of itemsToPrefetch) {
-        if (item.query) {
-          this.generateAudioFromQueryAsync(item).catch((e) => console.error('Prefetch error:', e))
-        } else if (item.text) {
-          this.generateAudioAsync(item).catch((e) => console.error('Prefetch error:', e))
-        }
-      }
-    }
+    // プリフェッチをトリガー
+    this.triggerPrefetch()
   }
 
   private emitEvent(event: QueueEventType, item?: QueueItem): void {
