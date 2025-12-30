@@ -1,171 +1,79 @@
-# MCP TTS VOICEVOX
+# VOICEVOX TTS MCP
 
 [English](README.md) | **日本語**
 
-VOICEVOX を使用した音声合成 MCP サーバー
+VOICEVOX を使用した MCP テキスト読み上げサーバー
 
-## 特徴
+## 何ができるか
 
-- **高度な再生制御** - キュー管理・即時再生・同期/非同期制御による柔軟な音声処理
-- **プリフェッチ** - 次の音声を事前に生成し、再生をスムーズに
-- **クロスプラットフォーム対応** - Windows、macOS、Linux で動作（WSL環境での音声再生にも対応）
-- **Stdio/HTTP 対応** - Stdio や SSE、StreamableHttp に対応
-- **複数話者対応** - セグメント単位での個別話者指定が可能
-- **テキスト自動分割** - 長文の自動分割による安定した音声合成
-- **独立したクライアントライブラリ** - [`@kajidog/voicevox-client`](https://www.npmjs.com/package/@kajidog/voicevox-client) として別パッケージで提供
+- **AI アシスタントに喋らせる** — Claude Desktop などの MCP クライアントからテキストを読み上げ
+- **複数キャラクターの会話** — 1 回の呼び出しでセグメントごとに話者を切り替え可能
+- **スムーズな再生** — キュー管理、即時再生、先読み、ストリーミング再生
+- **クロスプラットフォーム** — Windows, macOS, Linux（WSL 含む）で動作
 
-## 必要条件
+## クイックスタート
+
+### 必要なもの
 
 - Node.js 18.0.0 以上
-- [VOICEVOX エンジン](https://voicevox.hiroshiba.jp/) または互換エンジン
+- [VOICEVOX Engine](https://voicevox.hiroshiba.jp/)（起動しておく）
+- ffplay（任意・推奨）
 
-## インストール
+#### FFplay の導入
+
+ffplay は FFmpeg に同梱される小型プレイヤーで、標準入力からの再生に対応します。導入済みの環境では、低遅延で安定したストリーミング再生を自動的に使用します。
+
+> 💡 **ffplay がなくても動作します。** その場合は一時ファイル経由の再生（Windows: PowerShell、macOS: afplay、Linux: aplay 等）にフォールバックします。
+
+- 導入は簡単: 各 OS でワンライナーのセットアップ（下記手順）
+- 必須事項: `ffplay` に PATH が通っている必要があります（導入後に端末/アプリ再起動）
+
+<details>
+<summary>FFplay の導入手順と PATH 反映</summary>
+
+インストール例:
+
+- Windows（いずれか）
+  - Winget: `winget install --id=Gyan.FFmpeg -e`
+  - Chocolatey: `choco install ffmpeg`
+  - Scoop: `scoop install ffmpeg`
+  - 公式ビルド（例）: https://www.gyan.dev/ffmpeg/builds/ または https://github.com/BtbN/FFmpeg-Builds から zip を取得し、`bin` フォルダを PATH に追加
+
+- macOS
+  - Homebrew: `brew install ffmpeg`
+
+- Linux
+  - Debian/Ubuntu: `sudo apt-get update && sudo apt-get install -y ffmpeg`
+  - Fedora: `sudo dnf install -y ffmpeg`
+  - Arch: `sudo pacman -S ffmpeg`
+
+PATH の反映:
+
+- Windows: 環境変数に `...\ffmpeg\bin` を追加後、PowerShell/端末・エディタ（Claude/VS Code 等）を再起動。
+  - 反映確認: `powershell -c "$env:Path"` に ffmpeg のパスが含まれること
+- macOS/Linux: 通常は自動反映。必要に応じて `echo $PATH` で確認し、シェルを再起動。
+- MCP クライアント（Claude Desktop/Code）: アプリ側のプロセス再起動で PATH を再読込します。
+
+動作確認:
 
 ```bash
-npm install -g @kajidog/mcp-tts-voicevox
+ffplay -version
 ```
 
-## 使い方
+バージョン情報が表示されれば導入完了です。CLI/MCP は自動的に ffplay を検出して標準入力ストリーミング再生を使用します。
 
-### MCP サーバーとして
+</details>
 
-#### 1. VOICEVOX エンジンを起動
 
-VOICEVOX エンジンを起動し、デフォルトポート（`http://localhost:50021`）で待機状態にします。
+### 3 ステップで開始
 
-#### 2. MCP サーバーを起動
+**1. VOICEVOX Engine を起動**
 
-**標準入出力モード（推奨）:**
+**2. Claude Desktop の設定ファイルに追加**
 
-```bash
-npx @kajidog/mcp-tts-voicevox
-```
-
-**HTTP サーバーモード:**
-
-```bash
-# Linux/macOS
-MCP_HTTP_MODE=true npx @kajidog/mcp-tts-voicevox
-
-# Windows PowerShell
-$env:MCP_HTTP_MODE='true'; npx @kajidog/mcp-tts-voicevox
-```
-
-## MCP ツール
-
-### `speak` - テキスト読み上げ
-
-テキストを音声に変換して再生します。
-
-**パラメータ:**
-
-- `text`: 文字列（改行区切りで複数テキスト、話者指定は「1:テキスト」形式）
-- `speaker` (オプション): 話者 ID
-- `speedScale` (オプション): 再生速度
-- `immediate` (オプション): 即座に再生開始するか（デフォルト: true）
-- `waitForStart` (オプション): 再生開始まで待機するか（デフォルト: false）
-- `waitForEnd` (オプション): 再生終了まで待機するか（デフォルト: false）
-
-**使用例:**
-
-```javascript
-// シンプルなテキスト
-{ "text": "こんにちは\n今日はいい天気ですね" }
-
-// 話者指定
-{ "text": "こんにちは", "speaker": 3 }
-
-// セグメント別話者指定
-{ "text": "1:こんにちは\n3:今日はいい天気ですね" }
-
-// 即座に再生（キューを迂回）
-{
-  "text": "緊急メッセージです",
-  "immediate": true,
-  "waitForEnd": true
-}
-
-// 再生終了まで待機（同期処理）
-{
-  "text": "この音声の再生が完了するまで次の処理を待機",
-  "waitForEnd": true
-}
-
-// キューに追加するが自動再生しない
-{
-  "text": "手動で再生開始するまで待機",
-  "immediate": false
-}
-```
-
-### 高度な再生制御機能
-
-#### 即時再生（`immediate: true`）
-
-既存のキューをクリアして音声を即座に再生：
-
-- **キュークリア**: 再生中の音声を停止し、キューをクリアしてから再生
-- **割り込み再生**: 現在の再生を中断して新しい音声を再生
-- **緊急通知に最適**: 重要なメッセージを優先的に再生
-
-#### 同期再生制御（`waitForEnd: true`）
-
-再生完了まで待機して処理を同期化：
-
-- **順次処理**: 音声再生後に次の処理を実行
-- **タイミング制御**: 音声と他の処理の連携が可能
-- **UI 同期**: 画面表示と音声のタイミングを合わせる
-
-```javascript
-// 例1: 緊急メッセージを即座に再生し、完了まで待機
-{
-  "text": "緊急！すぐに確認してください",
-  "immediate": true,
-  "waitForEnd": true
-}
-
-// 例2: ステップバイステップの音声ガイド
-{
-  "text": "手順1: ファイルを開いてください",
-  "waitForEnd": true
-}
-// 上記の音声が完了してから次の処理が実行される
-```
-
-### `ping_voicevox` - VOICEVOX 接続確認
-
-VOICEVOX Engine が起動しているかを確認します。
-
-**レスポンス例:**
-- 接続成功: `VOICEVOX is running at http://localhost:50021 (v0.14.0)`
-- 接続失敗: `VOICEVOX is not reachable at http://localhost:50021. Please ensure VOICEVOX Engine is running.`
-
-### その他のツール
-
-- `generate_query` - 音声合成用クエリを生成
-- `synthesize_file` - 音声ファイルを生成
-- `stop_speaker` - 再生停止・キュークリア
-- `get_speakers` - 話者一覧取得
-- `get_speaker_detail` - 話者詳細取得
-
-## パッケージ構成
-
-### @kajidog/mcp-tts-voicevox (このパッケージ)
-
-- **MCP サーバー** - Claude Desktop 等の MCP クライアントと通信
-- **HTTP サーバー** - SSE/StreamableHTTP によるリモート MCP 通信
-
-### [@kajidog/voicevox-client](https://www.npmjs.com/package/@kajidog/voicevox-client) (独立パッケージ)
-
-- **汎用ライブラリ** - VOICEVOX エンジンとの通信機能
-- **クロスプラットフォーム** - Node.js、ブラウザ環境対応
-- **高度な再生制御** - 即時再生・同期再生・キュー管理機能
-
-## MCP 設定例
-
-### Claude Desktop での設定
-
-`claude_desktop_config.json` ファイルに以下の設定を追加：
+設定ファイルの場所:
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
 ```json
 {
@@ -178,189 +86,196 @@ VOICEVOX Engine が起動しているかを確認します。
 }
 ```
 
-#### SSE モードが必要な場合
+**3. Claude Desktop を再起動**
 
-SSE モードでの音声合成が必要な場合は、`mcp-remote` を使用して SSE↔Stdio 変換を行えます：
+これだけで Claude に「〇〇と喋って」と頼めば喋ってくれます！
 
-1. **Claude Desktop 設定**
+---
 
-   ```json
-   {
-     "mcpServers": {
-       "tts-mcp-proxy": {
-         "command": "npx",
-         "args": ["-y", "mcp-remote", "http://localhost:3000/sse"]
-       }
-     }
-   }
-   ```
+## MCP ツール
 
-2. **SSE サーバーの起動**
+### `speak` — テキスト読み上げ
 
-   **Mac/Linux:**
+Claude から呼び出せるメインの機能です。
 
-   ```bash
-   MCP_HTTP_MODE=true MCP_HTTP_PORT=3000 npx @kajidog/mcp-tts-voicevox
-   ```
+| パラメータ | 説明 | デフォルト |
+|-----------|------|-----------|
+| `text` | 読み上げるテキスト（改行で複数セグメント） | 必須 |
+| `speaker` | 話者 ID | 1 |
+| `speedScale` | 再生速度 | 1.0 |
+| `immediate` | 即時再生（キューをクリア） | true |
+| `waitForEnd` | 再生完了まで待機 | false |
 
-   **Windows:**
+**使用例：**
 
-   ```powershell
-   $env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voicevox
-   ```
+```javascript
+// シンプルなテキスト
+{ "text": "こんにちは" }
 
-## 環境変数
+// 話者を指定
+{ "text": "こんにちは", "speaker": 3 }
+
+// セグメントごとに話者を変更
+{ "text": "1:こんにちは\n3:今日はいい天気ですね" }
+
+// 再生完了まで待機（同期処理）
+{ "text": "このメッセージを読み終えてから次へ", "waitForEnd": true }
+```
+
+<details>
+<summary>その他のツール</summary>
+
+| ツール | 説明 |
+|--------|------|
+| `ping_voicevox` | VOICEVOX Engine への接続確認 |
+| `get_speakers` | 利用可能な話者一覧を取得 |
+| `get_speaker_detail` | 話者の詳細情報を取得 |
+| `stop_speaker` | 再生停止とキューのクリア |
+| `generate_query` | 音声合成クエリを生成 |
+| `synthesize_file` | 音声ファイルを生成 |
+
+</details>
+
+---
+
+## 設定
+
+<details>
+<summary><b>環境変数で設定</b></summary>
 
 ### VOICEVOX 設定
 
-- `VOICEVOX_URL`: VOICEVOX エンジンの URL（デフォルト: `http://localhost:50021`）
-- `VOICEVOX_DEFAULT_SPEAKER`: デフォルト話者 ID（デフォルト: `1`）
-- `VOICEVOX_DEFAULT_SPEED_SCALE`: デフォルト再生速度（デフォルト: `1.0`）
-
-### 再生オプション設定
-- `VOICEVOX_USE_STREAMING`: ストリーミング再生を有効化（`ffplay`が必要）。再生開始までの遅延を短縮します。（デフォルト: `false` または自動判定）
-- `VOICEVOX_DEFAULT_IMMEDIATE`: キュー追加時に即座に再生開始するか（デフォルト: `true`）
-- `VOICEVOX_DEFAULT_WAIT_FOR_START`: 再生開始まで待機するか（デフォルト: `false`）
-- `VOICEVOX_DEFAULT_WAIT_FOR_END`: 再生終了まで待機するか（デフォルト: `false`）
-
-**使用例:**
-
-```bash
-# 例1: 全ての音声再生で完了まで待機（同期処理）
-export VOICEVOX_DEFAULT_WAIT_FOR_END=true
-npx @kajidog/mcp-tts-voicevox
-
-# 例2: 再生開始と終了の両方を待機
-export VOICEVOX_DEFAULT_WAIT_FOR_START=true
-export VOICEVOX_DEFAULT_WAIT_FOR_END=true
-npx @kajidog/mcp-tts-voicevox
-
-# 例3: 手動制御（自動再生無効）
-export VOICEVOX_DEFAULT_IMMEDIATE=false
-npx @kajidog/mcp-tts-voicevox
-```
-
-これらのオプションにより、アプリケーションの要件に応じて音声再生の挙動を細かく制御できます。
-
-### 再生オプション制限設定
-
-AI が再生オプションを指定できないよう制限できます。制限されたオプションはツールスキーマから除外され、デフォルト値が使用されます。
-
-- `VOICEVOX_RESTRICT_IMMEDIATE`: AI による `immediate` オプションの指定を制限
-- `VOICEVOX_RESTRICT_WAIT_FOR_START`: AI による `waitForStart` オプションの指定を制限
-- `VOICEVOX_RESTRICT_WAIT_FOR_END`: AI による `waitForEnd` オプションの指定を制限
-
-**使用例:**
-
-```bash
-# AI は immediate を指定できなくなり、常にデフォルト値が使用される
-export VOICEVOX_RESTRICT_IMMEDIATE=true
-npx @kajidog/mcp-tts-voicevox
-```
-
-### ツール無効化設定
-
-不要なツールを無効化できます。無効化されたツールは MCP クライアントに登録されません。
-
-- `VOICEVOX_DISABLED_TOOLS`: カンマ区切りで無効化するツール名を指定
-
-**使用可能なツール名:**
-- `speak`, `ping_voicevox`, `generate_query`, `synthesize_file`, `stop_speaker`, `get_speakers`, `get_speaker_detail`
-
-**使用例:**
-
-```bash
-# generate_query と synthesize_file を無効化
-export VOICEVOX_DISABLED_TOOLS=generate_query,synthesize_file
-npx @kajidog/mcp-tts-voicevox
-```
-
-### サーバー設定
-
-- `MCP_HTTP_MODE`: HTTP サーバーモードの有効化（`true` で有効）
-- `MCP_HTTP_PORT`: HTTP サーバーのポート番号（デフォルト: `3000`）
-- `MCP_HTTP_HOST`: HTTP サーバーのホスト（デフォルト: `0.0.0.0`）
-
-## コマンドライン引数
-
-環境変数の代わりにコマンドライン引数で設定を指定できます。コマンドライン引数は環境変数より優先されます。
-
-### 全般
-
-- `--help`, `-h`: ヘルプメッセージを表示
-- `--version`, `-v`: バージョン番号を表示
-
-### VOICEVOX 設定
-
-- `--url <value>`: VOICEVOX エンジンの URL
-- `--speaker <value>`: デフォルト話者 ID
-- `--speed <value>`: デフォルト再生速度
+| 環境変数 | 説明 | デフォルト |
+|---------|------|-----------|
+| `VOICEVOX_URL` | Engine の URL | `http://localhost:50021` |
+| `VOICEVOX_DEFAULT_SPEAKER` | デフォルト話者 ID | `1` |
+| `VOICEVOX_DEFAULT_SPEED_SCALE` | 再生速度 | `1.0` |
 
 ### 再生オプション
 
-- `--use-streaming` / `--no-use-streaming`: ストリーミング再生の有効/無効
-- `--immediate` / `--no-immediate`: 即時再生の有効/無効
-- `--wait-for-start` / `--no-wait-for-start`: 再生開始待機の有効/無効
-- `--wait-for-end` / `--no-wait-for-end`: 再生終了待機の有効/無効
+| 環境変数 | 説明 | デフォルト |
+|---------|------|-----------|
+| `VOICEVOX_USE_STREAMING` | ストリーミング再生（`ffplay` 必要） | `false` |
+| `VOICEVOX_DEFAULT_IMMEDIATE` | 即時再生 | `true` |
+| `VOICEVOX_DEFAULT_WAIT_FOR_START` | 再生開始まで待機 | `false` |
+| `VOICEVOX_DEFAULT_WAIT_FOR_END` | 再生完了まで待機 | `false` |
 
 ### 制限設定
 
-- `--restrict-immediate`: AI による immediate 指定を制限
-- `--restrict-wait-for-start`: AI による waitForStart 指定を制限
-- `--restrict-wait-for-end`: AI による waitForEnd 指定を制限
+AI が特定のオプションを指定できないように制限できます。
 
-### ツール無効化
+| 環境変数 | 説明 |
+|---------|------|
+| `VOICEVOX_RESTRICT_IMMEDIATE` | `immediate` オプションを制限 |
+| `VOICEVOX_RESTRICT_WAIT_FOR_START` | `waitForStart` オプションを制限 |
+| `VOICEVOX_RESTRICT_WAIT_FOR_END` | `waitForEnd` オプションを制限 |
 
-- `--disable-tools <tool1,tool2,...>`: 無効化するツールをカンマ区切りで指定
+### ツールの無効化
+
+```bash
+# 不要なツールを無効化
+export VOICEVOX_DISABLED_TOOLS=generate_query,synthesize_file
+```
 
 ### サーバー設定
 
-- `--http`: HTTP サーバーモードを有効化
-- `--port <value>`: HTTP サーバーのポート番号
-- `--host <value>`: HTTP サーバーのホスト
+| 環境変数 | 説明 | デフォルト |
+|---------|------|-----------|
+| `MCP_HTTP_MODE` | HTTP モードを有効化 | `false` |
+| `MCP_HTTP_PORT` | HTTP ポート | `3000` |
+| `MCP_HTTP_HOST` | HTTP ホスト | `0.0.0.0` |
 
-**使用例:**
+</details>
+
+<details>
+<summary><b>コマンドライン引数で設定</b></summary>
+
+コマンドライン引数は環境変数より優先されます。
 
 ```bash
-# カスタム設定でサーバーを起動
+# 基本設定
 npx @kajidog/mcp-tts-voicevox --url http://192.168.1.100:50021 --speaker 3 --speed 1.2
 
-# HTTP モードでポート指定
+# HTTP モード
 npx @kajidog/mcp-tts-voicevox --http --port 8080
 
-# 再生オプションを制限してサーバーを起動
+# 制限付き
 npx @kajidog/mcp-tts-voicevox --restrict-immediate --restrict-wait-for-end
 
-# 一部のツールを無効化
+# ツール無効化
 npx @kajidog/mcp-tts-voicevox --disable-tools generate_query,synthesize_file
 ```
 
-**優先順位:** コマンドライン引数 > 環境変数 > デフォルト値
+| 引数 | 説明 |
+|------|------|
+| `--help`, `-h` | ヘルプを表示 |
+| `--version`, `-v` | バージョンを表示 |
+| `--url <value>` | VOICEVOX Engine URL |
+| `--speaker <value>` | デフォルト話者 ID |
+| `--speed <value>` | 再生速度 |
+| `--use-streaming` / `--no-use-streaming` | ストリーミング再生 |
+| `--immediate` / `--no-immediate` | 即時再生 |
+| `--wait-for-start` / `--no-wait-for-start` | 再生開始待機 |
+| `--wait-for-end` / `--no-wait-for-end` | 再生完了待機 |
+| `--restrict-immediate` | immediate を制限 |
+| `--restrict-wait-for-start` | waitForStart を制限 |
+| `--restrict-wait-for-end` | waitForEnd を制限 |
+| `--disable-tools <tools>` | ツールを無効化 |
+| `--http` | HTTP モード |
+| `--port <value>` | HTTP ポート |
+| `--host <value>` | HTTP ホスト |
 
-## WSL（Windows Subsystem for Linux）での使用
+</details>
 
-WSL環境から WindowsホストのMCPサーバーに接続する場合の設定方法です。
+<details>
+<summary><b>HTTP/SSE モードで使う</b></summary>
 
-### 1. Windowsホストでの設定
+リモート接続や SSE が必要な場合：
 
-**PowerShellでMCPサーバーを起動:**
+**サーバー起動：**
+
+```bash
+# Linux/macOS
+MCP_HTTP_MODE=true MCP_HTTP_PORT=3000 npx @kajidog/mcp-tts-voicevox
+
+# Windows PowerShell
+$env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voicevox
+```
+
+**Claude Desktop 設定（mcp-remote 使用）：**
+
+```json
+{
+  "mcpServers": {
+    "tts-mcp-proxy": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3000/sse"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>WSL から Windows ホストに接続</b></summary>
+
+WSL 内から Windows で動作する MCP サーバーに接続する場合：
+
+### 1. Windows 側でサーバー起動
 
 ```powershell
 $env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voicevox
 ```
 
-### 2. WSL環境での設定
-
-**WindowsホストのIPアドレスを確認:**
+### 2. WSL 側で Windows ホストの IP を確認
 
 ```bash
-# WSLからWindowsホストのIPアドレスを取得
 ip route show | grep default | awk '{print $3}'
+# 通常 172.x.x.1 の形式
 ```
 
-通常は `172.x.x.1` の形式になります。
-
-** Claude Code の .mcp.json の設定例:**
+### 3. WSL 側の設定（.mcp.json）
 
 ```json
 {
@@ -373,86 +288,78 @@ ip route show | grep default | awk '{print $3}'
 }
 ```
 
-**重要なポイント:**
-- WSL内では `localhost` や `127.0.0.1` はWSL内部を指すため、Windowsホストのサービスにはアクセスできません
-- WSLのゲートウェイIP（通常 `172.x.x.1`）を使用してWindowsホストにアクセスします
-- Windowsのファイアウォールでポートがブロックされていないことを確認してください
+> ⚠️ WSL 内では `localhost` は WSL 自身を指すため、Windows ホストには WSL ゲートウェイ IP でアクセスします。
 
-**接続テスト:**
+</details>
 
-```bash
-# WSL内でWindowsホストのMCPサーバーへの接続確認
-curl http://172.29.176.1:3000
-```
-
-正常な場合は `404 Not Found` が返されます（ルートパスが存在しないため）。
+---
 
 ## トラブルシューティング
 
-### よくある問題
+<details>
+<summary><b>音声が再生されない</b></summary>
 
-1. **VOICEVOX エンジンが起動していない**
+**1. VOICEVOX Engine が起動しているか確認**
 
-   ```bash
-   curl http://localhost:50021/speakers
-   ```
+```bash
+curl http://localhost:50021/speakers
+```
 
-2. **音声が再生されない**
+**2. プラットフォーム別の再生ツールを確認**
 
-   - システムの音声出力デバイスを確認
-   - プラットフォーム固有の音声再生ツールの確認：
-     - **Linux**: `aplay`, `paplay`, `play`, `ffplay` のいずれかが必要
-     - **macOS**: `afplay` (標準でインストール済み)
-     - **Windows**: PowerShell (標準でインストール済み)
+| OS | 必要なツール |
+|----|------------|
+| Linux | `aplay`, `paplay`, `play`, `ffplay` のいずれか |
+| macOS | `afplay`（プリインストール済み） |
+| Windows | PowerShell（プリインストール済み） |
 
-3. **MCP クライアントで認識されない**
-   - パッケージのインストールを確認：`npm list -g @kajidog/mcp-tts-voicevox`
-   - 設定ファイルの JSON 構文を確認
+</details>
+
+<details>
+<summary><b>MCP クライアントに認識されない</b></summary>
+
+- パッケージのインストール確認：`npm list -g @kajidog/mcp-tts-voicevox`
+- 設定ファイルの JSON 構文をチェック
+- クライアントを再起動
+
+</details>
+
+---
+
+## パッケージ構成
+
+| パッケージ | 説明 |
+|-----------|------|
+| `@kajidog/mcp-tts-voicevox` | MCP サーバー本体 |
+| [`@kajidog/voicevox-client`](https://www.npmjs.com/package/@kajidog/voicevox-client) | 汎用 VOICEVOX クライアントライブラリ（独立使用可能） |
+
+---
+
+<details>
+<summary><b>開発者向け情報</b></summary>
+
+### セットアップ
+
+```bash
+git clone https://github.com/kajidog/mcp-tts-voicevox.git
+cd mcp-tts-voicevox
+pnpm install
+```
+
+### コマンド
+
+| コマンド | 説明 |
+|---------|------|
+| `pnpm build` | 全パッケージをビルド |
+| `pnpm test` | テスト実行 |
+| `pnpm lint` | Lint 実行 |
+| `pnpm dev` | 開発サーバー起動 |
+| `pnpm dev:stdio` | Stdio モードで開発 |
+
+</details>
+
+---
 
 ## ライセンス
 
 ISC
-
-## 開発者向け情報
-
-このリポジトリをローカルで開発する場合の手順です。
-
-### セットアップ
-
-1.  リポジトリをクローンします:
-    ```bash
-    git clone https://github.com/kajidog/mcp-tts-voicevox.git
-    cd mcp-tts-voicevox
-    ```
-2.  [pnpm](https://pnpm.io/) をインストールします。(まだインストールしていない場合)
-3.  依存関係をインストールします:
-    ```bash
-    pnpm install
-    ```
-
-### 主要な開発コマンド
-
-プロジェクトルートで以下のコマンドを実行できます。
-
--   **すべてのパッケージをビルド:**
-    ```bash
-    pnpm build
-    ```
--   **すべてのテストを実行:**
-    ```bash
-    pnpm test
-    ```
--   **すべてのリンターを実行:**
-    ```bash
-    pnpm lint
-    ```
--   **ルートサーバーを開発モードで起動:**
-    ```bash
-    pnpm dev
-    ```
--   **stdioインターフェースを開発モードで起動:**
-    ```bash
-    pnpm dev:stdio
-    ```
-
-これらのコマンドは、ワークスペース内の関連するパッケージに対しても適切に処理を実行します。
