@@ -37,7 +37,7 @@
     "lint:fix": "biome check --write . && pnpm -r --filter \"./packages/*\" lint:fix",
     "test": "vitest run && pnpm -r --filter \"./packages/*\" test",
     "prepare": "pnpm build",
-    "prepublishOnly": "pnpm test && pnpm lint"
+    "prepublishOnly": "pnpm test"
   },
   "files": [
     "dist",

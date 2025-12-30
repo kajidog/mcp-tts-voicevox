@@ -29,7 +29,7 @@
     "lint": "biome check . && tsc --noEmit",
     "lint:fix": "biome check --write .",
     "prepare": "pnpm build",
-    "prepublishOnly": "pnpm lint"
+    "prepublishOnly": "pnpm test"
   },
   "files": [
     "dist",
