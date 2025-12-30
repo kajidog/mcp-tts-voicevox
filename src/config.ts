@@ -29,6 +29,10 @@ export interface ServerConfig {
   httpMode: boolean
   httpPort: number
   httpHost: string
+
+  // セキュリティ設定（許可するホスト/オリジン）
+  allowedHosts: string[]
+  allowedOrigins: string[]
 }
 
 // デフォルト設定
@@ -47,6 +51,8 @@ const defaultConfig: ServerConfig = {
   httpMode: false,
   httpPort: 3000,
   httpHost: '0.0.0.0',
+  allowedHosts: ['localhost', '127.0.0.1', '[::1]'],
+  allowedOrigins: ['http://localhost', 'http://127.0.0.1', 'https://localhost', 'https://127.0.0.1'],
 }
 
 /**
@@ -132,6 +138,18 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)): Partial<Se
           i++
         }
         break
+      case '--allowed-hosts':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.allowedHosts = nextArg.split(',').map((h) => h.trim())
+          i++
+        }
+        break
+      case '--allowed-origins':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.allowedOrigins = nextArg.split(',').map((o) => o.trim())
+          i++
+        }
+        break
     }
   }
 
@@ -199,6 +217,14 @@ export function parseEnvVars(env: NodeJS.ProcessEnv = process.env): Partial<Serv
 
   if (env.MCP_HTTP_HOST) {
     config.httpHost = env.MCP_HTTP_HOST
+  }
+
+  if (env.MCP_ALLOWED_HOSTS) {
+    config.allowedHosts = env.MCP_ALLOWED_HOSTS.split(',').map((h) => h.trim())
+  }
+
+  if (env.MCP_ALLOWED_ORIGINS) {
+    config.allowedOrigins = env.MCP_ALLOWED_ORIGINS.split(',').map((o) => o.trim())
   }
 
   return config

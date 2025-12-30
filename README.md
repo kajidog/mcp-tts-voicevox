@@ -184,6 +184,8 @@ export VOICEVOX_DISABLED_TOOLS=generate_query,synthesize_file
 | `MCP_HTTP_MODE` | Enable HTTP mode | `false` |
 | `MCP_HTTP_PORT` | HTTP port | `3000` |
 | `MCP_HTTP_HOST` | HTTP host | `0.0.0.0` |
+| `MCP_ALLOWED_HOSTS` | Allowed hosts (comma-separated) | `localhost,127.0.0.1,[::1]` |
+| `MCP_ALLOWED_ORIGINS` | Allowed origins (comma-separated) | `http://localhost,http://127.0.0.1,...` |
 
 </details>
 
@@ -224,6 +226,8 @@ npx @kajidog/mcp-tts-voicevox --disable-tools generate_query,synthesize_file
 | `--http` | HTTP mode |
 | `--port <value>` | HTTP port |
 | `--host <value>` | HTTP host |
+| `--allowed-hosts <hosts>` | Allowed hosts (comma-separated) |
+| `--allowed-origins <origins>` | Allowed origins (comma-separated) |
 
 </details>
 
@@ -262,17 +266,31 @@ $env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voice
 
 Connecting from WSL to an MCP server running on Windows:
 
-### 1. Start Server on Windows
-
-```powershell
-$env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voicevox
-```
-
-### 2. Get Windows Host IP from WSL
+### 1. Get Windows Host IP from WSL
 
 ```bash
-ip route show | grep default | awk '{print $3}'
+# Method 1: From default gateway
+ip route show | grep -oP 'default via \K[\d.]+'
 # Usually in the format 172.x.x.1
+
+# Method 2: From /etc/resolv.conf (WSL2)
+cat /etc/resolv.conf | grep nameserver | awk '{print $2}'
+```
+
+### 2. Start Server on Windows
+
+Add the WSL gateway IP to `MCP_ALLOWED_HOSTS` to allow access from WSL:
+
+```powershell
+$env:MCP_HTTP_MODE='true'
+$env:MCP_ALLOWED_HOSTS='localhost,127.0.0.1,172.29.176.1'
+npx @kajidog/mcp-tts-voicevox
+```
+
+Or with CLI arguments:
+
+```powershell
+npx @kajidog/mcp-tts-voicevox --http --allowed-hosts "localhost,127.0.0.1,172.29.176.1"
 ```
 
 ### 3. WSL Configuration (.mcp.json)

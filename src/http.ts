@@ -4,7 +4,11 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import { type Context, Hono, type Next } from 'hono'
 import { cors } from 'hono/cors'
 
+import { getConfig } from './config'
 import { server } from './server'
+
+// 設定を取得
+const config = getConfig()
 
 // 型定義
 interface ErrorResponse {
@@ -60,15 +64,13 @@ function forbiddenError(message: string): ErrorResponse {
 
 /**
  * Origin検証ミドルウェア
- * MCP仕様2025-11-25に準拠し、不正なOriginヘッダーに403を返す
+ * 設定で許可されたOriginのみ受け入れる
  */
-const ALLOWED_ORIGINS = ['http://localhost', 'http://127.0.0.1', 'https://localhost', 'https://127.0.0.1']
-
 function validateOrigin() {
   return async (c: Context, next: Next) => {
     const origin = c.req.header('Origin')
 
-    // Originヘッダーがない場合は許可（same-originリクエスト）
+    // Originヘッダーがない場合は許可（same-originリクエスト、CLIツール等）
     if (!origin) {
       return next()
     }
@@ -78,13 +80,17 @@ function validateOrigin() {
       const originUrl = new URL(origin)
       const originWithoutPort = `${originUrl.protocol}//${originUrl.hostname}`
 
-      const isAllowed = ALLOWED_ORIGINS.some((allowed) => {
-        const allowedUrl = new URL(allowed)
-        return originWithoutPort === `${allowedUrl.protocol}//${allowedUrl.hostname}`
+      const isAllowed = config.allowedOrigins.some((allowed) => {
+        try {
+          const allowedUrl = new URL(allowed)
+          return originWithoutPort === `${allowedUrl.protocol}//${allowedUrl.hostname}`
+        } catch {
+          return false
+        }
       })
 
       if (!isAllowed) {
-        console.log(`Rejected request with invalid Origin: ${origin}`)
+        console.log(`Rejected request with invalid Origin: ${origin} (allowed: ${config.allowedOrigins.join(', ')})`)
         return c.json(forbiddenError('Forbidden: Invalid Origin header'), { status: 403 })
       }
     } catch {
@@ -98,10 +104,8 @@ function validateOrigin() {
 
 /**
  * Host検証ミドルウェア
- * DNS rebinding攻撃対策
+ * 設定で許可されたHostのみ受け入れる
  */
-const ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
-
 function validateHost() {
   return async (c: Context, next: Next) => {
     const host = c.req.header('Host')
@@ -113,8 +117,8 @@ function validateHost() {
     // ホスト名を取得（ポート番号は除外）
     const hostname = host.includes(':') ? host.split(':')[0] : host
 
-    if (!ALLOWED_HOSTS.includes(hostname)) {
-      console.log(`Rejected request with invalid Host: ${host}`)
+    if (!config.allowedHosts.includes(hostname)) {
+      console.log(`Rejected request with invalid Host: ${host} (allowed: ${config.allowedHosts.join(', ')})`)
       return c.json(forbiddenError('Forbidden: Invalid Host header'), { status: 403 })
     }
 

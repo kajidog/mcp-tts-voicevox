@@ -197,6 +197,8 @@ Options:
   --http                      Enable HTTP server mode (remote MCP)
   --port <port>               HTTP server port (default: 3000)
   --host <host>               HTTP server host (default: 0.0.0.0)
+  --allowed-hosts <hosts>     Comma-separated list of allowed hosts (default: localhost,127.0.0.1,[::1])
+  --allowed-origins <origins> Comma-separated list of allowed origins
 
 Examples:
   npx @kajidog/mcp-tts-voicevox --url http://192.168.1.50:50021 --speaker 3

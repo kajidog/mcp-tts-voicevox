@@ -184,6 +184,8 @@ export VOICEVOX_DISABLED_TOOLS=generate_query,synthesize_file
 | `MCP_HTTP_MODE` | HTTP モードを有効化 | `false` |
 | `MCP_HTTP_PORT` | HTTP ポート | `3000` |
 | `MCP_HTTP_HOST` | HTTP ホスト | `0.0.0.0` |
+| `MCP_ALLOWED_HOSTS` | 許可するホスト（カンマ区切り） | `localhost,127.0.0.1,[::1]` |
+| `MCP_ALLOWED_ORIGINS` | 許可するオリジン（カンマ区切り） | `http://localhost,http://127.0.0.1,...` |
 
 </details>
 
@@ -224,6 +226,8 @@ npx @kajidog/mcp-tts-voicevox --disable-tools generate_query,synthesize_file
 | `--http` | HTTP モード |
 | `--port <value>` | HTTP ポート |
 | `--host <value>` | HTTP ホスト |
+| `--allowed-hosts <hosts>` | 許可するホスト（カンマ区切り） |
+| `--allowed-origins <origins>` | 許可するオリジン（カンマ区切り） |
 
 </details>
 
@@ -262,17 +266,31 @@ $env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voice
 
 WSL 内から Windows で動作する MCP サーバーに接続する場合：
 
-### 1. Windows 側でサーバー起動
-
-```powershell
-$env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voicevox
-```
-
-### 2. WSL 側で Windows ホストの IP を確認
+### 1. WSL 側で Windows ホストの IP を確認
 
 ```bash
-ip route show | grep default | awk '{print $3}'
+# 方法1: デフォルトゲートウェイから取得
+ip route show | grep -oP 'default via \K[\d.]+'
 # 通常 172.x.x.1 の形式
+
+# 方法2: /etc/resolv.conf から取得（WSL2）
+cat /etc/resolv.conf | grep nameserver | awk '{print $2}'
+```
+
+### 2. Windows 側でサーバー起動
+
+WSL からのアクセスを許可するため、`MCP_ALLOWED_HOSTS` に WSL ゲートウェイ IP を追加：
+
+```powershell
+$env:MCP_HTTP_MODE='true'
+$env:MCP_ALLOWED_HOSTS='localhost,127.0.0.1,172.29.176.1'
+npx @kajidog/mcp-tts-voicevox
+```
+
+または CLI 引数で：
+
+```powershell
+npx @kajidog/mcp-tts-voicevox --http --allowed-hosts "localhost,127.0.0.1,172.29.176.1"
 ```
 
 ### 3. WSL 側の設定（.mcp.json）
