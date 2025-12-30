@@ -150,6 +150,14 @@ export class QueueService {
    * キューをクリア
    */
   async clearQueue(): Promise<void> {
+    // 現在の再生状態を保存
+    const wasPlaying = this.isPlaying
+
+    // 新しい再生が開始されないように、先に再生状態をリセット
+    // これにより、stopAllAndWait()中に次のアイテムが再生されるのを防ぐ
+    this.isPlaying = false
+    this.isPaused = false
+
     // 全ての再生を停止し、終了まで待機
     await this.playbackService.stopAllAndWait()
 
@@ -163,9 +171,8 @@ export class QueueService {
     // 状態マシンをクリア
     this.stateMachine.dispatch({ type: 'CLEAR' })
 
-    // 再生状態をリセット
-    this.isPlaying = false
-    this.isPaused = false
+    // 再生状態を復元（新しいアイテムが再生できるように）
+    this.isPlaying = wasPlaying
   }
 
   /**
