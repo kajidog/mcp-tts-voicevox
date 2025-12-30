@@ -175,7 +175,8 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
         } catch {
           // kill失敗は無視
         }
-        resolve()
+        // resolve()はcloseイベントで呼ばれるため、ここでは呼ばない
+        // これにより、プロセスが実際に終了するまで待機する
       }
       signal?.addEventListener('abort', abortHandler)
 
@@ -279,7 +280,8 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
         } catch {
           // kill失敗は無視
         }
-        resolve()
+        // resolve()はcloseイベントで呼ばれるため、ここでは呼ばない
+        // これにより、プロセスが実際に終了するまで待機する
       }
       signal?.addEventListener('abort', abortHandler)
 
