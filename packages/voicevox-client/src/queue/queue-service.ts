@@ -25,7 +25,7 @@ export interface EnqueueResult {
 /**
  * エンキューオプション
  */
-export interface EnqueueOptions extends PlaybackOptions { }
+export interface EnqueueOptions extends PlaybackOptions {}
 
 /**
  * QueueServiceの設定オプション
@@ -81,7 +81,7 @@ export class QueueService {
       onPlaybackStart: (item) => this.handlePlaybackStart(item),
       onPlaybackComplete: (item) => this.emitEvent(QueueEventType.ITEM_COMPLETED, item as QueueItem),
       onError: (item, error) => {
-        ; (item as QueueItem).error = error
+        ;(item as QueueItem).error = error
         this.emitEvent(QueueEventType.ERROR, item as QueueItem)
       },
       onQueueCleared: () => this.emitEvent(QueueEventType.QUEUE_CLEARED),

@@ -31,17 +31,8 @@
     "prepare": "pnpm build",
     "prepublishOnly": "pnpm test"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
-  "keywords": [
-    "voicevox",
-    "tts",
-    "text-to-speech",
-    "audio"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
+  "keywords": ["voicevox", "tts", "text-to-speech", "audio"],
   "author": {
     "name": "kajidog",
     "email": "dev@kajidog.com"
@@ -77,9 +68,5 @@
   "peerDependencies": {
     "typescript": ">=4.5.0"
   },
-  "browserslist": [
-    "> 1%",
-    "last 2 versions",
-    "not dead"
-  ]
+  "browserslist": ["> 1%", "last 2 versions", "not dead"]
 }

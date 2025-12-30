@@ -116,7 +116,7 @@ export class PlaybackService {
       playback.controller.abort()
       if (playback.playPromise) {
         // エラーは無視（中断による終了は正常）
-        promises.push(playback.playPromise.catch(() => { }))
+        promises.push(playback.playPromise.catch(() => {}))
       }
     }
 

@@ -179,11 +179,11 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
           // stdinのエラーハンドラを無視設定
           if (ffplayProcess.stdin) {
             ffplayProcess.stdin.removeAllListeners('error')
-            ffplayProcess.stdin.on('error', () => { })
+            ffplayProcess.stdin.on('error', () => {})
           }
           // プロセスのエラーハンドラを設定してからkill
           ffplayProcess.removeAllListeners('error')
-          ffplayProcess.on('error', () => { })
+          ffplayProcess.on('error', () => {})
           ffplayProcess.kill()
         } catch {
           // kill失敗は無視
@@ -288,7 +288,7 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
         try {
           // プロセスのエラーハンドラを設定してからkill
           audioProcess.removeAllListeners('error')
-          audioProcess.on('error', () => { })
+          audioProcess.on('error', () => {})
           audioProcess.kill()
         } catch {
           // kill失敗は無視
@@ -345,19 +345,19 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
         // プロセスのstdioストリームのエラーを無視（既に終了中の場合のため）
         if (proc.stdin) {
           proc.stdin.removeAllListeners('error')
-          proc.stdin.on('error', () => { })
+          proc.stdin.on('error', () => {})
         }
         if (proc.stdout) {
           proc.stdout.removeAllListeners('error')
-          proc.stdout.on('error', () => { })
+          proc.stdout.on('error', () => {})
         }
         if (proc.stderr) {
           proc.stderr.removeAllListeners('error')
-          proc.stderr.on('error', () => { })
+          proc.stderr.on('error', () => {})
         }
         // プロセス自体のエラーイベントも無視
         proc.removeAllListeners('error')
-        proc.on('error', () => { })
+        proc.on('error', () => {})
 
         // プロセスを終了
         proc.kill()
