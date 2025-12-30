@@ -10,7 +10,7 @@ const config = getConfig()
 // サーバー初期化
 export const server = new McpServer({
   name: 'MCP TTS Voicevox',
-  version: '0.3.0',
+  version: '0.3.1',
   description: 'A Voicevox server that converts text to speech for playback and saving.',
 })
 
@@ -115,7 +115,7 @@ function buildSpeakInputSchema() {
     text: z
       .string()
       .describe(
-        'Text string with line breaks and optional speaker prefix "1:Hello\\n2:World". For faster playback start, make the first element short.'
+        'Text split by line breaks (\\n). IMPORTANT: Each line = one speech unit (processed and played separately). Keep the FIRST LINE SHORT for quick playback start - audio begins as soon as the first line is synthesized. Example: "Hi!\\nThis is a longer explanation that follows." Optional speaker prefix per line: "1:Hello\\n2:World"'
       ),
     query: z.string().optional().describe('Voice synthesis query'),
     speaker: z.number().optional().describe('Default speaker ID (optional)'),
@@ -172,7 +172,8 @@ registerToolIfEnabled(
   'speak',
   {
     title: 'Speak',
-    description: 'Convert text to speech and play it',
+    description:
+      'Convert text to speech and play it. Text is split by line breaks (\\n) into separate speech units. Each line is processed as an independent audio segment.',
     inputSchema: buildSpeakInputSchema(),
   },
   async ({
