@@ -2,6 +2,16 @@ import { createPlaybackStrategy } from './playback-strategy'
 import type { ActivePlayback, AudioSource, PlaybackCallbacks, PlaybackStrategy } from './types'
 
 /**
+ * PlaybackServiceの設定オプション
+ */
+export interface PlaybackServiceOptions {
+  /** コールバック関数 */
+  callbacks?: PlaybackCallbacks
+  /** ストリーミング再生を使用するかどうか */
+  useStreaming?: boolean
+}
+
+/**
  * 統一された再生サービス
  * 2つのAudioPlayerを1つに統合し、AbortControllerで停止制御
  */
@@ -10,9 +20,9 @@ export class PlaybackService {
   private readonly activePlaybacks: Map<string, ActivePlayback> = new Map()
   private readonly callbacks: PlaybackCallbacks
 
-  constructor(callbacks: PlaybackCallbacks = {}) {
-    this.strategy = createPlaybackStrategy()
-    this.callbacks = callbacks
+  constructor(options: PlaybackServiceOptions = {}) {
+    this.strategy = createPlaybackStrategy(options.useStreaming)
+    this.callbacks = options.callbacks ?? {}
   }
 
   /**
@@ -106,7 +116,7 @@ export class PlaybackService {
       playback.controller.abort()
       if (playback.playPromise) {
         // エラーは無視（中断による終了は正常）
-        promises.push(playback.playPromise.catch(() => {}))
+        promises.push(playback.playPromise.catch(() => { }))
       }
     }
 

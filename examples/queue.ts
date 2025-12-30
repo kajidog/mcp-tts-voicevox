@@ -35,6 +35,7 @@ async function main() {
       // 最後のアイテムだけ終了を待つ
       const isLast = i === texts.length - 1
       await client.speak(text, {
+        immediate: false,
         waitForEnd: isLast,
       })
 
@@ -49,8 +50,8 @@ async function main() {
 
     // まずキューに複数追加
     timer.log('通常テキストを追加')
-    await client.speak('これは通常のテキストです。', { waitForEnd: false })
-    await client.speak('次のテキストです。', { waitForEnd: false })
+    await client.speak('これは通常のテキストです。', { immediate: false, waitForEnd: false })
+    await client.speak('次のテキストです。', { immediate: false, waitForEnd: false })
 
     await sleep(500) // 少し待つ
 
@@ -78,7 +79,7 @@ async function main() {
     for (let i = 0; i < mixedTexts.length; i++) {
       const isLast = i === mixedTexts.length - 1
       timer.log(`テキスト${i + 1}を追加 (${mixedTexts[i].length}文字)`)
-      await client.speak(mixedTexts[i], { waitForEnd: isLast })
+      await client.speak(mixedTexts[i], { immediate: false, waitForEnd: isLast })
     }
 
     timer.log('全ての再生完了')

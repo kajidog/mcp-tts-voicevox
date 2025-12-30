@@ -25,7 +25,17 @@ export interface EnqueueResult {
 /**
  * エンキューオプション
  */
-export interface EnqueueOptions extends PlaybackOptions {}
+export interface EnqueueOptions extends PlaybackOptions { }
+
+/**
+ * QueueServiceの設定オプション
+ */
+export interface QueueServiceOptions {
+  /** プリフェッチサイズ */
+  prefetchSize?: number
+  /** ストリーミング再生を使用するかどうか */
+  useStreaming?: boolean
+}
 
 /**
  * キューサービス
@@ -43,8 +53,10 @@ export class QueueService {
   private isPlaying = false
   private isPaused = false
 
-  constructor(apiInstance: VoicevoxApi, prefetchSize = 2) {
+  constructor(apiInstance: VoicevoxApi, options: QueueServiceOptions = {}) {
     this.api = apiInstance
+
+    const prefetchSize = options.prefetchSize ?? 2
 
     // 依存コンポーネントを初期化
     this.fileManager = new AudioFileManager()
@@ -54,8 +66,11 @@ export class QueueService {
 
     // 再生サービスを初期化
     this.playbackService = new PlaybackService({
-      onComplete: (itemId) => this.handlePlaybackComplete(itemId),
-      onError: (itemId, error) => this.handlePlaybackError(itemId, error),
+      callbacks: {
+        onComplete: (itemId) => this.handlePlaybackComplete(itemId),
+        onError: (itemId, error) => this.handlePlaybackError(itemId, error),
+      },
+      useStreaming: options.useStreaming,
     })
 
     // 状態マシンを初期化
@@ -66,7 +81,7 @@ export class QueueService {
       onPlaybackStart: (item) => this.handlePlaybackStart(item),
       onPlaybackComplete: (item) => this.emitEvent(QueueEventType.ITEM_COMPLETED, item as QueueItem),
       onError: (item, error) => {
-        ;(item as QueueItem).error = error
+        ; (item as QueueItem).error = error
         this.emitEvent(QueueEventType.ERROR, item as QueueItem)
       },
       onQueueCleared: () => this.emitEvent(QueueEventType.QUEUE_CLEARED),

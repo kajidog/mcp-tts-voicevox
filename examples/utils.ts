@@ -33,13 +33,23 @@ export function createTimer() {
 }
 
 /**
- * VoicevoxClientを作成
+ * クライアント作成オプション
  */
-export function createClient(): VoicevoxClient {
+export interface CreateClientOptions {
+  /** ストリーミング再生を使用するかどうか（省略時は自動判定） */
+  useStreaming?: boolean
+}
+
+/**
+ * VoicevoxClientを作成
+ * @param options オプション設定
+ */
+export function createClient(options: CreateClientOptions = {}): VoicevoxClient {
   return new VoicevoxClient({
     url: process.env.VOICEVOX_URL ?? 'http://localhost:50021',
     defaultSpeaker: Number(process.env.VOICEVOX_DEFAULT_SPEAKER ?? 1),
     defaultSpeedScale: Number(process.env.VOICEVOX_DEFAULT_SPEED_SCALE ?? 1.0),
+    useStreaming: options.useStreaming,
   })
 }
 

@@ -7,7 +7,8 @@
     "basic": "ts-node basic.ts",
     "queue": "ts-node queue.ts",
     "prefetch": "ts-node prefetch.ts",
-    "file": "ts-node file-generation.ts"
+    "file": "ts-node file-generation.ts",
+    "file-playback": "ts-node file-playback.ts"
   },
   "dependencies": {
     "@kajidog/voicevox-client": "file:../packages/voicevox-client"

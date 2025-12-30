@@ -74,7 +74,9 @@ export class VoicevoxClient {
 
     this.maxSegmentLength = 150
     this.api = new VoicevoxApi(config.url)
-    this.queueService = new QueueService(this.api)
+    this.queueService = new QueueService(this.api, {
+      useStreaming: config.useStreaming,
+    })
 
     // デフォルトで再生を開始
     this.queueService.startPlayback()

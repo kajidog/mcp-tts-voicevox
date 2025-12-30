@@ -92,9 +92,22 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
   private ffplayAvailable: boolean | null = null
   private activeProcesses: Set<ChildProcess> = new Set()
   private linuxPlayer: string | null = null
+  private readonly useStreamingOption: boolean | undefined
+
+  constructor(useStreaming?: boolean) {
+    this.useStreamingOption = useStreaming
+  }
 
   supportsStreaming(): boolean {
-    // 環境変数で明示的に無効化されている場合
+    // 明示的に false が指定されている場合
+    if (this.useStreamingOption === false) {
+      return false
+    }
+    // 明示的に true が指定されている場合
+    if (this.useStreamingOption === true) {
+      return this.checkFfplayAvailable()
+    }
+    // undefined の場合は環境変数をチェック
     const envValue = process.env.VOICEVOX_STREAMING_PLAYBACK
     if (envValue === 'false' || envValue === '0') {
       return false
@@ -166,11 +179,11 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
           // stdinのエラーハンドラを無視設定
           if (ffplayProcess.stdin) {
             ffplayProcess.stdin.removeAllListeners('error')
-            ffplayProcess.stdin.on('error', () => {})
+            ffplayProcess.stdin.on('error', () => { })
           }
           // プロセスのエラーハンドラを設定してからkill
           ffplayProcess.removeAllListeners('error')
-          ffplayProcess.on('error', () => {})
+          ffplayProcess.on('error', () => { })
           ffplayProcess.kill()
         } catch {
           // kill失敗は無視
@@ -239,10 +252,10 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
         case 'win32': {
           command = 'powershell'
           const escapedPath = filePath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-          // MediaOpenedイベントを待ってからNaturalDurationを取得し、再生が完了するまで待機
+          // シンプルなポーリングでMediaPlayer再生を待機
           args = [
             '-c',
-            `Add-Type -AssemblyName presentationCore; $player = New-Object System.Windows.Media.MediaPlayer; $opened = $false; $ended = $false; Register-ObjectEvent -InputObject $player -EventName MediaOpened -Action { $global:opened = $true } | Out-Null; Register-ObjectEvent -InputObject $player -EventName MediaEnded -Action { $global:ended = $true } | Out-Null; $player.Open('${escapedPath}'); $player.Volume = 0.5; $timeout = 0; while (-not $global:opened -and $timeout -lt 50) { Start-Sleep -Milliseconds 100; $timeout++ } if ($global:opened) { $player.Play(); $duration = 0; if ($player.NaturalDuration.HasTimeSpan) { $duration = $player.NaturalDuration.TimeSpan.TotalSeconds } $waitTime = [Math]::Max($duration + 1, 2); $elapsed = 0; while (-not $global:ended -and $elapsed -lt $waitTime) { Start-Sleep -Milliseconds 100; $elapsed += 0.1 } } $player.Close(); Exit;`,
+            `Add-Type -AssemblyName presentationCore; $player = New-Object System.Windows.Media.MediaPlayer; $player.Open('${escapedPath}'); $player.Volume = 0.5; Start-Sleep -Milliseconds 300; $player.Play(); if ($player.NaturalDuration.HasTimeSpan) { $ms = [int]($player.NaturalDuration.TimeSpan.TotalMilliseconds) + 500; Start-Sleep -Milliseconds $ms } else { Start-Sleep -Seconds 5 }; $player.Close()`,
           ]
           break
         }
@@ -275,7 +288,7 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
         try {
           // プロセスのエラーハンドラを設定してからkill
           audioProcess.removeAllListeners('error')
-          audioProcess.on('error', () => {})
+          audioProcess.on('error', () => { })
           audioProcess.kill()
         } catch {
           // kill失敗は無視
@@ -332,19 +345,19 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
         // プロセスのstdioストリームのエラーを無視（既に終了中の場合のため）
         if (proc.stdin) {
           proc.stdin.removeAllListeners('error')
-          proc.stdin.on('error', () => {})
+          proc.stdin.on('error', () => { })
         }
         if (proc.stdout) {
           proc.stdout.removeAllListeners('error')
-          proc.stdout.on('error', () => {})
+          proc.stdout.on('error', () => { })
         }
         if (proc.stderr) {
           proc.stderr.removeAllListeners('error')
-          proc.stderr.on('error', () => {})
+          proc.stderr.on('error', () => { })
         }
         // プロセス自体のエラーイベントも無視
         proc.removeAllListeners('error')
-        proc.on('error', () => {})
+        proc.on('error', () => { })
 
         // プロセスを終了
         proc.kill()
@@ -358,10 +371,11 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
 
 /**
  * 現在の環境に適した再生戦略を作成
+ * @param useStreaming ストリーミング再生を使用するかどうか
  */
-export function createPlaybackStrategy(): PlaybackStrategy {
+export function createPlaybackStrategy(useStreaming?: boolean): PlaybackStrategy {
   if (isBrowser()) {
     return new BrowserPlaybackStrategy()
   }
-  return new NodePlaybackStrategy()
+  return new NodePlaybackStrategy(useStreaming)
 }

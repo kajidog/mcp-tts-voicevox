@@ -13,85 +13,62 @@ async function main() {
 
   try {
     // テスト1: プリフェッチ効果の確認
-    printSubHeader('テスト1: プリフェッチ効果の確認')
-    console.log('10個のテキストを一括追加し、再生間の待ち時間を測定します')
-    console.log('プリフェッチが効いていれば、再生間の待ち時間は短くなります\n')
+    printSubHeader('テスト1: プリフェッチ効果の確認（順次再生vs一括追加）')
+    console.log('まず順次に1件ずつ再生し、次に一括追加で再生して比較します\n')
 
-    const texts = Array.from({ length: 10 }, (_, i) => `${i + 1}番目の音声です。`)
-
-    const timer = createTimer()
-    const playbackTimes: number[] = []
-    let lastPlaybackEnd = Date.now()
-
-    // 全テキストを一括でキューに追加
-    timer.log('全テキストをキューに追加開始')
-
-    const promises: Promise<void>[] = []
-
-    for (let i = 0; i < texts.length; i++) {
-      const result = await client.speak(texts[i], {
-        waitForStart: true,
-        waitForEnd: true,
-      })
-
-      // 待ち時間を記録
-      const now = Date.now()
-      if (i > 0) {
-        const gap = now - lastPlaybackEnd
-        playbackTimes.push(gap)
-        timer.log(`テキスト${i + 1}再生完了 (前の再生からの間隔: ${gap}ms)`)
-      } else {
-        timer.log(`テキスト${i + 1}再生完了`)
-      }
-      lastPlaybackEnd = now
-    }
-
-    // 結果を表示
-    console.log('\n--- 結果サマリー ---')
-    console.log(`総再生時間: ${timer.elapsed()}ms`)
-    if (playbackTimes.length > 0) {
-      const avgGap = Math.round(playbackTimes.reduce((a, b) => a + b, 0) / playbackTimes.length)
-      const maxGap = Math.max(...playbackTimes)
-      const minGap = Math.min(...playbackTimes)
-      console.log(`再生間の平均間隔: ${avgGap}ms`)
-      console.log(`再生間の最大間隔: ${maxGap}ms`)
-      console.log(`再生間の最小間隔: ${minGap}ms`)
-
-      if (avgGap < 500) {
-        console.log('\n✓ プリフェッチが効果的に機能しています！')
-      } else {
-        console.log('\n△ 再生間隔が長めです。ネットワーク状況を確認してください。')
-      }
-    }
-
-    // テスト2: 非同期追加でのプリフェッチ
-    printSubHeader('テスト2: 一括追加でのプリフェッチ')
-    console.log('waitForStart/waitForEndを使わずに一括追加し、')
-    console.log('プリフェッチによる生成の並列化を確認します\n')
-
-    const timer2 = createTimer()
-    const batchTexts = [
-      '最初の文章です。',
-      '次の文章です。',
-      '三番目の文章です。',
-      '四番目の文章です。',
-      '最後の文章です。',
+    const texts = [
+      'これは1番目のテキストです。音声合成の処理時間を長くするために、少し長めの文章にしています。',
+      'これは2番目のテキストです。プリフェッチ機能が効いていれば、この音声は前の再生中に生成されているはずです。',
+      'これは3番目のテキストです。長いテキストほど音声生成に時間がかかるため、プリフェッチの効果が顕著になります。',
+      'これは4番目のテキストです。一括追加モードでは、音声生成がバックグラウンドで並列に実行されます。',
+      'これは5番目のテキストです。最後のテキストまでプリフェッチが効いていれば、大幅な時間短縮が期待できます。',
     ]
 
-    timer2.log('一括追加開始')
+    // 順次再生（プリフェッチなし）
+    console.log('【パターンA】順次再生（1件ずつ追加→完了を待つ）')
+    const timer = createTimer()
 
-    // 全て追加（待たない）
-    for (const text of batchTexts) {
-      await client.speak(text, { waitForEnd: false })
+    for (let i = 0; i < texts.length; i++) {
+      await client.speak(texts[i], {
+        immediate: false,
+        waitForEnd: true,
+      })
+      timer.log(`テキスト${i + 1}再生完了`)
     }
-    timer2.log('全テキストをキューに追加完了')
+    const sequentialTime = timer.elapsed()
+    console.log(`順次再生の総時間: ${sequentialTime}ms\n`)
 
-    // 最後のテキストが終わるまで待つ
-    await client.speak('', { waitForEnd: true }).catch(() => {})
+    // 一括追加（プリフェッチあり）
+    console.log('【パターンB】一括追加（全て追加→最後だけ待つ）')
+    const timer2 = createTimer()
 
-    // キューが空になるまで待機
-    await sleep(batchTexts.length * 2000)
-    timer2.log('全再生完了')
+    for (let i = 0; i < texts.length; i++) {
+      const isLast = i === texts.length - 1
+      await client.speak(texts[i], {
+        immediate: false,
+        waitForEnd: isLast,
+      })
+      if (!isLast) {
+        timer2.log(`テキスト${i + 1}をキューに追加`)
+      } else {
+        timer2.log(`テキスト${i + 1}を追加、全再生完了まで待機`)
+      }
+    }
+    const batchTime = timer2.elapsed()
+    console.log(`一括追加の総時間: ${batchTime}ms`)
+
+    // 結果比較
+    console.log('\n--- 結果サマリー ---')
+    console.log(`順次再生: ${sequentialTime}ms`)
+    console.log(`一括追加: ${batchTime}ms`)
+
+    const timeSaved = sequentialTime - batchTime
+
+    if (timeSaved > 0) {
+      console.log(`\n✓ プリフェッチにより ${timeSaved}ms 短縮されました！`)
+    } else {
+      console.log('\n△ 一括追加による改善は見られませんでした。')
+    }
 
     console.log('\nプリフェッチテスト完了!')
   } catch (error) {

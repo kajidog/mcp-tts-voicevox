@@ -10,6 +10,13 @@ export interface VoicevoxConfig {
   defaultSpeedScale?: number
   /** デフォルトの再生オプション */
   defaultPlaybackOptions?: PlaybackOptions
+  /**
+   * ストリーミング再生を使用するかどうか
+   * - true: ストリーミング再生（ffplayを使用、バッファから直接再生）
+   * - false: 一時ファイル再生（プラットフォームのデフォルトプレイヤーを使用）
+   * - undefined: 環境変数 VOICEVOX_STREAMING_PLAYBACK または自動判定
+   */
+  useStreaming?: boolean
 }
 
 /**
