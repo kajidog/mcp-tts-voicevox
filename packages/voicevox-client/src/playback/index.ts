@@ -3,7 +3,9 @@ export {
   BrowserPlaybackStrategy,
   NodePlaybackStrategy,
   createPlaybackStrategy,
+  listAudioDevices,
 } from './playback-strategy'
+export type { AudioDeviceInfo } from './playback-strategy'
 export type {
   ActivePlayback,
   AudioSource,

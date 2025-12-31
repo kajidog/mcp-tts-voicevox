@@ -35,6 +35,8 @@ export interface QueueServiceOptions {
   prefetchSize?: number
   /** ストリーミング再生を使用するかどうか */
   useStreaming?: boolean
+  /** 音声出力デバイス */
+  audioDevice?: string
 }
 
 /**
@@ -71,6 +73,7 @@ export class QueueService {
         onError: (itemId, error) => this.handlePlaybackError(itemId, error),
       },
       useStreaming: options.useStreaming,
+      audioDevice: options.audioDevice,
     })
 
     // 状態マシンを初期化

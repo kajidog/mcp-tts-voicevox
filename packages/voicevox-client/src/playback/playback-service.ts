@@ -9,6 +9,8 @@ export interface PlaybackServiceOptions {
   callbacks?: PlaybackCallbacks
   /** ストリーミング再生を使用するかどうか */
   useStreaming?: boolean
+  /** 音声出力デバイス */
+  audioDevice?: string
 }
 
 /**
@@ -21,7 +23,7 @@ export class PlaybackService {
   private readonly callbacks: PlaybackCallbacks
 
   constructor(options: PlaybackServiceOptions = {}) {
-    this.strategy = createPlaybackStrategy(options.useStreaming)
+    this.strategy = createPlaybackStrategy(options.useStreaming, options.audioDevice)
     this.callbacks = options.callbacks ?? {}
   }
 

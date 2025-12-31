@@ -93,9 +93,11 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
   private activeProcesses: Set<ChildProcess> = new Set()
   private linuxPlayer: string | null = null
   private readonly useStreamingOption: boolean | undefined
+  private readonly audioDevice?: string
 
-  constructor(useStreaming?: boolean) {
+  constructor(useStreaming?: boolean, audioDevice?: string) {
     this.useStreamingOption = useStreaming
+    this.audioDevice = audioDevice
   }
 
   supportsStreaming(): boolean {
@@ -148,6 +150,13 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
 
       const platform = os.platform()
       const args = ['-nodisp', '-autoexit', '-i', 'pipe:0']
+
+      // デバイス指定をサポート（ffplayの場合）
+      if (this.audioDevice) {
+        // ALSAデバイス指定
+        args.unshift('-f', 'alsa', '-audio_device', this.audioDevice)
+      }
+
       const spawnOptions: any = {
         stdio: ['pipe', 'ignore', 'ignore'],
       }
@@ -246,22 +255,53 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
 
       switch (platform) {
         case 'darwin':
-          command = 'afplay'
-          args = [filePath]
+          // macOS: ffplayがあればデバイス指定可能
+          if (this.audioDevice && this.checkFfplayAvailable()) {
+            command = 'ffplay'
+            args = ['-nodisp', '-autoexit', '-f', 'avfoundation', '-audio_device_index', this.audioDevice, filePath]
+          } else {
+            command = 'afplay'
+            args = [filePath]
+            if (this.audioDevice) {
+              console.warn('macOSでのデバイス指定にはffplayが必要です。デフォルトデバイスを使用します。')
+            }
+          }
           break
         case 'win32': {
-          command = 'powershell'
-          const escapedPath = filePath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-          // シンプルなポーリングでMediaPlayer再生を待機
-          args = [
-            '-c',
-            `Add-Type -AssemblyName presentationCore; $player = New-Object System.Windows.Media.MediaPlayer; $player.Open('${escapedPath}'); $player.Volume = 0.5; Start-Sleep -Milliseconds 300; $player.Play(); if ($player.NaturalDuration.HasTimeSpan) { $ms = [int]($player.NaturalDuration.TimeSpan.TotalMilliseconds) + 500; Start-Sleep -Milliseconds $ms } else { Start-Sleep -Seconds 5 }; $player.Close()`,
-          ]
+          // Windows: ffplayがあればデバイス指定可能
+          if (this.audioDevice && this.checkFfplayAvailable()) {
+            command = 'ffplay'
+            args = ['-nodisp', '-autoexit', '-f', 'dshow', '-audio_device', this.audioDevice, filePath]
+          } else {
+            command = 'powershell'
+            const escapedPath = filePath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+            // シンプルなポーリングでMediaPlayer再生を待機
+            args = [
+              '-c',
+              `Add-Type -AssemblyName presentationCore; $player = New-Object System.Windows.Media.MediaPlayer; $player.Open('${escapedPath}'); $player.Volume = 0.5; Start-Sleep -Milliseconds 300; $player.Play(); if ($player.NaturalDuration.HasTimeSpan) { $ms = [int]($player.NaturalDuration.TimeSpan.TotalMilliseconds) + 500; Start-Sleep -Milliseconds $ms } else { Start-Sleep -Seconds 5 }; $player.Close()`,
+            ]
+            if (this.audioDevice) {
+              console.warn('Windowsでのデバイス指定にはffplayが必要です。デフォルトデバイスを使用します。')
+            }
+          }
           break
         }
         case 'linux': {
           command = this.getLinuxPlayer()
-          args = command === 'ffplay' ? ['-nodisp', '-autoexit', filePath] : [filePath]
+          // デバイス指定
+          if (this.audioDevice) {
+            if (command === 'aplay') {
+              args = ['-D', this.audioDevice, filePath]
+            } else if (command === 'paplay') {
+              args = [`--device=${this.audioDevice}`, filePath]
+            } else if (command === 'ffplay') {
+              args = ['-nodisp', '-autoexit', '-f', 'alsa', '-audio_device', this.audioDevice, filePath]
+            } else {
+              args = [filePath]
+            }
+          } else {
+            args = command === 'ffplay' ? ['-nodisp', '-autoexit', filePath] : [filePath]
+          }
           break
         }
         default:
@@ -372,10 +412,155 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
 /**
  * 現在の環境に適した再生戦略を作成
  * @param useStreaming ストリーミング再生を使用するかどうか
+ * @param audioDevice 音声出力デバイス
  */
-export function createPlaybackStrategy(useStreaming?: boolean): PlaybackStrategy {
+export function createPlaybackStrategy(useStreaming?: boolean, audioDevice?: string): PlaybackStrategy {
   if (isBrowser()) {
     return new BrowserPlaybackStrategy()
   }
-  return new NodePlaybackStrategy(useStreaming)
+  return new NodePlaybackStrategy(useStreaming, audioDevice)
+}
+
+/**
+ * オーディオデバイス情報
+ */
+export interface AudioDeviceInfo {
+  id: string
+  name: string
+  type?: 'output' | 'input'
+}
+
+/**
+ * 利用可能なオーディオデバイスをリスト
+ */
+export async function listAudioDevices(): Promise<{
+  devices: AudioDeviceInfo[]
+  platform: string
+  supported: boolean
+  error?: string
+}> {
+  const platform = os.platform()
+  const result: { devices: AudioDeviceInfo[]; platform: string; supported: boolean; error?: string } = {
+    devices: [],
+    platform,
+    supported: false,
+  }
+
+  try {
+    switch (platform) {
+      case 'linux': {
+        result.supported = true
+        // ALSAデバイスを列挙
+        try {
+          const aplayOutput = execSync('aplay -l 2>/dev/null', { encoding: 'utf-8' })
+          const cardMatches = aplayOutput.matchAll(/card (\d+): ([^\[]+)\[([^\]]+)\]/g)
+          for (const match of cardMatches) {
+            result.devices.push({
+              id: `hw:${match[1]}`,
+              name: match[3].trim(),
+              type: 'output',
+            })
+          }
+        } catch {
+          // aplayがない場合は無視
+        }
+        // PulseAudioデバイスも試す
+        try {
+          const pactlOutput = execSync('pactl list short sinks 2>/dev/null', { encoding: 'utf-8' })
+          const lines = pactlOutput.trim().split('\n')
+          for (const line of lines) {
+            const parts = line.split('\t')
+            if (parts.length >= 2) {
+              result.devices.push({
+                id: parts[1],
+                name: parts[1],
+                type: 'output',
+              })
+            }
+          }
+        } catch {
+          // pactlがない場合は無視
+        }
+        break
+      }
+      case 'darwin': {
+        // macOS: ffplayがあればデバイスリスト可能
+        try {
+          execSync('which ffplay', { stdio: 'ignore' })
+          result.supported = true
+          // AVFoundationデバイスを列挙
+          try {
+            const ffmpegOutput = execSync('ffmpeg -f avfoundation -list_devices true -i "" 2>&1 || true', {
+              encoding: 'utf-8',
+            })
+            const audioMatches = ffmpegOutput.matchAll(/\[(\d+)\] (.+)/g)
+            let isAudioSection = false
+            for (const line of ffmpegOutput.split('\n')) {
+              if (line.includes('audio devices')) {
+                isAudioSection = true
+                continue
+              }
+              if (isAudioSection) {
+                const match = line.match(/\[(\d+)\] (.+)/)
+                if (match) {
+                  result.devices.push({
+                    id: match[1],
+                    name: match[2].trim(),
+                    type: 'output',
+                  })
+                }
+              }
+            }
+          } catch {
+            // ffmpegがない場合は無視
+          }
+        } catch {
+          result.error = 'macOSでのデバイスリストにはffplayが必要です'
+        }
+        break
+      }
+      case 'win32': {
+        // Windows: ffplayがあればデバイスリスト可能
+        try {
+          execSync('where ffplay', { stdio: 'ignore' })
+          result.supported = true
+          // DirectShowデバイスを列挙
+          try {
+            const ffmpegOutput = execSync('ffmpeg -f dshow -list_devices true -i "" 2>&1 || echo ""', {
+              encoding: 'utf-8',
+            })
+            const lines = ffmpegOutput.split('\n')
+            let isAudioSection = false
+            for (const line of lines) {
+              if (line.includes('audio devices') || line.includes('DirectShow audio')) {
+                isAudioSection = true
+                continue
+              }
+              if (isAudioSection && line.includes('"')) {
+                const match = line.match(/"([^"]+)"/)
+                if (match) {
+                  result.devices.push({
+                    id: match[1],
+                    name: match[1],
+                    type: 'output',
+                  })
+                }
+              }
+            }
+          } catch {
+            // ffmpegがない場合は無視
+          }
+        } catch {
+          result.error = 'Windowsでのデバイスリストにはffplayが必要です'
+        }
+        break
+      }
+      default:
+        result.error = `サポートされていないプラットフォームです: ${platform}`
+    }
+  } catch (error) {
+    result.error = error instanceof Error ? error.message : String(error)
+  }
+
+  return result
 }

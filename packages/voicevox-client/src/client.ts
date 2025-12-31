@@ -84,6 +84,7 @@ export class VoicevoxClient {
     this.api = new VoicevoxApi(config.url)
     this.queueService = new QueueService(this.api, {
       useStreaming: config.useStreaming,
+      audioDevice: config.audioDevice,
     })
 
     // デフォルトで再生を開始

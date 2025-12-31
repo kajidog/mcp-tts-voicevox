@@ -1,11 +1,30 @@
-import { type AudioQuery, type SpeakResult, VoicevoxClient } from '@kajidog/voicevox-client'
+import { type AudioQuery, type SpeakResult, VoicevoxClient, listAudioDevices } from '@kajidog/voicevox-client'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
 import { getConfig } from './config'
 
-// 設定を取得
-const config = getConfig()
+// 初期設定を取得
+const initialConfig = getConfig()
+
+// ランタイム設定（動的に変更可能）
+interface RuntimeSettings {
+  audioDevice?: string
+  speedScale: number
+  immediate: boolean
+  waitForStart: boolean
+  waitForEnd: boolean
+  useStreaming?: boolean
+}
+
+const runtimeSettings: RuntimeSettings = {
+  audioDevice: initialConfig.audioDevice,
+  speedScale: initialConfig.defaultSpeedScale,
+  immediate: initialConfig.defaultImmediate,
+  waitForStart: initialConfig.defaultWaitForStart,
+  waitForEnd: initialConfig.defaultWaitForEnd,
+  useStreaming: initialConfig.useStreaming,
+}
 
 // サーバー初期化
 export const server = new McpServer({
@@ -14,22 +33,28 @@ export const server = new McpServer({
   description: 'A Voicevox server that converts text to speech for playback and saving.',
 })
 
-// Voicevoxクライアント初期化
-const voicevoxClient = new VoicevoxClient({
-  url: config.voicevoxUrl,
-  defaultSpeaker: config.defaultSpeaker,
-  defaultSpeedScale: config.defaultSpeedScale,
-  useStreaming: config.useStreaming,
-})
+// Voicevoxクライアントを再生成する関数
+function createVoicevoxClient(): VoicevoxClient {
+  return new VoicevoxClient({
+    url: initialConfig.voicevoxUrl,
+    defaultSpeaker: initialConfig.defaultSpeaker,
+    defaultSpeedScale: runtimeSettings.speedScale,
+    useStreaming: runtimeSettings.useStreaming,
+    audioDevice: runtimeSettings.audioDevice,
+  })
+}
+
+// Voicevoxクライアント初期化（letで再代入可能）
+let voicevoxClient = createVoicevoxClient()
 
 // 無効化ツールのセット
-const disabledTools = new Set(config.disabledTools)
+const disabledTools = new Set(initialConfig.disabledTools)
 
 // 制限設定
 const restrictions = {
-  immediate: config.restrictImmediate,
-  waitForStart: config.restrictWaitForStart,
-  waitForEnd: config.restrictWaitForEnd,
+  immediate: initialConfig.restrictImmediate,
+  waitForStart: initialConfig.restrictWaitForStart,
+  waitForEnd: initialConfig.restrictWaitForEnd,
 }
 
 // ユーティリティ関数
@@ -167,6 +192,130 @@ registerToolIfEnabled(
   }
 )
 
+// list_audio_devices ツール
+registerToolIfEnabled(
+  'list_audio_devices',
+  {
+    title: 'List Audio Devices',
+    description: 'List available audio output devices. Returns device IDs that can be used with set_playback_settings.',
+  },
+  async (): Promise<CallToolResult> => {
+    try {
+      const result = await listAudioDevices()
+      const response = {
+        devices: result.devices,
+        currentDevice: runtimeSettings.audioDevice || '(default)',
+        platform: result.platform,
+        supported: result.supported,
+        error: result.error,
+      }
+      return createSuccessResponse(JSON.stringify(response, null, 2))
+    } catch (error) {
+      return createErrorResponse(error)
+    }
+  }
+)
+
+// get_playback_settings ツール
+registerToolIfEnabled(
+  'get_playback_settings',
+  {
+    title: 'Get Playback Settings',
+    description: 'Get current playback settings including audio device, speed, and playback options.',
+  },
+  async (): Promise<CallToolResult> => {
+    try {
+      const settings = {
+        audioDevice: runtimeSettings.audioDevice || '(default)',
+        speedScale: runtimeSettings.speedScale,
+        immediate: runtimeSettings.immediate,
+        waitForStart: runtimeSettings.waitForStart,
+        waitForEnd: runtimeSettings.waitForEnd,
+        useStreaming: runtimeSettings.useStreaming ?? 'auto',
+      }
+      return createSuccessResponse(JSON.stringify(settings, null, 2))
+    } catch (error) {
+      return createErrorResponse(error)
+    }
+  }
+)
+
+// set_playback_settings ツール
+registerToolIfEnabled(
+  'set_playback_settings',
+  {
+    title: 'Set Playback Settings',
+    description:
+      'Change playback settings. Settings will apply to subsequent speak calls. To reset to default, use "(default)" or null for audioDevice.',
+    inputSchema: {
+      audioDevice: z.string().optional().describe('Audio output device ID (from list_audio_devices)'),
+      speedScale: z.number().optional().describe('Playback speed (0.5 - 2.0)'),
+      immediate: z.boolean().optional().describe('Start playback immediately when queued'),
+      waitForStart: z.boolean().optional().describe('Wait for playback to start'),
+      waitForEnd: z.boolean().optional().describe('Wait for playback to end'),
+      useStreaming: z.boolean().optional().describe('Use streaming playback (requires ffplay)'),
+    },
+  },
+  async ({
+    audioDevice,
+    speedScale,
+    immediate,
+    waitForStart,
+    waitForEnd,
+    useStreaming,
+  }: {
+    audioDevice?: string
+    speedScale?: number
+    immediate?: boolean
+    waitForStart?: boolean
+    waitForEnd?: boolean
+    useStreaming?: boolean
+  }): Promise<CallToolResult> => {
+    try {
+      const changes: string[] = []
+
+      if (audioDevice !== undefined) {
+        const newDevice = audioDevice === '(default)' || audioDevice === '' ? undefined : audioDevice
+        if (runtimeSettings.audioDevice !== newDevice) {
+          runtimeSettings.audioDevice = newDevice
+          changes.push(`audioDevice: ${newDevice || '(default)'}`)
+        }
+      }
+      if (speedScale !== undefined && runtimeSettings.speedScale !== speedScale) {
+        runtimeSettings.speedScale = speedScale
+        changes.push(`speedScale: ${speedScale}`)
+      }
+      if (immediate !== undefined && runtimeSettings.immediate !== immediate) {
+        runtimeSettings.immediate = immediate
+        changes.push(`immediate: ${immediate}`)
+      }
+      if (waitForStart !== undefined && runtimeSettings.waitForStart !== waitForStart) {
+        runtimeSettings.waitForStart = waitForStart
+        changes.push(`waitForStart: ${waitForStart}`)
+      }
+      if (waitForEnd !== undefined && runtimeSettings.waitForEnd !== waitForEnd) {
+        runtimeSettings.waitForEnd = waitForEnd
+        changes.push(`waitForEnd: ${waitForEnd}`)
+      }
+      if (useStreaming !== undefined && runtimeSettings.useStreaming !== useStreaming) {
+        runtimeSettings.useStreaming = useStreaming
+        changes.push(`useStreaming: ${useStreaming}`)
+      }
+
+      if (changes.length === 0) {
+        return createSuccessResponse('No changes made.')
+      }
+
+      // 設定が変更されたらクライアントを再生成
+      voicevoxClient = createVoicevoxClient()
+
+      return createSuccessResponse(`Settings updated:\n${changes.join('\n')}`)
+    } catch (error) {
+      return createErrorResponse(error)
+    }
+  }
+)
+
 // speak ツール
 registerToolIfEnabled(
   'speak',
@@ -196,9 +345,9 @@ registerToolIfEnabled(
     try {
       // 設定からデフォルトの再生オプションを取得
       const playbackOptions = {
-        immediate: immediate ?? config.defaultImmediate,
-        waitForStart: waitForStart ?? config.defaultWaitForStart,
-        waitForEnd: waitForEnd ?? config.defaultWaitForEnd,
+        immediate: immediate ?? runtimeSettings.immediate,
+        waitForStart: waitForStart ?? runtimeSettings.waitForStart,
+        waitForEnd: waitForEnd ?? runtimeSettings.waitForEnd,
       }
 
       let result: SpeakResult
@@ -379,4 +528,4 @@ registerToolIfEnabled(
 )
 
 // 設定エクスポート（テスト用）
-export { config }
+export { initialConfig as config }

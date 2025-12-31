@@ -39,6 +39,8 @@ export {
   BrowserPlaybackStrategy,
   NodePlaybackStrategy,
   createPlaybackStrategy,
+  listAudioDevices,
+  type AudioDeviceInfo,
   type ActivePlayback,
   type AudioSource,
   type PlaybackCallbacks,

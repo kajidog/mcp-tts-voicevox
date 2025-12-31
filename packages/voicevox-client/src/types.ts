@@ -27,6 +27,13 @@ export interface VoicevoxConfig {
    * - undefined: 環境変数 VOICEVOX_STREAMING_PLAYBACK または自動判定
    */
   useStreaming?: boolean
+  /**
+   * 音声出力デバイス
+   * - Linux: aplay (-D), paplay (--device), ffplay (環境依存)
+   * - Windows/macOS: ffplayがある場合のみ対応
+   * - 例: "hw:1", "pulse:alsa_output.usb-..."
+   */
+  audioDevice?: string
 }
 
 /**

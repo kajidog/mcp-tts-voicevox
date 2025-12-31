@@ -11,6 +11,7 @@ export interface ServerConfig {
   defaultSpeaker: number
   defaultSpeedScale: number
   useStreaming?: boolean
+  audioDevice?: string
 
   // 再生オプションのデフォルト
   defaultImmediate: boolean
@@ -41,6 +42,7 @@ const defaultConfig: ServerConfig = {
   defaultSpeaker: 1,
   defaultSpeedScale: 1.0,
   useStreaming: undefined,
+  audioDevice: undefined,
   defaultImmediate: true,
   defaultWaitForStart: false,
   defaultWaitForEnd: false,
@@ -89,6 +91,12 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)): Partial<Se
         break
       case '--no-use-streaming':
         config.useStreaming = false
+        break
+      case '--audio-device':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.audioDevice = nextArg
+          i++
+        }
         break
       case '--immediate':
         config.defaultImmediate = true
@@ -176,6 +184,10 @@ export function parseEnvVars(env: NodeJS.ProcessEnv = process.env): Partial<Serv
 
   if (env.VOICEVOX_USE_STREAMING !== undefined) {
     config.useStreaming = env.VOICEVOX_USE_STREAMING === 'true'
+  }
+
+  if (env.VOICEVOX_AUDIO_DEVICE) {
+    config.audioDevice = env.VOICEVOX_AUDIO_DEVICE
   }
 
   // immediate は 'false' 以外は true（既存の動作を維持）
