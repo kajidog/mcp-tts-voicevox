@@ -3,6 +3,12 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
 import { getConfig } from './config'
+import { getSessionConfig } from './session'
+
+// ツールハンドラーのextraパラメータ用の型定義
+interface ToolHandlerExtra {
+  sessionId?: string
+}
 
 // 設定を取得
 const config = getConfig()
@@ -76,6 +82,15 @@ const parseStringInput = (input: string): Array<{ text: string; speaker?: number
     }
     return { text: line }
   })
+}
+
+/**
+ * 有効な話者IDを取得（優先順位: 明示的パラメータ > セッション設定 > グローバル設定）
+ */
+const getEffectiveSpeaker = (explicitSpeaker?: number, sessionId?: string): number | undefined => {
+  if (explicitSpeaker !== undefined) return explicitSpeaker
+  const sessionConfig = getSessionConfig(sessionId)
+  return sessionConfig?.defaultSpeaker
 }
 
 const processTextInput = async (
@@ -176,24 +191,30 @@ registerToolIfEnabled(
       'Convert text to speech and play it. Text is split by line breaks (\\n) into separate speech units. Each line is processed as an independent audio segment.',
     inputSchema: buildSpeakInputSchema(),
   },
-  async ({
-    text,
-    speaker,
-    query,
-    speedScale,
-    immediate,
-    waitForStart,
-    waitForEnd,
-  }: {
-    text: string
-    speaker?: number
-    query?: string
-    speedScale?: number
-    immediate?: boolean
-    waitForStart?: boolean
-    waitForEnd?: boolean
-  }): Promise<CallToolResult> => {
+  async (
+    {
+      text,
+      speaker,
+      query,
+      speedScale,
+      immediate,
+      waitForStart,
+      waitForEnd,
+    }: {
+      text: string
+      speaker?: number
+      query?: string
+      speedScale?: number
+      immediate?: boolean
+      waitForStart?: boolean
+      waitForEnd?: boolean
+    },
+    extra: ToolHandlerExtra
+  ): Promise<CallToolResult> => {
     try {
+      // 有効な話者IDを取得（優先順位: 明示的パラメータ > セッション設定 > グローバル設定）
+      const effectiveSpeaker = getEffectiveSpeaker(speaker, extra.sessionId)
+
       // 設定からデフォルトの再生オプションを取得
       const playbackOptions = {
         immediate: immediate ?? config.defaultImmediate,
@@ -205,12 +226,12 @@ registerToolIfEnabled(
       if (query) {
         const audioQuery = parseAudioQuery(query, speedScale)
         result = await voicevoxClient.enqueueAudioGeneration(audioQuery, {
-          speaker,
+          speaker: effectiveSpeaker,
           speedScale,
           ...playbackOptions,
         })
       } else {
-        result = await processTextInput(text, speaker, speedScale, playbackOptions)
+        result = await processTextInput(text, effectiveSpeaker, speedScale, playbackOptions)
       }
 
       return createSuccessResponse(formatSpeakResponse(result))
@@ -231,17 +252,22 @@ registerToolIfEnabled(
       speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
     },
   },
-  async ({
-    text,
-    speaker,
-    speedScale,
-  }: {
-    text: string
-    speaker?: number
-    speedScale?: number
-  }): Promise<CallToolResult> => {
+  async (
+    {
+      text,
+      speaker,
+      speedScale,
+    }: {
+      text: string
+      speaker?: number
+      speedScale?: number
+    },
+    extra: ToolHandlerExtra
+  ): Promise<CallToolResult> => {
     try {
-      const query = await voicevoxClient.generateQuery(text, speaker, speedScale)
+      // 有効な話者IDを取得（優先順位: 明示的パラメータ > セッション設定 > グローバル設定）
+      const effectiveSpeaker = getEffectiveSpeaker(speaker, extra.sessionId)
+      const query = await voicevoxClient.generateQuery(text, effectiveSpeaker, speedScale)
       return createSuccessResponse(JSON.stringify(query))
     } catch (error) {
       return createErrorResponse(error)
@@ -265,28 +291,34 @@ registerToolIfEnabled(
       speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
     },
   },
-  async ({
-    text,
-    query,
-    speaker,
-    output,
-    speedScale,
-  }: {
-    text?: string
-    query?: string
-    speaker?: number
-    output: string
-    speedScale?: number
-  }): Promise<CallToolResult> => {
+  async (
+    {
+      text,
+      query,
+      speaker,
+      output,
+      speedScale,
+    }: {
+      text?: string
+      query?: string
+      speaker?: number
+      output: string
+      speedScale?: number
+    },
+    extra: ToolHandlerExtra
+  ): Promise<CallToolResult> => {
     try {
+      // 有効な話者IDを取得（優先順位: 明示的パラメータ > セッション設定 > グローバル設定）
+      const effectiveSpeaker = getEffectiveSpeaker(speaker, extra.sessionId)
+
       if (query) {
         const audioQuery = parseAudioQuery(query, speedScale)
-        const filePath = await voicevoxClient.generateAudioFile(audioQuery, output, speaker)
+        const filePath = await voicevoxClient.generateAudioFile(audioQuery, output, effectiveSpeaker)
         return createSuccessResponse(filePath)
       }
 
       if (text) {
-        const filePath = await voicevoxClient.generateAudioFile(text, output, speaker, speedScale)
+        const filePath = await voicevoxClient.generateAudioFile(text, output, effectiveSpeaker, speedScale)
         return createSuccessResponse(filePath)
       }
 
