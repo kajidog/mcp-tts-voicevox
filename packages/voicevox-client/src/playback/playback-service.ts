@@ -1,4 +1,4 @@
-import { createPlaybackStrategy } from './playback-strategy'
+import { createPlaybackStrategySync } from './playback-strategy'
 import type { ActivePlayback, AudioSource, PlaybackCallbacks, PlaybackStrategy } from './types'
 
 /**
@@ -21,7 +21,7 @@ export class PlaybackService {
   private readonly callbacks: PlaybackCallbacks
 
   constructor(options: PlaybackServiceOptions = {}) {
-    this.strategy = createPlaybackStrategy(options.useStreaming)
+    this.strategy = createPlaybackStrategySync(options.useStreaming)
     this.callbacks = options.callbacks ?? {}
   }
 

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOICEVOX Client - Browser Example</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔊 VOICEVOX Client</h1>
+
+        <!-- VOICEVOX接続状態 -->
+        <div class="connection-status" id="connection-status">
+            <span class="status-indicator offline" id="status-indicator"></span>
+            <span id="connection-text">接続確認中...</span>
+            <a href="#" target="_blank" id="settings-link" style="display: none;">設定を開く</a>
+        </div>
+
+        <!-- CORS設定手順 -->
+        <details class="cors-instructions" id="cors-instructions">
+            <summary>⚠️ 接続できない場合（CORS設定）</summary>
+            <div class="cors-content">
+                <p>ブラウザからVOICEVOXに接続するには、CORS設定が必要です。</p>
+                <ol>
+                    <li>VOICEVOXを起動します</li>
+                    <li><a href="#" target="_blank" id="cors-settings-link">VOICEVOX Engine設定ページ</a>
+                        を開きます</li>
+                    <li>「許可するオリジン」に現在のページのURLを追加します：<br>
+                        <code id="current-origin"></code>
+                        <button type="button" class="copy-btn" id="copy-origin-btn">コピー</button>
+                    </li>
+                    <li>VOICEVOXを再起動します</li>
+                </ol>
+                <p style="margin-top: 8px; font-size: 0.8rem; color: var(--text-muted);">
+                    ※ ローカル環境（localhost）で実行している場合は、VOICEVOXのデフォルト設定で接続できる場合があります。
+                </p>
+            </div>
+        </details>
+
+        <div class="form-group">
+            <label for="voicevox-url">VOICEVOX Engine URL</label>
+            <div class="url-input-container">
+                <input type="text" id="voicevox-url" value="http://localhost:50021" />
+                <button type="button" id="reload-btn" class="reload-btn" title="再接続">🔄</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="speaker">話者</label>
+            <div class="speaker-select-container">
+                <select id="speaker">
+                    <option value="">読み込み中...</option>
+                </select>
+                <!-- キャラクタープレビュー -->
+                <div class="character-preview" id="character-preview">
+                    <img id="character-image" alt="キャラクター画像" />
+                </div>
+            </div>
+        </div>
+
+        <div class="settings">
+            <div class="settings-title">再生設定</div>
+
+            <label>再生モード</label>
+            <div class="mode-toggle">
+                <button type="button" class="mode-btn active" id="mode-immediate">
+                    ⚡ 即時再生
+                </button>
+                <button type="button" class="mode-btn" id="mode-queue">
+                    📋 キュー追加
+                </button>
+            </div>
+
+            <label for="speed">再生速度</label>
+            <div class="speed-control">
+                <input type="range" id="speed" min="0.5" max="2.0" step="0.1" value="1.0" />
+                <span class="speed-value" id="speed-value">1.0x</span>
+            </div>
+
+            <label>待機オプション</label>
+            <div class="checkbox-group">
+                <label class="checkbox-item">
+                    <input type="checkbox" id="wait-start" />
+                    <span>再生開始を待つ</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="wait-end" checked />
+                    <span>再生終了を待つ</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="text">読み上げるテキスト</label>
+            <textarea id="text" placeholder="ここにテキストを入力してください...">こんにちは。これはVOICEVOXクライアントのブラウザデモです。</textarea>
+        </div>
+
+        <div class="button-group">
+            <button id="speak-btn">🎤 再生</button>
+            <button id="stop-btn" class="stop">⏹ 停止</button>
+            <button id="add-sample-btn" class="secondary">📝 サンプル追加</button>
+        </div>
+
+        <div class="queue-status" id="queue-status">
+            <div class="queue-status-header">
+                <span class="queue-status-title">
+                    <span>📋</span>
+                    <span>キュー状態</span>
+                </span>
+                <span class="queue-count" id="queue-count">0</span>
+            </div>
+            <div class="queue-items" id="queue-items">
+                <div class="queue-empty">🔇 キューは空です</div>
+            </div>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+</body>
+
+</html>

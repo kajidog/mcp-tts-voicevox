@@ -4,18 +4,21 @@
   "description": "Examples for VOICEVOX Client",
   "private": true,
   "scripts": {
-    "basic": "ts-node basic.ts",
-    "queue": "ts-node queue.ts",
-    "prefetch": "ts-node prefetch.ts",
-    "file": "ts-node file-generation.ts",
-    "file-playback": "ts-node file-playback.ts"
+    "basic": "ts-node basic/index.ts",
+    "queue": "ts-node queue/index.ts",
+    "prefetch": "ts-node prefetch/index.ts",
+    "file": "ts-node file-generation/index.ts",
+    "file-playback": "ts-node file-playback/index.ts",
+    "audio-devices": "ts-node audio-devices/index.ts",
+    "browser": "vite --config vite.config.ts"
   },
   "dependencies": {
-    "@kajidog/voicevox-client": "file:../packages/voicevox-client"
+    "@kajidog/voicevox-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
   }
 }

@@ -116,7 +116,8 @@ describe('Playback Options Behavior Tests', () => {
         1,
         expect.any(Object),
         1,
-        expect.objectContaining({ waitForStart: true })
+        expect.objectContaining({ waitForStart: true }),
+        '第1セグメント'
       )
 
       // 第2セグメント: waitForStart=false
@@ -124,7 +125,8 @@ describe('Playback Options Behavior Tests', () => {
         2,
         expect.any(Object),
         2,
-        expect.objectContaining({ waitForStart: false })
+        expect.objectContaining({ waitForStart: false }),
+        '第2セグメント'
       )
 
       // 第3セグメント: waitForStart=false
@@ -132,7 +134,8 @@ describe('Playback Options Behavior Tests', () => {
         3,
         expect.any(Object),
         3,
-        expect.objectContaining({ waitForStart: false })
+        expect.objectContaining({ waitForStart: false }),
+        '第3セグメント'
       )
     })
 
@@ -203,7 +206,8 @@ describe('Playback Options Behavior Tests', () => {
         1,
         expect.any(Object),
         1,
-        expect.objectContaining({ waitForEnd: true })
+        expect.objectContaining({ waitForEnd: true }),
+        '第1セグメント'
       )
 
       // 第2セグメント: waitForEnd=false (最後ではないので)
@@ -211,7 +215,8 @@ describe('Playback Options Behavior Tests', () => {
         2,
         expect.any(Object),
         2,
-        expect.objectContaining({ waitForEnd: false })
+        expect.objectContaining({ waitForEnd: false }),
+        '第2セグメント'
       )
 
       // 第3セグメント: waitForEnd=true (最後のセグメント)
@@ -219,7 +224,8 @@ describe('Playback Options Behavior Tests', () => {
         3,
         expect.any(Object),
         3,
-        expect.objectContaining({ waitForEnd: true })
+        expect.objectContaining({ waitForEnd: true }),
+        '第3セグメント'
       )
     })
 

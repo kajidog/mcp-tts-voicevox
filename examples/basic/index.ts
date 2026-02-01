@@ -3,7 +3,7 @@
  *
  * 使い方: npx ts-node basic.ts
  */
-import { createClient, createTimer, exit, printHeader } from './utils'
+import { createClient, createTimer, exit, printHeader } from '../common/utils'
 
 async function main() {
   printHeader('基本的な音声再生テスト')

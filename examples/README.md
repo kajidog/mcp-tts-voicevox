@@ -68,6 +68,24 @@ npm run file
 - クエリ経由でのファイル生成
 - 話者/速度の変更
 
+
+### ブラウザテスト (browser/)
+
+ブラウザ上でvoicevox-clientを使用した音声再生のデモ。
+
+```bash
+npm run browser
+```
+
+ブラウザで http://localhost:5173 を開いて動作確認できます。
+
+確認内容:
+- ブラウザ上での音声再生
+- 話者選択
+- 再生速度の変更
+
+> **Note:** ブラウザからVOICEVOXエンジンにアクセスするため、VOICEVOXのCORS設定が必要な場合があります。
+
 ## 環境変数
 
 ```bash

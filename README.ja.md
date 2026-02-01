@@ -4,6 +4,8 @@
 
 VOICEVOX を使用した MCP テキスト読み上げサーバー
 
+> 🎮 **[ブラウザデモを試す](https://kajidog.github.io/mcp-tts-voicevox/)** — VoicevoxClient をブラウザで直接テスト
+
 ## 何ができるか
 
 - **AI アシスタントに喋らせる** — Claude Desktop などの MCP クライアントからテキストを読み上げ

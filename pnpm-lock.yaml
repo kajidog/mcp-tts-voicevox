@@ -46,7 +46,7 @@ importers:
   examples:
     dependencies:
       '@kajidog/voicevox-client':
-        specifier: file:../packages/voicevox-client
+        specifier: workspace:*
         version: link:../packages/voicevox-client
     devDependencies:
       '@types/node':
@@ -58,6 +58,9 @@ importers:
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
+      vite:
+        specifier: ^5.0.0
+        version: 5.4.21(@types/node@20.19.27)
 
   packages/voicevox-client:
     dependencies:

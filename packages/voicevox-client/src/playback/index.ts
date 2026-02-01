@@ -1,9 +1,11 @@
 export { PlaybackService } from './playback-service'
 export {
   BrowserPlaybackStrategy,
-  NodePlaybackStrategy,
   createPlaybackStrategy,
+  createPlaybackStrategySync,
 } from './playback-strategy'
+// NodePlaybackStrategyはNode.js環境でのみ動的にロードされる
+// ブラウザ互換性のため直接エクスポートしない
 export type {
   ActivePlayback,
   AudioSource,

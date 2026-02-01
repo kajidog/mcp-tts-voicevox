@@ -4,6 +4,8 @@
 
 A text-to-speech MCP server using VOICEVOX
 
+> 🎮 **[Try the Browser Demo](https://kajidog.github.io/mcp-tts-voicevox/)** — Test VoicevoxClient directly in your browser
+
 ## What You Can Do
 
 - **Make your AI assistant speak** — Text-to-speech from MCP clients like Claude Desktop
