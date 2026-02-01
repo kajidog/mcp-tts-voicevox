@@ -32,6 +32,28 @@ vi.mock('../player', () => ({
   })),
 }))
 
+// Playback strategyのモック（Node.js固有モジュールの読み込みを防止）
+vi.mock('../playback/playback-strategy', () => ({
+  createPlaybackStrategySync: vi.fn().mockReturnValue({
+    supportsStreaming: vi.fn().mockReturnValue(false),
+    playFromBuffer: vi.fn().mockResolvedValue(undefined),
+    playFromFile: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn(),
+  }),
+  createPlaybackStrategy: vi.fn().mockResolvedValue({
+    supportsStreaming: vi.fn().mockReturnValue(false),
+    playFromBuffer: vi.fn().mockResolvedValue(undefined),
+    playFromFile: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn(),
+  }),
+  BrowserPlaybackStrategy: vi.fn().mockImplementation(() => ({
+    supportsStreaming: vi.fn().mockReturnValue(false),
+    playFromBuffer: vi.fn().mockResolvedValue(undefined),
+    playFromFile: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn(),
+  })),
+}))
+
 describe('VoicevoxClient - 環境変数デフォルト値テスト', () => {
   const originalEnv = process.env
 
