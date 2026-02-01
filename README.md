@@ -261,6 +261,37 @@ $env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voice
 }
 ```
 
+### Per-Project Speaker Settings
+
+With Claude Code, you can configure different default speakers per project using custom headers in `.mcp.json`:
+
+| Header | Description |
+|--------|-------------|
+| `X-Voicevox-Speaker` | Default speaker ID for this project |
+
+**Example `.mcp.json`:**
+
+```json
+{
+  "mcpServers": {
+    "tts": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp",
+      "headers": {
+        "X-Voicevox-Speaker": "113"
+      }
+    }
+  }
+}
+```
+
+This allows each project to use a different voice character automatically.
+
+**Priority order:**
+1. Explicit `speaker` parameter in tool call (highest)
+2. Project default from `X-Voicevox-Speaker` header
+3. Global `VOICEVOX_DEFAULT_SPEAKER` setting (lowest)
+
 </details>
 
 <details>

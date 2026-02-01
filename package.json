@@ -1,6 +1,6 @@
 {
   "name": "@kajidog/mcp-tts-voicevox",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "VOICEVOX integration for MCP - Text-to-Speech server using VOICEVOX engine",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -39,8 +39,19 @@
     "prepare": "pnpm build",
     "prepublishOnly": "pnpm test"
   },
-  "files": ["dist", "README.md", "LICENSE", "scripts"],
-  "keywords": ["voicevox", "tts", "text-to-speech", "mcp", "mcp-server"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "scripts"
+  ],
+  "keywords": [
+    "voicevox",
+    "tts",
+    "text-to-speech",
+    "mcp",
+    "mcp-server"
+  ],
   "author": {
     "name": "kajidog",
     "email": "dev@kajidog.com"

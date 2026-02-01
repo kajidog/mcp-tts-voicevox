@@ -6,6 +6,7 @@ import { cors } from 'hono/cors'
 
 import { getConfig } from './config'
 import { server } from './server'
+import { deleteSessionConfig, setSessionConfig } from './session'
 
 // 設定を取得
 const config = getConfig()
@@ -158,11 +159,26 @@ async function handleMCP(c: Context): Promise<Response> {
       if (isInitializeRequest(body)) {
         console.log('Creating new WebStandard session')
 
+        // X-Voicevox-Speaker ヘッダーを読み取り
+        const speakerHeader = c.req.header('X-Voicevox-Speaker')
+        let sessionSpeaker: number | undefined
+        if (speakerHeader) {
+          const parsed = Number.parseInt(speakerHeader, 10)
+          if (!Number.isNaN(parsed) && parsed >= 0) {
+            sessionSpeaker = parsed
+          }
+        }
+
         const transport = new WebStandardStreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
           onsessioninitialized: (newSessionId) => {
             console.log(`Session initialized: ${newSessionId}`)
             transports.set(newSessionId, transport)
+            // セッションのデフォルト話者を設定
+            if (sessionSpeaker !== undefined) {
+              setSessionConfig(newSessionId, { defaultSpeaker: sessionSpeaker })
+              console.log(`Session ${newSessionId} default speaker: ${sessionSpeaker}`)
+            }
           },
         })
 
@@ -172,6 +188,7 @@ async function handleMCP(c: Context): Promise<Response> {
           if (sid) {
             console.log(`Transport closed for session: ${sid}`)
             transports.delete(sid)
+            deleteSessionConfig(sid)
           }
         }
 
@@ -213,7 +230,7 @@ app.use(
   cors({
     origin: '*',
     allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'mcp-session-id', 'Last-Event-ID', 'mcp-protocol-version'],
+    allowHeaders: ['Content-Type', 'mcp-session-id', 'Last-Event-ID', 'mcp-protocol-version', 'X-Voicevox-Speaker'],
     exposeHeaders: ['mcp-session-id', 'mcp-protocol-version'],
   })
 )

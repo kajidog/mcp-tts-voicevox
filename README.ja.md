@@ -261,6 +261,37 @@ $env:MCP_HTTP_MODE='true'; $env:MCP_HTTP_PORT='3000'; npx @kajidog/mcp-tts-voice
 }
 ```
 
+### プロジェクトごとの話者設定
+
+Claude Code では `.mcp.json` にカスタムヘッダーを設定することで、プロジェクトごとに異なるデフォルト話者を設定できます：
+
+| ヘッダー | 説明 |
+|---------|------|
+| `X-Voicevox-Speaker` | このプロジェクトのデフォルト話者 ID |
+
+**`.mcp.json` の例：**
+
+```json
+{
+  "mcpServers": {
+    "tts": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp",
+      "headers": {
+        "X-Voicevox-Speaker": "113"
+      }
+    }
+  }
+}
+```
+
+これにより、プロジェクトごとに自動的に異なる音声キャラクターを使い分けることができます。
+
+**優先順位：**
+1. ツール呼び出し時の `speaker` パラメータ（最高）
+2. `X-Voicevox-Speaker` ヘッダーによるプロジェクトデフォルト
+3. グローバルな `VOICEVOX_DEFAULT_SPEAKER` 設定（最低）
+
 </details>
 
 <details>
