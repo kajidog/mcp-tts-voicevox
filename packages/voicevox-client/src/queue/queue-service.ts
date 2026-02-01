@@ -118,7 +118,12 @@ export class QueueService {
   /**
    * キューに音声クエリを追加（統一メソッド）
    */
-  async enqueueQuery(query: AudioQuery, speaker: number, options: EnqueueOptions = {}, text?: string): Promise<EnqueueResult> {
+  async enqueueQuery(
+    query: AudioQuery,
+    speaker: number,
+    options: EnqueueOptions = {},
+    text?: string
+  ): Promise<EnqueueResult> {
     const { item, promises } = this.createQueueItem(text || '（クエリから生成）', speaker, options, query)
 
     // 状態マシンにアイテムを追加

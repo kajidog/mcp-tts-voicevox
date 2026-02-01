@@ -357,13 +357,15 @@ async function updateQueueDisplay() {
         const statusText = getStatusText(item.status)
         const speakerName = getSpeakerName(item.speaker)
         const speakerIcon = await getSpeakerIcon(item.speaker)
-        
+
         return `
         <div class="queue-item ${statusClass}">
           <div class="queue-item-avatar">
-            ${speakerIcon 
-              ? `<img src="${speakerIcon}" alt="${speakerName}" />` 
-              : '<span class="queue-item-avatar-placeholder">👤</span>'}
+            ${
+              speakerIcon
+                ? `<img src="${speakerIcon}" alt="${speakerName}" />`
+                : '<span class="queue-item-avatar-placeholder">👤</span>'
+            }
           </div>
           <div class="queue-item-content">
             <div class="queue-item-header">
@@ -491,18 +493,18 @@ textArea.addEventListener('keydown', (e) => {
  */
 function updateConnectionStatus(isOnline: boolean) {
   statusIndicator.classList.remove('checking', 'online', 'offline')
-  
+
   // 設定URLを動的に生成
   const baseUrl = voicevoxUrlInput.value.replace(/\/$/, '') // 末尾のスラッシュを削除
   const settingUrl = `${baseUrl}/setting`
-  
+
   // リンクのhrefを更新
   settingsLink.href = settingUrl
   if (corsSettingsLink) {
     corsSettingsLink.href = settingUrl
     corsSettingsLink.textContent = settingUrl
   }
-  
+
   if (isOnline) {
     statusIndicator.classList.add('online')
     connectionText.textContent = 'オンライン'
@@ -532,7 +534,7 @@ async function updateCharacterPreview() {
   try {
     // speaker_info APIを呼び出してキャラクター情報を取得
     const speakerInfo = await client.getSpeakerInfo(speakerUuid)
-    
+
     // ポートレート画像を表示 (base64エンコード)
     if (speakerInfo && (speakerInfo as any).portrait) {
       const portrait = (speakerInfo as any).portrait as string
