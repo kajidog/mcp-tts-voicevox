@@ -7,7 +7,7 @@
 import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createClient, createTimer, exit, printHeader, printSubHeader } from './utils'
+import { createClient, createTimer, exit, printHeader, printSubHeader } from '../common/utils'
 
 async function main() {
   printHeader('音声ファイル生成テスト')

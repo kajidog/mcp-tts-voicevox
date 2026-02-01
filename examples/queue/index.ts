@@ -4,7 +4,7 @@
  *
  * 使い方: npx ts-node queue.ts
  */
-import { createClient, createTimer, exit, printHeader, printSubHeader, sleep } from './utils'
+import { createClient, createTimer, exit, printHeader, printSubHeader, sleep } from '../common/utils'
 
 async function main() {
   printHeader('キュー動作テスト')

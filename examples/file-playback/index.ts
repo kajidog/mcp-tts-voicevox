@@ -4,7 +4,7 @@
  *
  * 使い方: npx ts-node file-playback.ts
  */
-import { createClient, createTimer, exit, printHeader, printSubHeader } from './utils'
+import { createClient, createTimer, exit, printHeader, printSubHeader } from '../common/utils'
 
 async function main() {
   printHeader('ファイル再生モードのテスト')
