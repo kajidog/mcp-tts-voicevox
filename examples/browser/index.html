@@ -43,7 +43,7 @@
             border-radius: 16px;
             padding: 32px;
             width: 100%;
-            max-width: 600px;
+            max-width: 750px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
@@ -56,6 +56,178 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+
+        /* 接続状態表示 */
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            padding: 10px 14px;
+            background: var(--bg);
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.online {
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .status-indicator.offline {
+            background: var(--error);
+            box-shadow: 0 0 8px var(--error);
+        }
+
+        .status-indicator.checking {
+            background: var(--warning);
+            box-shadow: 0 0 8px var(--warning);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .connection-status a {
+            color: var(--secondary);
+            text-decoration: none;
+            margin-left: auto;
+        }
+
+        .connection-status a:hover {
+            text-decoration: underline;
+        }
+
+        /* CORS設定手順 */
+        .cors-instructions {
+            margin-bottom: 16px;
+            background: var(--bg);
+            border-radius: 8px;
+            border: 1px solid var(--warning);
+        }
+
+        .cors-instructions summary {
+            padding: 12px 16px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: var(--warning);
+        }
+
+        .cors-content {
+            padding: 0 16px 16px;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .cors-content ol {
+            margin-left: 20px;
+            margin-top: 8px;
+        }
+
+        .cors-content li {
+            margin-bottom: 8px;
+        }
+
+        .cors-content code {
+            background: var(--surface);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: var(--secondary);
+        }
+
+        .copy-btn {
+            padding: 4px 8px !important;
+            font-size: 0.75rem !important;
+            margin-left: 8px;
+            flex: none !important;
+        }
+
+        /* キャラクタープレビュー */
+        .speaker-select-container {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .speaker-select-container select {
+            flex: 1;
+        }
+
+        .character-preview {
+            width: 80px;
+            height: 80px;
+            background: var(--bg);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .character-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        .character-preview img.loaded {
+            display: block;
+        }
+
+        .character-preview::before {
+            content: '👤';
+            font-size: 2rem;
+            opacity: 0.3;
+        }
+
+        .character-preview:has(img.loaded)::before {
+            display: none;
+        }
+
+        /* URL入力コンテナ */
+        .url-input-container {
+            display: flex;
+            gap: 8px;
+        }
+
+        .url-input-container input {
+            flex: 1;
+        }
+
+        .reload-btn {
+            flex: none;
+            width: 46px;
+            height: 46px;
+            padding: 0;
+            background: var(--primary);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .reload-btn:hover {
+            background: var(--primary-hover);
         }
 
         .form-group {
@@ -387,16 +559,53 @@
     <div class="container">
         <h1>🔊 VOICEVOX Client</h1>
 
+        <!-- VOICEVOX接続状態 -->
+        <div class="connection-status" id="connection-status">
+            <span class="status-indicator offline" id="status-indicator"></span>
+            <span id="connection-text">接続確認中...</span>
+            <a href="#" target="_blank" id="settings-link" style="display: none;">設定を開く</a>
+        </div>
+
+        <!-- CORS設定手順 -->
+        <details class="cors-instructions" id="cors-instructions">
+            <summary>⚠️ 接続できない場合（CORS設定）</summary>
+            <div class="cors-content">
+                <p>ブラウザからVOICEVOXに接続するには、CORS設定が必要です。</p>
+                <ol>
+                    <li>VOICEVOXを起動します</li>
+                    <li><a href="#" target="_blank" id="cors-settings-link">VOICEVOX Engine設定ページ</a>
+                        を開きます</li>
+                    <li>「許可するオリジン」に現在のページのURLを追加します：<br>
+                        <code id="current-origin"></code>
+                        <button type="button" class="copy-btn" id="copy-origin-btn">コピー</button>
+                    </li>
+                    <li>VOICEVOXを再起動します</li>
+                </ol>
+                <p style="margin-top: 8px; font-size: 0.8rem; color: var(--text-muted);">
+                    ※ ローカル環境（localhost）で実行している場合は、VOICEVOXのデフォルト設定で接続できる場合があります。
+                </p>
+            </div>
+        </details>
+
         <div class="form-group">
             <label for="voicevox-url">VOICEVOX Engine URL</label>
-            <input type="text" id="voicevox-url" value="http://localhost:50021" />
+            <div class="url-input-container">
+                <input type="text" id="voicevox-url" value="http://localhost:50021" />
+                <button type="button" id="reload-btn" class="reload-btn" title="再接続">🔄</button>
+            </div>
         </div>
 
         <div class="form-group">
             <label for="speaker">話者</label>
-            <select id="speaker">
-                <option value="">読み込み中...</option>
-            </select>
+            <div class="speaker-select-container">
+                <select id="speaker">
+                    <option value="">読み込み中...</option>
+                </select>
+                <!-- キャラクタープレビュー -->
+                <div class="character-preview" id="character-preview">
+                    <img id="character-image" alt="キャラクター画像" />
+                </div>
+            </div>
         </div>
 
         <div class="settings">
@@ -439,10 +648,6 @@
         <div class="button-group">
             <button id="speak-btn">🎤 再生</button>
             <button id="stop-btn" class="stop">⏹ 停止</button>
-        </div>
-
-        <div class="button-group">
-            <button id="clear-queue-btn" class="secondary">🗑 キュークリア</button>
             <button id="add-sample-btn" class="secondary">📝 サンプル追加</button>
         </div>
 

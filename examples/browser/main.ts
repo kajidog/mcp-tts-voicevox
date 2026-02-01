@@ -16,7 +16,6 @@ const speedValue = document.getElementById('speed-value') as HTMLSpanElement
 const textArea = document.getElementById('text') as HTMLTextAreaElement
 const speakButton = document.getElementById('speak-btn') as HTMLButtonElement
 const stopButton = document.getElementById('stop-btn') as HTMLButtonElement
-const clearQueueButton = document.getElementById('clear-queue-btn') as HTMLButtonElement
 const addSampleButton = document.getElementById('add-sample-btn') as HTMLButtonElement
 const statusDiv = document.getElementById('status') as HTMLDivElement
 const modeImmediateBtn = document.getElementById('mode-immediate') as HTMLButtonElement
@@ -25,10 +24,27 @@ const waitStartCheckbox = document.getElementById('wait-start') as HTMLInputElem
 const waitEndCheckbox = document.getElementById('wait-end') as HTMLInputElement
 const queueCountSpan = document.getElementById('queue-count') as HTMLSpanElement
 const queueItemsDiv = document.getElementById('queue-items') as HTMLDivElement
+const reloadBtn = document.getElementById('reload-btn') as HTMLButtonElement
+
+// 新規DOM要素（接続状態・キャラクタープレビュー）
+const statusIndicator = document.getElementById('status-indicator') as HTMLSpanElement
+const connectionText = document.getElementById('connection-text') as HTMLSpanElement
+const settingsLink = document.getElementById('settings-link') as HTMLAnchorElement
+const corsInstructions = document.getElementById('cors-instructions') as HTMLDetailsElement
+const currentOriginCode = document.getElementById('current-origin') as HTMLElement
+const copyOriginBtn = document.getElementById('copy-origin-btn') as HTMLButtonElement
+const characterImage = document.getElementById('character-image') as HTMLImageElement
+const corsSettingsLink = document.getElementById('cors-settings-link') as HTMLAnchorElement
 
 // 状態
 let client: VoicevoxClient | null = null
 let isImmediateMode = true
+let speakersData: any[] = [] // 話者情報をキャッシュ
+
+// 現在のオリジンを表示
+if (currentOriginCode) {
+  currentOriginCode.textContent = window.location.origin
+}
 
 // サンプルテキスト
 const sampleTexts = [
@@ -92,10 +108,15 @@ async function loadSpeakers() {
   showLoading('話者リストを読み込み中...')
 
   const c = await initClient()
-  if (!c) return
+  if (!c) {
+    updateConnectionStatus(false)
+    return
+  }
 
   try {
     const speakers = await c.getSpeakers()
+    speakersData = speakers // キャッシュ
+    updateConnectionStatus(true)
 
     // ドロップダウンをクリア
     speakerSelect.innerHTML = ''
@@ -106,6 +127,8 @@ async function loadSpeakers() {
         const option = document.createElement('option')
         option.value = String(style.id)
         option.textContent = `${speaker.name} (${style.name})`
+        // speaker_uuidをdata属性として保存
+        option.dataset.speakerUuid = speaker.speaker_uuid
         speakerSelect.appendChild(option)
       }
     }
@@ -118,7 +141,11 @@ async function loadSpeakers() {
 
     // キュー状態の更新を開始
     startQueueMonitor()
+
+    // 最初のキャラクターのプレビューを表示
+    await updateCharacterPreview()
   } catch (error) {
+    updateConnectionStatus(false)
     showStatus(`話者リストの読み込みに失敗しました: ${error}`, 'error')
     speakerSelect.innerHTML = '<option value="">エラー</option>'
   }
@@ -349,14 +376,30 @@ function startQueueMonitor() {
 // イベントリスナーを設定
 speakButton.addEventListener('click', speak)
 stopButton.addEventListener('click', stopPlayback)
-clearQueueButton.addEventListener('click', clearQueue)
 addSampleButton.addEventListener('click', addSampleText)
 speedInput.addEventListener('input', updateSpeedValue)
 modeImmediateBtn.addEventListener('click', () => setMode(true))
 modeQueueBtn.addEventListener('click', () => setMode(false))
 
-// URL変更時に話者リストを再読み込み
-voicevoxUrlInput.addEventListener('change', loadSpeakers)
+// リロードボタンで話者リストを再読み込み
+reloadBtn.addEventListener('click', async () => {
+  client = null // クライアントをリセットして新しいURLで再接続
+  await loadSpeakers()
+})
+
+// 話者選択時にキャラクタープレビューを更新
+speakerSelect.addEventListener('change', updateCharacterPreview)
+
+// オリジンコピー
+if (copyOriginBtn) {
+  copyOriginBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(window.location.origin)
+    copyOriginBtn.textContent = 'コピーしました!'
+    setTimeout(() => {
+      copyOriginBtn.textContent = 'コピー'
+    }, 2000)
+  })
+}
 
 // エンターキーで再生
 textArea.addEventListener('keydown', (e) => {
@@ -365,6 +408,67 @@ textArea.addEventListener('keydown', (e) => {
     speak()
   }
 })
+
+/**
+ * 接続状態を更新
+ */
+function updateConnectionStatus(isOnline: boolean) {
+  statusIndicator.classList.remove('checking', 'online', 'offline')
+  
+  // 設定URLを動的に生成
+  const baseUrl = voicevoxUrlInput.value.replace(/\/$/, '') // 末尾のスラッシュを削除
+  const settingUrl = `${baseUrl}/setting`
+  
+  // リンクのhrefを更新
+  settingsLink.href = settingUrl
+  if (corsSettingsLink) {
+    corsSettingsLink.href = settingUrl
+    corsSettingsLink.textContent = settingUrl
+  }
+  
+  if (isOnline) {
+    statusIndicator.classList.add('online')
+    connectionText.textContent = 'オンライン'
+    settingsLink.style.display = 'inline'
+    corsInstructions.style.display = 'none'
+  } else {
+    statusIndicator.classList.add('offline')
+    connectionText.textContent = 'オフライン - VOICEVOXが起動しているか確認してください'
+    settingsLink.style.display = 'inline'
+    corsInstructions.style.display = 'block'
+    corsInstructions.open = true // CORS設定を開く
+  }
+}
+
+/**
+ * キャラクタープレビューを更新
+ */
+async function updateCharacterPreview() {
+  if (!client) return
+
+  const selectedOption = speakerSelect.selectedOptions[0]
+  if (!selectedOption) return
+
+  const speakerUuid = selectedOption.dataset.speakerUuid
+  if (!speakerUuid) return
+
+  try {
+    // speaker_info APIを呼び出してキャラクター情報を取得
+    const speakerInfo = await client.getSpeakerInfo(speakerUuid)
+    
+    // ポートレート画像を表示 (base64エンコード)
+    if (speakerInfo && (speakerInfo as any).portrait) {
+      const portrait = (speakerInfo as any).portrait as string
+      characterImage.src = `data:image/png;base64,${portrait}`
+      characterImage.classList.add('loaded')
+    } else {
+      characterImage.classList.remove('loaded')
+    }
+  } catch (error) {
+    // エラー時は画像を非表示
+    characterImage.classList.remove('loaded')
+  }
+}
 
 // 初期化
 loadSpeakers()
