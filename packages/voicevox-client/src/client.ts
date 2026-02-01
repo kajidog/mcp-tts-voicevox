@@ -19,6 +19,11 @@ export interface SpeakOptions extends PlaybackOptions {
  * 環境変数から再生オプションを読み取る関数
  */
 function getPlaybackOptionsFromEnv(): PlaybackOptions {
+  // ブラウザ環境ではprocess.envが存在しないので空のオブジェクトを返す
+  if (typeof process === 'undefined' || !process.env) {
+    return {}
+  }
+
   const immediate = process.env.VOICEVOX_DEFAULT_IMMEDIATE
   const waitForStart = process.env.VOICEVOX_DEFAULT_WAIT_FOR_START
   const waitForEnd = process.env.VOICEVOX_DEFAULT_WAIT_FOR_END

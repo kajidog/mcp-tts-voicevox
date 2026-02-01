@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOICEVOX Client - Browser Example</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary: #06b6d4;
+            --bg: #1a1a2e;
+            --surface: #16213e;
+            --surface-hover: #1e2d4d;
+            --text: #e4e4e7;
+            --text-muted: #a1a1aa;
+            --success: #22c55e;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --border: #3f3f46;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 32px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+            text-align: center;
+            background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-muted);
+        }
+
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--primary-hover);
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        button.secondary {
+            background: var(--border);
+        }
+
+        button.secondary:hover:not(:disabled) {
+            background: var(--surface-hover);
+        }
+
+        button.danger {
+            background: var(--error);
+        }
+
+        button.danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        button.stop {
+            background: var(--warning);
+        }
+
+        button.stop:hover:not(:disabled) {
+            background: #d97706;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            display: none;
+        }
+
+        .status.visible {
+            display: block;
+        }
+
+        .status.info {
+            background: rgba(79, 70, 229, 0.1);
+            border: 1px solid var(--primary);
+            color: #a5b4fc;
+        }
+
+        .status.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid var(--success);
+            color: #86efac;
+        }
+
+        .status.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--error);
+            color: #fca5a5;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .settings {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: var(--bg);
+            border-radius: 8px;
+        }
+
+        .settings-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .speed-control input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--border);
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        .speed-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .speed-value {
+            min-width: 40px;
+            text-align: right;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .checkbox-item span {
+            font-size: 0.875rem;
+            color: var(--text);
+        }
+
+        .queue-status {
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: var(--bg);
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+
+        .queue-status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .queue-status-title {
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .queue-count {
+            background: var(--primary);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .queue-items {
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .queue-item {
+            padding: 8px;
+            background: var(--surface);
+            border-radius: 4px;
+            margin-bottom: 4px;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .queue-item-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .queue-item-status {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .queue-item-status.pending {
+            background: var(--border);
+            color: var(--text-muted);
+        }
+
+        .queue-item-status.generating {
+            background: rgba(6, 182, 212, 0.2);
+            color: var(--secondary);
+        }
+
+        .queue-item-status.playing {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        .mode-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px 16px;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            color: var(--text-muted);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .mode-btn:hover {
+            border-color: var(--primary);
+        }
+
+        .mode-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔊 VOICEVOX Client</h1>
+
+        <div class="form-group">
+            <label for="voicevox-url">VOICEVOX Engine URL</label>
+            <input type="text" id="voicevox-url" value="http://localhost:50021" />
+        </div>
+
+        <div class="form-group">
+            <label for="speaker">話者</label>
+            <select id="speaker">
+                <option value="">読み込み中...</option>
+            </select>
+        </div>
+
+        <div class="settings">
+            <div class="settings-title">再生設定</div>
+
+            <label>再生モード</label>
+            <div class="mode-toggle">
+                <button type="button" class="mode-btn active" id="mode-immediate">
+                    ⚡ 即時再生
+                </button>
+                <button type="button" class="mode-btn" id="mode-queue">
+                    📋 キュー追加
+                </button>
+            </div>
+
+            <label for="speed">再生速度</label>
+            <div class="speed-control">
+                <input type="range" id="speed" min="0.5" max="2.0" step="0.1" value="1.0" />
+                <span class="speed-value" id="speed-value">1.0x</span>
+            </div>
+
+            <label>待機オプション</label>
+            <div class="checkbox-group">
+                <label class="checkbox-item">
+                    <input type="checkbox" id="wait-start" />
+                    <span>再生開始を待つ</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="wait-end" checked />
+                    <span>再生終了を待つ</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="text">読み上げるテキスト</label>
+            <textarea id="text" placeholder="ここにテキストを入力してください...">こんにちは。これはVOICEVOXクライアントのブラウザデモです。</textarea>
+        </div>
+
+        <div class="button-group">
+            <button id="speak-btn">🎤 再生</button>
+            <button id="stop-btn" class="stop">⏹ 停止</button>
+        </div>
+
+        <div class="button-group">
+            <button id="clear-queue-btn" class="secondary">🗑 キュークリア</button>
+            <button id="add-sample-btn" class="secondary">📝 サンプル追加</button>
+        </div>
+
+        <div class="queue-status" id="queue-status">
+            <div class="queue-status-header">
+                <span class="queue-status-title">📋 キュー状態</span>
+                <span class="queue-count" id="queue-count">0</span>
+            </div>
+            <div class="queue-items" id="queue-items">
+                <div style="color: var(--text-muted); font-style: italic;">キューは空です</div>
+            </div>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+</body>
+
+</html>

@@ -10,10 +10,10 @@
     "file": "ts-node file-generation/index.ts",
     "file-playback": "ts-node file-playback/index.ts",
     "audio-devices": "ts-node audio-devices/index.ts",
-    "browser": "vite browser"
+    "browser": "vite --config vite.config.ts"
   },
   "dependencies": {
-    "@kajidog/voicevox-client": "file:../packages/voicevox-client"
+    "@kajidog/voicevox-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

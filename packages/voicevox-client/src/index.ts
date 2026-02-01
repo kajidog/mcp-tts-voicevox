@@ -37,8 +37,8 @@ export {
 export {
   PlaybackService,
   BrowserPlaybackStrategy,
-  NodePlaybackStrategy,
   createPlaybackStrategy,
+  createPlaybackStrategySync,
   type ActivePlayback,
   type AudioSource,
   type PlaybackCallbacks,
