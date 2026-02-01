@@ -68,26 +68,6 @@ npm run file
 - クエリ経由でのファイル生成
 - 話者/速度の変更
 
-### オーディオデバイステスト (audio-devices.ts)
-
-オーディオデバイスの一覧取得と指定デバイスでの再生テスト。
-
-```bash
-npm run audio-devices
-```
-
-確認内容:
-- 利用可能なオーディオデバイス一覧の取得
-- 指定したデバイスでの再生
-
-特定のデバイスで再生テストを行う場合:
-```bash
-# 環境変数で指定
-AUDIO_DEVICE="デバイスID" npm run audio-devices
-
-# または引数で指定
-npx ts-node audio-devices.ts "デバイスID"
-```
 
 ### ブラウザテスト (browser/)
 
