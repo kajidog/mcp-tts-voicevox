@@ -66,7 +66,7 @@ export interface QueueManager {
   /**
    * キューに音声合成用クエリを追加
    */
-  enqueueQuery(query: AudioQuery, speaker: number): Promise<QueueItem>
+  enqueueQuery(query: AudioQuery, speaker: number, options?: any, text?: string): Promise<QueueItem>
 
   /**
    * キューからアイテムを削除

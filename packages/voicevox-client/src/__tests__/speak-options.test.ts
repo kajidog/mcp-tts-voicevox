@@ -81,7 +81,8 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
       expect(mockEnqueueQuery).toHaveBeenCalledWith(
         expect.any(Object),
         1,
-        expect.objectContaining({ immediate: false })
+        expect.objectContaining({ immediate: false }),
+        'テスト音声'
       )
     })
 
@@ -94,7 +95,8 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
       expect(mockEnqueueQuery).toHaveBeenCalledWith(
         expect.any(Object),
         1,
-        expect.objectContaining({ immediate: false })
+        expect.objectContaining({ immediate: false }),
+        'テスト音声'
       )
     })
 
@@ -116,7 +118,8 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
         1,
         expect.any(Object),
         1,
-        expect.objectContaining({ immediate: false })
+        expect.objectContaining({ immediate: false }),
+        '第1セグメント'
       )
 
       // 第2セグメント: immediate=false
@@ -124,7 +127,8 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
         2,
         expect.any(Object),
         2,
-        expect.objectContaining({ immediate: false })
+        expect.objectContaining({ immediate: false }),
+        '第2セグメント'
       )
     })
   })
@@ -152,7 +156,8 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
         1,
         expect.any(Object),
         1,
-        expect.objectContaining({ waitForEnd: true })
+        expect.objectContaining({ waitForEnd: true }),
+        '第1セグメント'
       )
 
       // 第2セグメント: waitForEnd=true (最後のセグメント)
@@ -160,7 +165,8 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
         2,
         expect.any(Object),
         2,
-        expect.objectContaining({ waitForEnd: true })
+        expect.objectContaining({ waitForEnd: true }),
+        '第2セグメント'
       )
     })
 
@@ -185,7 +191,8 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
         2,
         expect.any(Object),
         2,
-        expect.objectContaining({ waitForEnd: false })
+        expect.objectContaining({ waitForEnd: false }),
+        '第2セグメント'
       )
 
       // 第3セグメント（最後）: waitForEnd=true
@@ -193,7 +200,8 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
         3,
         expect.any(Object),
         3,
-        expect.objectContaining({ waitForEnd: true })
+        expect.objectContaining({ waitForEnd: true }),
+        '第3セグメント'
       )
     })
   })
@@ -221,7 +229,8 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
         1,
         expect.any(Object),
         1,
-        expect.objectContaining({ waitForStart: true })
+        expect.objectContaining({ waitForStart: true }),
+        '第1セグメント'
       )
 
       // 第2セグメント: waitForStart=false
@@ -229,7 +238,8 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
         2,
         expect.any(Object),
         2,
-        expect.objectContaining({ waitForStart: false })
+        expect.objectContaining({ waitForStart: false }),
+        '第2セグメント'
       )
     })
   })
@@ -269,7 +279,8 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
           immediate: false,
           waitForStart: true,
           waitForEnd: true,
-        })
+        }),
+        '第1セグメント'
       )
 
       // 第2セグメント: immediate=false, waitForStart=false, waitForEnd=true
@@ -281,7 +292,8 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
           immediate: false,
           waitForStart: false,
           waitForEnd: true,
-        })
+        }),
+        '第2セグメント'
       )
     })
   })
