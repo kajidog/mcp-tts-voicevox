@@ -39,19 +39,8 @@
     "prepare": "pnpm build",
     "prepublishOnly": "pnpm test"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE",
-    "scripts"
-  ],
-  "keywords": [
-    "voicevox",
-    "tts",
-    "text-to-speech",
-    "mcp",
-    "mcp-server"
-  ],
+  "files": ["dist", "README.md", "LICENSE", "scripts"],
+  "keywords": ["voicevox", "tts", "text-to-speech", "mcp", "mcp-server"],
   "author": {
     "name": "kajidog",
     "email": "dev@kajidog.com"
