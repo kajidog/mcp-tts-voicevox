@@ -40,6 +40,7 @@ const corsSettingsLink = document.getElementById('cors-settings-link') as HTMLAn
 let client: VoicevoxClient | null = null
 let isImmediateMode = true
 let speakersData: any[] = [] // 話者情報をキャッシュ
+const speakerIconCache: Map<number, string> = new Map() // スピーカーアイコンキャッシュ
 
 // 現在のオリジンを表示
 if (currentOriginCode) {
@@ -54,6 +55,63 @@ const sampleTexts = [
   '天気予報によると、明日は晴れるそうです。',
   'プログラミングは楽しいですね。',
 ]
+
+/**
+ * スピーカーIDから話者名を取得
+ */
+function getSpeakerName(speakerId: number): string {
+  for (const speaker of speakersData) {
+    for (const style of speaker.styles) {
+      if (style.id === speakerId) {
+        return `${speaker.name} (${style.name})`
+      }
+    }
+  }
+  return `話者 ${speakerId}`
+}
+
+/**
+ * スピーカーIDからスピーカーUUIDを取得
+ */
+function getSpeakerUuid(speakerId: number): string | null {
+  for (const speaker of speakersData) {
+    for (const style of speaker.styles) {
+      if (style.id === speakerId) {
+        return speaker.speaker_uuid
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * スピーカーIDからアイコン（Base64画像URL）を取得
+ */
+async function getSpeakerIcon(speakerId: number): Promise<string | null> {
+  // キャッシュにあればそれを返す
+  if (speakerIconCache.has(speakerId)) {
+    return speakerIconCache.get(speakerId)!
+  }
+
+  if (!client) return null
+
+  const speakerUuid = getSpeakerUuid(speakerId)
+  if (!speakerUuid) return null
+
+  try {
+    const speakerInfo = await client.getSpeakerInfo(speakerUuid)
+    if (speakerInfo && (speakerInfo as any).portrait) {
+      const portrait = (speakerInfo as any).portrait as string
+      const iconUrl = `data:image/png;base64,${portrait}`
+      speakerIconCache.set(speakerId, iconUrl)
+      return iconUrl
+    }
+  } catch {
+    // エラー時はnullを返す
+  }
+
+  return null
+}
 
 /**
  * ステータス表示を更新
@@ -279,10 +337,10 @@ async function addSampleText() {
 /**
  * キュー表示を更新
  */
-function updateQueueDisplay() {
+async function updateQueueDisplay() {
   if (!client) {
     queueCountSpan.textContent = '0'
-    queueItemsDiv.innerHTML = '<div style="color: var(--text-muted); font-style: italic;">キューは空です</div>'
+    queueItemsDiv.innerHTML = '<div class="queue-empty">🔇 キューは空です</div>'
     return
   }
 
@@ -290,26 +348,45 @@ function updateQueueDisplay() {
   queueCountSpan.textContent = String(queueLength)
 
   if (queueLength === 0) {
-    queueItemsDiv.innerHTML = '<div style="color: var(--text-muted); font-style: italic;">キューは空です</div>'
+    queueItemsDiv.innerHTML = '<div class="queue-empty">🔇 キューは空です</div>'
   } else {
     const queue = client.getQueueService().getQueue()
-    queueItemsDiv.innerHTML = queue
-      .slice(0, 10) // 最大10件表示
-      .map((item) => {
+    const itemsHtml = await Promise.all(
+      queue.slice(0, 10).map(async (item) => {
         const statusClass = item.status.toLowerCase()
         const statusText = getStatusText(item.status)
-        const text = item.text.length > 30 ? `${item.text.substring(0, 30)}...` : item.text
+        const speakerName = getSpeakerName(item.speaker)
+        const speakerIcon = await getSpeakerIcon(item.speaker)
+        
         return `
-        <div class="queue-item">
-          <span class="queue-item-text">${escapeHtml(text)}</span>
-          <span class="queue-item-status ${statusClass}">${statusText}</span>
+        <div class="queue-item ${statusClass}">
+          <div class="queue-item-avatar">
+            ${speakerIcon 
+              ? `<img src="${speakerIcon}" alt="${speakerName}" />` 
+              : '<span class="queue-item-avatar-placeholder">👤</span>'}
+          </div>
+          <div class="queue-item-content">
+            <div class="queue-item-header">
+              <span class="queue-item-speaker">${escapeHtml(speakerName)}</span>
+              <span class="queue-item-status ${statusClass}">${statusText}</span>
+              <div class="playing-indicator">
+                <div class="playing-indicator-bar"></div>
+                <div class="playing-indicator-bar"></div>
+                <div class="playing-indicator-bar"></div>
+                <div class="playing-indicator-bar"></div>
+              </div>
+            </div>
+            <div class="queue-item-text">${escapeHtml(item.text)}</div>
+          </div>
         </div>
       `
       })
-      .join('')
+    )
+
+    queueItemsDiv.innerHTML = itemsHtml.join('')
 
     if (queueLength > 10) {
-      queueItemsDiv.innerHTML += `<div style="color: var(--text-muted); font-size: 0.75rem; text-align: center; margin-top: 4px;">...他 ${queueLength - 10} 件</div>`
+      queueItemsDiv.innerHTML += `<div class="queue-more">...他 ${queueLength - 10} 件</div>`
     }
   }
 }
