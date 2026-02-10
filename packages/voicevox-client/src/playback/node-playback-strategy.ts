@@ -1,7 +1,7 @@
 import { type ChildProcess, execSync, spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
-import type { PlaybackStrategy } from './types'
+import type { PlaybackStrategy } from './types.js'
 
 /**
  * Node.js環境用再生戦略

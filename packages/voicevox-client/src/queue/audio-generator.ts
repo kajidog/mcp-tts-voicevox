@@ -1,10 +1,10 @@
-import type { VoicevoxApi } from '../api'
-import type { ItemStateMachine } from '../state/item-state-machine'
-import type { QueueItemData } from '../state/types'
-import type { AudioQuery } from '../types'
-import { isBrowser } from '../utils'
-import type { AudioFileManager } from './file-manager'
-import { type QueueItem, QueueItemStatus } from './types'
+import type { VoicevoxApi } from '../api.js'
+import type { ItemStateMachine } from '../state/item-state-machine.js'
+import type { QueueItemData } from '../state/types.js'
+import type { AudioQuery } from '../types.js'
+import { isBrowser } from '../utils.js'
+import type { AudioFileManager } from './file-manager.js'
+import { type QueueItem, QueueItemStatus } from './types.js'
 
 /**
  * 生成完了コールバック

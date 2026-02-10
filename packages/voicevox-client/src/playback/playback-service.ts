@@ -1,5 +1,5 @@
-import { createPlaybackStrategySync } from './playback-strategy'
-import type { ActivePlayback, AudioSource, PlaybackCallbacks, PlaybackStrategy } from './types'
+import { createPlaybackStrategy } from './playback-strategy.js'
+import type { ActivePlayback, AudioSource, PlaybackCallbacks, PlaybackStrategy } from './types.js'
 
 /**
  * PlaybackServiceの設定オプション
@@ -16,20 +16,24 @@ export interface PlaybackServiceOptions {
  * 2つのAudioPlayerを1つに統合し、AbortControllerで停止制御
  */
 export class PlaybackService {
-  private readonly strategy: PlaybackStrategy
+  private readonly strategyPromise: Promise<PlaybackStrategy>
+  private resolvedStrategy: PlaybackStrategy | null = null
   private readonly activePlaybacks: Map<string, ActivePlayback> = new Map()
   private readonly callbacks: PlaybackCallbacks
 
   constructor(options: PlaybackServiceOptions = {}) {
-    this.strategy = createPlaybackStrategySync(options.useStreaming)
     this.callbacks = options.callbacks ?? {}
+    this.strategyPromise = createPlaybackStrategy(options.useStreaming).then((s) => {
+      this.resolvedStrategy = s
+      return s
+    })
   }
 
   /**
    * ストリーミング再生が有効かどうか
    */
   isStreamingEnabled(): boolean {
-    return this.strategy.supportsStreaming()
+    return this.resolvedStrategy?.supportsStreaming() ?? false
   }
 
   /**
@@ -48,6 +52,7 @@ export class PlaybackService {
       controller,
       startTime: new Date(),
     }
+    // await の前に登録 → stopAll で中断可能にする
     this.activePlaybacks.set(itemId, activePlayback)
 
     // 外部シグナルとの連携
@@ -55,15 +60,24 @@ export class PlaybackService {
       signal.addEventListener('abort', () => controller.abort())
     }
 
+    // strategy の初期化を待つ（初回はプラットフォーム検出で遅延する可能性あり）
+    const strategy = await this.strategyPromise
+
+    // await 中に中断された場合はスキップ
+    if (controller.signal.aborted) {
+      this.activePlaybacks.delete(itemId)
+      return
+    }
+
     // 再生のPromiseを作成して追跡
     const playPromise = (async () => {
       try {
         this.callbacks.onStart?.(itemId)
 
-        if (audio.type === 'buffer' && this.strategy.supportsStreaming()) {
-          await this.strategy.playFromBuffer(audio.data, controller.signal)
+        if (audio.type === 'buffer' && strategy.supportsStreaming()) {
+          await strategy.playFromBuffer(audio.data, controller.signal)
         } else if (audio.type === 'file') {
-          await this.strategy.playFromFile(audio.path, controller.signal)
+          await strategy.playFromFile(audio.path, controller.signal)
         } else if (audio.type === 'buffer') {
           throw new Error('ストリーミング再生が利用できません。一時ファイルを使用してください。')
         }
@@ -103,7 +117,7 @@ export class PlaybackService {
       playback.controller.abort()
     }
     this.activePlaybacks.clear()
-    this.strategy.stop()
+    this.resolvedStrategy?.stop()
   }
 
   /**
@@ -120,7 +134,7 @@ export class PlaybackService {
       }
     }
 
-    this.strategy.stop()
+    this.resolvedStrategy?.stop()
     await Promise.all(promises)
     this.activePlaybacks.clear()
   }

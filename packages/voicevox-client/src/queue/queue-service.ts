@@ -1,15 +1,14 @@
-import { v4 as uuidv4 } from 'uuid'
-import type { VoicevoxApi } from '../api'
-import { PlaybackService } from '../playback'
-import type { AudioSource } from '../playback/types'
-import { type QueueEventCallbacks, type QueueItemData, QueueItemStatus, QueueStateMachine } from '../state'
-import type { AudioQuery, PlaybackOptions } from '../types'
-import { isBrowser } from '../utils'
-import { AudioGenerator } from './audio-generator'
-import { EventManager } from './event-manager'
-import { AudioFileManager } from './file-manager'
-import { PrefetchManager } from './prefetch-manager'
-import { type QueueEventListener, QueueEventType, type QueueItem } from './types'
+import type { VoicevoxApi } from '../api.js'
+import { PlaybackService } from '../playback/index.js'
+import type { AudioSource } from '../playback/types.js'
+import { type QueueEventCallbacks, type QueueItemData, QueueItemStatus, QueueStateMachine } from '../state/index.js'
+import type { AudioQuery, PlaybackOptions } from '../types.js'
+import { isBrowser } from '../utils.js'
+import { AudioGenerator } from './audio-generator.js'
+import { EventManager } from './event-manager.js'
+import { AudioFileManager } from './file-manager.js'
+import { PrefetchManager } from './prefetch-manager.js'
+import { type QueueEventListener, QueueEventType, type QueueItem } from './types.js'
 
 /**
  * エンキュー結果
@@ -365,7 +364,7 @@ export class QueueService {
     }
 
     const item: QueueItemData = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       text,
       speaker,
       status: QueueItemStatus.PENDING,

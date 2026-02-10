@@ -84,6 +84,34 @@ async function main() {
 
     timer.log('全ての再生完了')
 
+    // テスト4: 音声パラメータの個別設定
+    printSubHeader('テスト4: 音声パラメータの個別設定')
+    console.log('同じテキストを異なるパラメータ（音高、抑揚、速度など）で再生します\n')
+
+    const paramsTests = [
+      { text: '普通です。', options: {} },
+      { text: '高い声です。', options: { pitchScale: 0.15 } },
+      { text: '低い声です。', options: { pitchScale: -0.15 } },
+      { text: '早口です。', options: { speedScale: 1.5 } },
+      { text: 'ゆっくりです。', options: { speedScale: 0.8 } },
+      { text: '抑揚がありません。', options: { intonationScale: 0.0 } },
+      { text: '抑揚が激しいです。', options: { intonationScale: 2.0 } },
+      { text: '間を空けて話します。', options: { prePhonemeLength: 1.0, postPhonemeLength: 1.0 } },
+    ]
+
+    for (let i = 0; i < paramsTests.length; i++) {
+      const { text, options } = paramsTests[i]
+      const isLast = i === paramsTests.length - 1
+      timer.log(`パラメータテスト${i + 1}: ${JSON.stringify(options)}`)
+      await client.speak(text, {
+        immediate: false,
+        waitForEnd: isLast,
+        ...options,
+      })
+    }
+
+    timer.log('パラメータテスト完了')
+
     console.log('\nキューテスト完了!')
   } catch (error) {
     console.error('エラー:', error)

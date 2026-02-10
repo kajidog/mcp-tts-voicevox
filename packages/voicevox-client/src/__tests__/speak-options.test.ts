@@ -380,4 +380,159 @@ describe('VoicevoxClient - speak メソッドのオプションテスト', () =>
       expect(result.segmentCount).toBe(3)
     })
   })
+
+  describe('音声パラメータの個別設定テスト', () => {
+    it('pitchScale を指定した場合、AudioQuery に適用される', async () => {
+      mockEnqueueQuery.mockResolvedValue({
+        item: { id: 'test' },
+        promises: {},
+      })
+
+      await client.speak('テスト音声', { pitchScale: 0.1 })
+
+      expect(mockEnqueueQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ pitchScale: 0.1 }),
+        1,
+        expect.any(Object),
+        'テスト音声'
+      )
+    })
+
+    it('volumeScale を指定した場合、AudioQuery に適用される', async () => {
+      mockEnqueueQuery.mockResolvedValue({
+        item: { id: 'test' },
+        promises: {},
+      })
+
+      await client.speak('テスト音声', { volumeScale: 1.5 })
+
+      expect(mockEnqueueQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ volumeScale: 1.5 }),
+        1,
+        expect.any(Object),
+        'テスト音声'
+      )
+    })
+
+    it('prePhonemeLength と postPhonemeLength を指定した場合、AudioQuery に適用される', async () => {
+      mockEnqueueQuery.mockResolvedValue({
+        item: { id: 'test' },
+        promises: {},
+      })
+
+      await client.speak('テスト音声', { prePhonemeLength: 0.5, postPhonemeLength: 1.0 })
+
+      expect(mockEnqueueQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ prePhonemeLength: 0.5, postPhonemeLength: 1.0 }),
+        1,
+        expect.any(Object),
+        'テスト音声'
+      )
+    })
+
+    it('intonationScale を指定した場合、AudioQuery に適用される', async () => {
+      mockEnqueueQuery.mockResolvedValue({
+        item: { id: 'test' },
+        promises: {},
+      })
+
+      await client.speak('テスト音声', { intonationScale: 1.5 })
+
+      expect(mockEnqueueQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ intonationScale: 1.5 }),
+        1,
+        expect.any(Object),
+        'テスト音声'
+      )
+    })
+
+    it('複数の音声パラメータを同時に指定した場合、全て AudioQuery に適用される', async () => {
+      mockEnqueueQuery.mockResolvedValue({
+        item: { id: 'test' },
+        promises: {},
+      })
+
+      await client.speak('テスト音声', {
+        pitchScale: 0.05,
+        intonationScale: 1.2,
+        volumeScale: 0.8,
+        prePhonemeLength: 0.3,
+        postPhonemeLength: 0.7,
+        speedScale: 1.5,
+      })
+
+      expect(mockEnqueueQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          speedScale: 1.5,
+          pitchScale: 0.05,
+          intonationScale: 1.2,
+          volumeScale: 0.8,
+          prePhonemeLength: 0.3,
+          postPhonemeLength: 0.7,
+        }),
+        1,
+        expect.any(Object),
+        'テスト音声'
+      )
+    })
+
+    it('音声パラメータを指定しない場合、AudioQuery のデフォルト値がそのまま使われる', async () => {
+      mockEnqueueQuery.mockResolvedValue({
+        item: { id: 'test' },
+        promises: {},
+      })
+
+      await client.speak('テスト音声', {})
+
+      // デフォルト値がそのまま渡される
+      expect(mockEnqueueQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pitchScale: 0.0,
+          intonationScale: 1.0,
+          volumeScale: 1.0,
+          prePhonemeLength: 0.1,
+          postPhonemeLength: 0.1,
+        }),
+        1,
+        expect.any(Object),
+        'テスト音声'
+      )
+    })
+
+    it('複数セグメントの場合、全てのセグメントに音声パラメータが適用される', async () => {
+      mockEnqueueQuery.mockResolvedValue({
+        item: { id: 'test' },
+        promises: {},
+      })
+
+      const segments = [
+        { text: '第1セグメント', speaker: 1 },
+        { text: '第2セグメント', speaker: 2 },
+      ]
+
+      await client.speak(segments, {
+        immediate: false,
+        postPhonemeLength: 0.8,
+        pitchScale: 0.1,
+      })
+
+      // 第1セグメント
+      expect(mockEnqueueQuery).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ postPhonemeLength: 0.8, pitchScale: 0.1 }),
+        1,
+        expect.any(Object),
+        '第1セグメント'
+      )
+
+      // 第2セグメント
+      expect(mockEnqueueQuery).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ postPhonemeLength: 0.8, pitchScale: 0.1 }),
+        2,
+        expect.any(Object),
+        '第2セグメント'
+      )
+    })
+  })
 })

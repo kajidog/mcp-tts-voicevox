@@ -1,5 +1,5 @@
-import { isBrowser } from '../utils'
-import type { PlaybackStrategy } from './types'
+import { isBrowser } from '../utils.js'
+import type { PlaybackStrategy } from './types.js'
 
 /**
  * ブラウザ環境用再生戦略
@@ -94,22 +94,6 @@ export async function createPlaybackStrategy(useStreaming?: boolean): Promise<Pl
     return new BrowserPlaybackStrategy()
   }
   // Node.js環境では動的インポートでNodePlaybackStrategyを読み込む
-  const { NodePlaybackStrategy } = await import('./node-playback-strategy')
-  return new NodePlaybackStrategy(useStreaming)
-}
-
-/**
- * 現在の環境に適した再生戦略を同期的に作成（後方互換性のため）
- * ブラウザ環境ではBrowserPlaybackStrategyを返す
- * Node.js環境ではNodePlaybackStrategyを返す
- * @param useStreaming ストリーミング再生を使用するかどうか
- */
-export function createPlaybackStrategySync(useStreaming?: boolean): PlaybackStrategy {
-  if (isBrowser()) {
-    return new BrowserPlaybackStrategy()
-  }
-  // Node.js環境では同期的にrequireでNodePlaybackStrategyを読み込む
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { NodePlaybackStrategy } = require('./node-playback-strategy')
+  const { NodePlaybackStrategy } = await import('./node-playback-strategy.js')
   return new NodePlaybackStrategy(useStreaming)
 }

@@ -89,6 +89,7 @@ h1 {
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
@@ -440,6 +441,48 @@ button.stop:hover:not(:disabled) {
   color: var(--text);
 }
 
+/* パラメータグリッド */
+.sub-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin: 16px 0 8px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.param-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.param-item label {
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+}
+
+.param-item input[type="range"] {
+  width: 100%;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.param-item input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--secondary);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
 /* キュー状態 */
 .queue-status {
   margin-top: 16px;
@@ -631,6 +674,7 @@ button.stop:hover:not(:disabled) {
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.6;
   }
@@ -676,12 +720,15 @@ button.stop:hover:not(:disabled) {
 .playing-indicator-bar:nth-child(1) {
   animation-delay: 0s;
 }
+
 .playing-indicator-bar:nth-child(2) {
   animation-delay: 0.1s;
 }
+
 .playing-indicator-bar:nth-child(3) {
   animation-delay: 0.2s;
 }
+
 .playing-indicator-bar:nth-child(4) {
   animation-delay: 0.1s;
 }
@@ -690,6 +737,7 @@ button.stop:hover:not(:disabled) {
   0% {
     height: 4px;
   }
+
   100% {
     height: 14px;
   }

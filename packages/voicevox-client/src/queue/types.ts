@@ -1,4 +1,4 @@
-import type { AudioQuery, PlaybackOptions } from '../types'
+import type { AudioQuery, PlaybackOptions } from '../types.js'
 
 /**
  * キューアイテムの状態

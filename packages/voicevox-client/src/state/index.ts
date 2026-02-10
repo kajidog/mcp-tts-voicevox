@@ -1,6 +1,6 @@
-export { ItemStateMachine } from './item-state-machine'
-export { QueueStateMachine } from './queue-state-machine'
-export type { QueueEventCallbacks } from './queue-state-machine'
+export { ItemStateMachine } from './item-state-machine.js'
+export { QueueStateMachine } from './queue-state-machine.js'
+export type { QueueEventCallbacks } from './queue-state-machine.js'
 export {
   QueueItemStatus,
   QueueState,
@@ -10,4 +10,4 @@ export {
   type QueueStateChangeCallback,
   type StateChangeCallback,
   type StateTransition,
-} from './types'
+} from './types.js'

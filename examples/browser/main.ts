@@ -26,6 +26,18 @@ const queueCountSpan = document.getElementById('queue-count') as HTMLSpanElement
 const queueItemsDiv = document.getElementById('queue-items') as HTMLDivElement
 const reloadBtn = document.getElementById('reload-btn') as HTMLButtonElement
 
+// 新規パラメータDOM要素
+const pitchInput = document.getElementById('pitch') as HTMLInputElement
+const pitchValue = document.getElementById('pitch-value') as HTMLSpanElement
+const intonationInput = document.getElementById('intonation') as HTMLInputElement
+const intonationValue = document.getElementById('intonation-value') as HTMLSpanElement
+const volumeInput = document.getElementById('volume') as HTMLInputElement
+const volumeValue = document.getElementById('volume-value') as HTMLSpanElement
+const prePhonemeInput = document.getElementById('pre-phoneme') as HTMLInputElement
+const prePhonemeValue = document.getElementById('pre-phoneme-value') as HTMLSpanElement
+const postPhonemeInput = document.getElementById('post-phoneme') as HTMLInputElement
+const postPhonemeValue = document.getElementById('post-phoneme-value') as HTMLSpanElement
+
 // 新規DOM要素（接続状態・キャラクタープレビュー）
 const statusIndicator = document.getElementById('status-indicator') as HTMLSpanElement
 const connectionText = document.getElementById('connection-text') as HTMLSpanElement
@@ -221,6 +233,11 @@ async function speak() {
 
   const speaker = Number(speakerSelect.value)
   const speed = Number(speedInput.value)
+  const pitch = Number(pitchInput.value)
+  const intonation = Number(intonationInput.value)
+  const volume = Number(volumeInput.value)
+  const prePhoneme = Number(prePhonemeInput.value)
+  const postPhoneme = Number(postPhonemeInput.value)
   const waitForStart = waitStartCheckbox.checked
   const waitForEnd = waitEndCheckbox.checked
 
@@ -243,6 +260,11 @@ async function speak() {
     const result = await client!.speak(text, {
       speaker,
       speedScale: speed,
+      pitchScale: pitch,
+      intonationScale: intonation,
+      volumeScale: volume,
+      prePhonemeLength: prePhoneme,
+      postPhonemeLength: postPhoneme,
       immediate: isImmediateMode,
       waitForStart,
       waitForEnd,
@@ -309,6 +331,11 @@ async function addSampleText() {
   const randomText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)]
   const speaker = Number(speakerSelect.value)
   const speed = Number(speedInput.value)
+  const pitch = Number(pitchInput.value)
+  const intonation = Number(intonationInput.value)
+  const volume = Number(volumeInput.value)
+  const prePhoneme = Number(prePhonemeInput.value)
+  const postPhoneme = Number(postPhonemeInput.value)
 
   if (!client) {
     const c = await initClient()
@@ -321,6 +348,11 @@ async function addSampleText() {
     await client!.speak(randomText, {
       speaker,
       speedScale: speed,
+      pitchScale: pitch,
+      intonationScale: intonation,
+      volumeScale: volume,
+      prePhonemeLength: prePhoneme,
+      postPhonemeLength: postPhoneme,
       immediate: false, // キューモードで追加
       waitForStart: false,
       waitForEnd: false,
@@ -439,6 +471,23 @@ function setMode(immediate: boolean) {
 function updateSpeedValue() {
   speedValue.textContent = `${speedInput.value}x`
 }
+
+// パラメータ値の更新
+pitchInput.addEventListener('input', () => {
+  pitchValue.textContent = Number(pitchInput.value).toFixed(2)
+})
+intonationInput.addEventListener('input', () => {
+  intonationValue.textContent = Number(intonationInput.value).toFixed(1)
+})
+volumeInput.addEventListener('input', () => {
+  volumeValue.textContent = Number(volumeInput.value).toFixed(1)
+})
+prePhonemeInput.addEventListener('input', () => {
+  prePhonemeValue.textContent = Number(prePhonemeInput.value).toFixed(1)
+})
+postPhonemeInput.addEventListener('input', () => {
+  postPhonemeValue.textContent = Number(postPhonemeInput.value).toFixed(1)
+})
 
 /**
  * キュー監視を開始

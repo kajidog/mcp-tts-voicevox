@@ -1,18 +1,16 @@
 {
   "name": "@kajidog/mcp-tts-voicevox",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "VOICEVOX integration for MCP - Text-to-Speech server using VOICEVOX engine",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "require": "./dist/index.js",
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
     "./client": {
-      "require": "./dist/client.js",
       "import": "./dist/client.js",
       "types": "./dist/client.d.ts"
     }
@@ -20,18 +18,22 @@
   "bin": {
     "mcp-tts-voicevox": "./dist/index.js"
   },
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
     "start": "node dist/index.js",
     "start:stdio": "node dist/stdio.js",
     "start:http": "MCP_HTTP_MODE=true node dist/index.js",
     "start:http:win": "powershell -Command \"$env:MCP_HTTP_MODE='true'; node dist/index.js\"",
-    "dev": "NODE_ENV=development ts-node src/index.ts",
-    "dev:stdio": "NODE_ENV=development ts-node src/stdio.ts",
-    "dev:http": "NODE_ENV=development MCP_HTTP_MODE=true ts-node src/index.ts",
-    "dev:http:win": "powershell -Command \"$env:NODE_ENV='development'; $env:MCP_HTTP_MODE='true'; ts-node src/index.ts\"",
-    "build": "tsgo && pnpm -r --filter \"./packages/*\" build && node scripts/fix-permissions.js",
-    "build:tsc": "tsc && pnpm -r --filter \"./packages/*\" build:tsc && node scripts/fix-permissions.js",
+    "dev": "NODE_ENV=development tsx src/index.ts",
+    "dev:stdio": "NODE_ENV=development tsx src/stdio.ts",
+    "dev:http": "NODE_ENV=development MCP_HTTP_MODE=true tsx src/index.ts",
+    "dev:http:win": "powershell -Command \"$env:NODE_ENV='development'; $env:MCP_HTTP_MODE='true'; tsx src/index.ts\"",
+    "start:bun": "bun dist/index.js",
+    "start:bun:http": "MCP_HTTP_MODE=true bun dist/index.js",
+    "dev:bun": "NODE_ENV=development bun src/index.ts",
+    "dev:bun:http": "NODE_ENV=development MCP_HTTP_MODE=true bun src/index.ts",
+    "build": "tsgo && pnpm -r --filter \"./packages/*\" build && node scripts/fix-permissions.cjs",
+    "build:tsc": "tsc && pnpm -r --filter \"./packages/*\" build:tsc && node scripts/fix-permissions.cjs",
     "build:clean": "rm -rf dist && pnpm -r --filter \"./packages/*\" run build:clean && pnpm build",
     "lint": "biome check . && pnpm -r --filter \"./packages/*\" lint",
     "lint:fix": "biome check --write . && pnpm -r --filter \"./packages/*\" lint:fix",
@@ -60,7 +62,7 @@
   "dependencies": {
     "@hono/node-server": "^1.14.2",
     "@kajidog/voicevox-client": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.25.1",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "hono": "^4.7.10",
     "zod": "^3.25.0"
   },
@@ -69,7 +71,7 @@
     "@types/node": "^20.0.0",
     "@typescript/native-preview": "7.0.0-dev.20250712.1",
     "vitest": "^2.1.8",
-    "ts-node": "^10.9.0",
+    "tsx": "^4.19.0",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
