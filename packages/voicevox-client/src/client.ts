@@ -13,6 +13,16 @@ export interface SpeakOptions extends PlaybackOptions {
   speaker?: number
   /** 再生速度 */
   speedScale?: number
+  /** 音高 (-0.15 ~ 0.15) */
+  pitchScale?: number
+  /** 抑揚 (0.0 ~ 2.0) */
+  intonationScale?: number
+  /** 音量 (0.0 ~ 2.0) */
+  volumeScale?: number
+  /** 音声の前の無音時間（秒） */
+  prePhonemeLength?: number
+  /** 音声の後の無音時間（秒） */
+  postPhonemeLength?: number
 }
 
 /**
@@ -141,7 +151,7 @@ export class VoicevoxClient {
         const firstSegment = segments[0]
         const speakerId = this.getSpeakerId(firstSegment.speaker)
         const firstQuery = await this.generateQuery(firstSegment.text, speakerId)
-        firstQuery.speedScale = speed
+        this.applyAudioOptions(firstQuery, options, speed)
 
         const { promises: firstPromises } = await this.queueService.enqueueQuery(
           firstQuery,
@@ -170,7 +180,7 @@ export class VoicevoxClient {
         const segment = segments[i]
         const speakerId = this.getSpeakerId(segment.speaker)
         const query = await this.generateQuery(segment.text, speakerId)
-        query.speedScale = speed
+        this.applyAudioOptions(query, options, speed)
 
         const isLastSegment = i === segments.length - 1
 
@@ -374,7 +384,8 @@ export class VoicevoxClient {
       // AudioQueryの場合（単一アイテム）
       if (typeof input === 'object' && !Array.isArray(input) && 'accent_phrases' in input) {
         const speakerId = this.getSpeakerId(options.speaker)
-        const query = { ...input, speedScale: speed }
+        const query = { ...input }
+        this.applyAudioOptions(query, options, speed)
         const { promises } = await this.queueService.enqueueQuery(
           query,
           speakerId,
@@ -412,7 +423,7 @@ export class VoicevoxClient {
         const firstSegment = segments[0]
         const speakerId = this.getSpeakerId(firstSegment.speaker)
         const firstQuery = await this.generateQuery(firstSegment.text, speakerId)
-        firstQuery.speedScale = speed
+        this.applyAudioOptions(firstQuery, options, speed)
 
         const { promises: firstPromises } = await this.queueService.enqueueQuery(
           firstQuery,
@@ -441,7 +452,7 @@ export class VoicevoxClient {
         const segment = segments[i]
         const speakerId = this.getSpeakerId(segment.speaker)
         const query = await this.generateQuery(segment.text, speakerId)
-        query.speedScale = speed
+        this.applyAudioOptions(query, options, speed)
 
         const isLastSegment = i === segments.length - 1
 
@@ -501,6 +512,19 @@ export class VoicevoxClient {
    */
   private getSpeedScale(speedScale?: number): number {
     return speedScale ?? this.defaultSpeedScale
+  }
+
+  /**
+   * AudioQueryにSpeakOptionsの音声パラメータを適用
+   * @private
+   */
+  private applyAudioOptions(query: AudioQuery, options: SpeakOptions, speed: number): void {
+    query.speedScale = speed
+    if (options.pitchScale !== undefined) query.pitchScale = options.pitchScale
+    if (options.intonationScale !== undefined) query.intonationScale = options.intonationScale
+    if (options.volumeScale !== undefined) query.volumeScale = options.volumeScale
+    if (options.prePhonemeLength !== undefined) query.prePhonemeLength = options.prePhonemeLength
+    if (options.postPhonemeLength !== undefined) query.postPhonemeLength = options.postPhonemeLength
   }
 
   /**

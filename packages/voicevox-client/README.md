@@ -97,6 +97,11 @@ interface SpeakOptions {
   immediate?: boolean;     // Start playback immediately (default: true)
   waitForStart?: boolean;  // Wait for playback to start (default: false)
   waitForEnd?: boolean;    // Wait for playback to end (default: false)
+  pitchScale?: number;     // Pitch (-0.15 to 0.15)
+  intonationScale?: number;// Intonation (0.0 to 2.0)
+  volumeScale?: number;    // Volume (0.0 to 2.0)
+  prePhonemeLength?: number; // Pre-phoneme silence (seconds)
+  postPhonemeLength?: number;// Post-phoneme silence (seconds)
 }
 ```
 
@@ -121,6 +126,13 @@ await client.speak('Important message', {
   speedScale: 1.5,
   immediate: true,
   waitForEnd: true
+});
+// With detailed audio parameters
+await client.speak('Custom voice settings', {
+  pitchScale: 0.1,        // Higher pitch
+  intonationScale: 1.5,   // More intonation
+  prePhonemeLength: 0.5,  // Add silence before
+  postPhonemeLength: 1.0  // Add silence after
 });
 ```
 
