@@ -17,7 +17,7 @@ VOICEVOX を使用した MCP テキスト読み上げサーバー
 
 ### 必要なもの
 
-- Node.js 18.0.0 以上
+- Node.js 18.0.0 以上（または Bun）
 - [VOICEVOX Engine](https://voicevox.hiroshiba.jp/)（起動しておく）
 - ffplay（任意・推奨）
 
@@ -87,6 +87,11 @@ ffplay -version
   }
 }
 ```
+
+> 💡 Bun を使う場合は `npx` を `bunx` に置き換えるだけでOK:
+> ```json
+> "command": "bunx", "args": ["@kajidog/mcp-tts-voicevox"]
+> ```
 
 **3. Claude Desktop を再起動**
 
@@ -406,6 +411,8 @@ pnpm install
 | `pnpm lint` | Lint 実行 |
 | `pnpm dev` | 開発サーバー起動 |
 | `pnpm dev:stdio` | Stdio モードで開発 |
+| `pnpm dev:bun` | Bun で開発サーバー起動 |
+| `pnpm dev:bun:http` | Bun で HTTP 開発サーバー起動 |
 
 </details>
 

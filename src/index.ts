@@ -29,6 +29,11 @@ function isNodejs(): boolean {
   return typeof process !== 'undefined' && !!process.versions?.node
 }
 
+/** Bunランタイムかどうかを判定 */
+function isBun(): boolean {
+  return 'Bun' in globalThis
+}
+
 /** CLI実行かどうかを判定 */
 function isCLI(): boolean {
   if (!isNodejs() || !process.argv) return false
@@ -85,21 +90,33 @@ async function startHttpServer(config: IndexServerConfig): Promise<void> {
     const { default: app } = await import('./http.js')
     console.error('App loaded successfully')
 
-    const { serve } = await import('@hono/node-server')
-    console.error('Server module loaded successfully')
+    if (isBun()) {
+      // Bun native server (HonoはWeb Standard互換なのでそのまま使える)
+      const server = (globalThis as any).Bun.serve({
+        fetch: app.fetch,
+        port: config.port,
+        hostname: config.host,
+      })
+      console.error(`VOICEVOX MCP HTTP server running at http://${server.hostname}:${server.port}/mcp`)
+      console.error(`Health check: http://${server.hostname}:${server.port}/health`)
+    } else {
+      // Node.js: @hono/node-server
+      const { serve } = await import('@hono/node-server')
+      console.error('Server module loaded successfully')
 
-    const serverOptions = {
-      fetch: app.fetch,
-      port: config.port,
-      hostname: config.host,
+      const serverOptions = {
+        fetch: app.fetch,
+        port: config.port,
+        hostname: config.host,
+      }
+
+      console.error('Attempting to start server with options:', serverOptions)
+
+      serve(serverOptions, (info: ServerInfo) => {
+        console.error(`VOICEVOX MCP HTTP server running at http://${info.address}:${info.port}/mcp`)
+        console.error(`Health check: http://${info.address}:${info.port}/health`)
+      })
     }
-
-    console.error('Attempting to start server with options:', serverOptions)
-
-    serve(serverOptions, (info: ServerInfo) => {
-      console.error(`VOICEVOX MCP HTTP server running at http://${info.address}:${info.port}/mcp`)
-      console.error(`Health check: http://${info.address}:${info.port}/health`)
-    })
 
     // サーバー起動の確認を少し待つ
     await new Promise((resolve) => setTimeout(resolve, 1000))

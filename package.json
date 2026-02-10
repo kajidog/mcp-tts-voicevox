@@ -1,6 +1,6 @@
 {
   "name": "@kajidog/mcp-tts-voicevox",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "VOICEVOX integration for MCP - Text-to-Speech server using VOICEVOX engine",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -28,6 +28,10 @@
     "dev:stdio": "NODE_ENV=development tsx src/stdio.ts",
     "dev:http": "NODE_ENV=development MCP_HTTP_MODE=true tsx src/index.ts",
     "dev:http:win": "powershell -Command \"$env:NODE_ENV='development'; $env:MCP_HTTP_MODE='true'; tsx src/index.ts\"",
+    "start:bun": "bun dist/index.js",
+    "start:bun:http": "MCP_HTTP_MODE=true bun dist/index.js",
+    "dev:bun": "NODE_ENV=development bun src/index.ts",
+    "dev:bun:http": "NODE_ENV=development MCP_HTTP_MODE=true bun src/index.ts",
     "build": "tsgo && pnpm -r --filter \"./packages/*\" build && node scripts/fix-permissions.cjs",
     "build:tsc": "tsc && pnpm -r --filter \"./packages/*\" build:tsc && node scripts/fix-permissions.cjs",
     "build:clean": "rm -rf dist && pnpm -r --filter \"./packages/*\" run build:clean && pnpm build",

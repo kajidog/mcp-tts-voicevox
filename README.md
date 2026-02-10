@@ -17,7 +17,7 @@ A text-to-speech MCP server using VOICEVOX
 
 ### Requirements
 
-- Node.js 18.0.0 or higher
+- Node.js 18.0.0 or higher (or [Bun](https://bun.sh/))
 - [VOICEVOX Engine](https://voicevox.hiroshiba.jp/) (must be running)
 - ffplay (optional, recommended)
 
@@ -87,6 +87,11 @@ Config file location:
   }
 }
 ```
+
+> 💡 Bun を使う場合は `npx` を `bunx` に置き換えるだけでOK:
+> ```json
+> "command": "bunx", "args": ["@kajidog/mcp-tts-voicevox"]
+> ```
 
 **3. Restart Claude Desktop**
 
@@ -406,6 +411,8 @@ pnpm install
 | `pnpm lint` | Run lint |
 | `pnpm dev` | Start dev server |
 | `pnpm dev:stdio` | Dev with stdio mode |
+| `pnpm dev:bun` | Start dev server with Bun |
+| `pnpm dev:bun:http` | Start HTTP dev server with Bun |
 
 </details>
 
