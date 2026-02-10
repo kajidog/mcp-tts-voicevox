@@ -46,19 +46,27 @@ export class PlaybackService {
     // 既存の再生を停止
     this.stop(itemId)
 
-    const strategy = await this.strategyPromise
-
     const controller = new AbortController()
     const activePlayback: ActivePlayback = {
       itemId,
       controller,
       startTime: new Date(),
     }
+    // await の前に登録 → stopAll で中断可能にする
     this.activePlaybacks.set(itemId, activePlayback)
 
     // 外部シグナルとの連携
     if (signal) {
       signal.addEventListener('abort', () => controller.abort())
+    }
+
+    // strategy の初期化を待つ（初回はプラットフォーム検出で遅延する可能性あり）
+    const strategy = await this.strategyPromise
+
+    // await 中に中断された場合はスキップ
+    if (controller.signal.aborted) {
+      this.activePlaybacks.delete(itemId)
+      return
     }
 
     // 再生のPromiseを作成して追跡
