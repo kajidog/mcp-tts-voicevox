@@ -109,7 +109,7 @@ async function main() {
         ...options,
       })
     }
-    
+
     timer.log('パラメータテスト完了')
 
     console.log('\nキューテスト完了!')

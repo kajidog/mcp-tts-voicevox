@@ -85,7 +85,6 @@ h1 {
 }
 
 @keyframes pulse {
-
   0%,
   100% {
     opacity: 1;
@@ -671,7 +670,6 @@ button.stop:hover:not(:disabled) {
 }
 
 @keyframes pulse-status {
-
   0%,
   100% {
     opacity: 1;
