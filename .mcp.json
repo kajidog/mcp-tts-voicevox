@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "tts": {
-      "type": "http",
-      "url": "http://172.29.176.1:3000/mcp"
-    }
-  }
-}
