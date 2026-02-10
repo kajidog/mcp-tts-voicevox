@@ -1,8 +1,8 @@
-export { VoicevoxClient, type SpeakOptions } from './client'
-export * from './types'
-export * from './api'
-export * from './utils'
-export * from './error'
+export { VoicevoxClient, type SpeakOptions } from './client.js'
+export * from './types.js'
+export * from './api.js'
+export * from './utils.js'
+export * from './error.js'
 
 // queueモジュールから再エクスポート（stateと重複するものを除く）
 export {
@@ -16,7 +16,7 @@ export {
   type QueueItem,
   type QueueEventListener,
   type QueueManager,
-} from './queue'
+} from './queue/index.js'
 
 // stateモジュールから再エクスポート
 export {
@@ -31,16 +31,15 @@ export {
   type QueueStateChangeCallback,
   type StateChangeCallback,
   type StateTransition,
-} from './state'
+} from './state/index.js'
 
 // playbackモジュールから再エクスポート
 export {
   PlaybackService,
   BrowserPlaybackStrategy,
   createPlaybackStrategy,
-  createPlaybackStrategySync,
   type ActivePlayback,
   type AudioSource,
   type PlaybackCallbacks,
   type PlaybackStrategy,
-} from './playback'
+} from './playback/index.js'

@@ -1,6 +1,5 @@
-import axios, { type AxiosRequestConfig } from 'axios'
-import { VoicevoxError, VoicevoxErrorCode, handleError } from './error'
-import type { AudioQuery, Speaker } from './types'
+import { VoicevoxError, VoicevoxErrorCode, handleError } from './error.js'
+import type { AudioQuery, Speaker } from './types.js'
 
 export class VoicevoxApi {
   private readonly baseUrl: string
@@ -134,30 +133,37 @@ export class VoicevoxApi {
   ): Promise<T> {
     try {
       const url = `${this.baseUrl}${endpoint}`
-      const config: AxiosRequestConfig = {
-        method,
-        url,
-        data,
+      const init: RequestInit = {
+        method: method.toUpperCase(),
         headers,
-        responseType,
-        timeout: 30000,
+        signal: AbortSignal.timeout(30000),
       }
 
-      const response = await axios(config)
+      if (data !== null) {
+        init.body = JSON.stringify(data)
+      }
 
-      if (response.status !== 200) {
+      const response = await fetch(url, init)
+
+      if (!response.ok) {
         throw new VoicevoxError(
           `APIリクエストに失敗しました: ${response.status}`,
           VoicevoxErrorCode.API_CONNECTION_ERROR
         )
       }
 
-      return response.data
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new VoicevoxError(`APIリクエストに失敗しました: ${error.message}`, VoicevoxErrorCode.API_CONNECTION_ERROR)
+      if (responseType === 'arraybuffer') {
+        return (await response.arrayBuffer()) as T
       }
-      throw error
+      return (await response.json()) as T
+    } catch (error) {
+      if (error instanceof VoicevoxError) {
+        throw error
+      }
+      throw new VoicevoxError(
+        `APIリクエストに失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+        VoicevoxErrorCode.API_CONNECTION_ERROR
+      )
     }
   }
 

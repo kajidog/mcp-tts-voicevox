@@ -1,38 +1,20 @@
 // ブラウザ環境でインポートエラーを避けるための条件付きインポート
-import { isBrowser } from '../utils'
+import { isBrowser } from '../utils.js'
 
 // Node.js環境でのみ必要なモジュール
-let fsPromises: any
-let path: any
-let os: any
+let fsPromises: typeof import('node:fs/promises') | undefined
+let path: typeof import('node:path') | undefined
+let os: typeof import('node:os') | undefined
 
-// ブラウザ以外の環境でのみインポート
+// ブラウザ以外の環境でのみインポート（top-level await）
 if (!isBrowser()) {
-  // 非同期で読み込み試行
-  ;(async () => {
-    try {
-      // 動的インポートを使用して必要なモジュールを読み込む
-      fsPromises = await import('node:fs/promises')
-      path = await import('node:path')
-      os = await import('node:os')
-    } catch (error) {
-      // 動的インポートが失敗した場合（古いNode.js環境など）、従来のrequireを使用
-      try {
-        fsPromises = require('node:fs/promises')
-        path = require('node:path')
-        os = require('node:os')
-      } catch (requireError) {
-        console.error(
-          '必要なNode.jsモジュールを読み込めませんでした。この機能は正常に動作しない可能性があります。',
-          requireError
-        )
-      }
-    }
-  })()
+  const [fs, p, o] = await Promise.all([import('node:fs/promises'), import('node:path'), import('node:os')])
+  fsPromises = fs
+  path = p
+  os = o
 }
 
-import { v4 as uuidv4 } from 'uuid'
-import { handleError } from '../error'
+import { handleError } from '../error.js'
 
 /**
  * バイナリデータをUint8Arrayに変換（環境に依存しない方法）
@@ -59,7 +41,7 @@ export class AudioFileManager {
    * @returns 一時ファイルのフルパス
    */
   public createTempFilePath(): string {
-    const uniqueFilename = `voicevox-${uuidv4()}.wav`
+    const uniqueFilename = `voicevox-${crypto.randomUUID()}.wav`
     if (isBrowser()) {
       return uniqueFilename
     }
@@ -190,7 +172,7 @@ export class AudioFileManager {
       if (isBrowser()) {
         // ブラウザ環境
         const blob = new Blob([audioData], { type: 'audio/wav' })
-        const filename = output || `voice-${uuidv4()}.wav`
+        const filename = output || `voice-${crypto.randomUUID()}.wav`
 
         // forceDownloadフラグがtrueの場合のみダウンロードを実行
         if (forceDownload) {
@@ -223,7 +205,7 @@ export class AudioFileManager {
 
       // ディレクトリの場合、ファイル名を生成
       if (isDir) {
-        const filename = `voice-${uuidv4()}.wav`
+        const filename = `voice-${crypto.randomUUID()}.wav`
         targetPath = path.join(output, filename)
       }
 

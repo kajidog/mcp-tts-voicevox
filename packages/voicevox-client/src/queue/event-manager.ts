@@ -1,4 +1,4 @@
-import { type QueueEventListener, QueueEventType, type QueueItem } from './types'
+import { type QueueEventListener, QueueEventType, type QueueItem } from './types.js'
 
 /**
  * イベント管理クラス

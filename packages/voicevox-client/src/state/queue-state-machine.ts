@@ -1,11 +1,11 @@
-import { ItemStateMachine } from './item-state-machine'
+import { ItemStateMachine } from './item-state-machine.js'
 import {
   type QueueAction,
   type QueueItemData,
   QueueItemStatus,
   QueueState,
   type QueueStateChangeCallback,
-} from './types'
+} from './types.js'
 
 /**
  * イベントコールバック型

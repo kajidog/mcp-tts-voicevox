@@ -1,4 +1,4 @@
-import { type ItemAction, QueueItemStatus, type StateChangeCallback, type StateTransition } from './types'
+import { type ItemAction, QueueItemStatus, type StateChangeCallback, type StateTransition } from './types.js'
 
 /**
  * 有効な状態遷移の定義

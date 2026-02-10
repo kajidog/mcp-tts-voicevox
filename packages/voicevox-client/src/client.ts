@@ -1,9 +1,9 @@
-import { VoicevoxApi } from './api'
-import { formatError, handleError } from './error'
-import { QueueService } from './queue/queue-service'
-import { QueueEventType, QueueItemStatus } from './queue/types'
-import type { AudioQuery, PlaybackOptions, SpeakResult, SpeechSegment, VoicevoxConfig } from './types'
-import { downloadBlob, isBrowser, splitText } from './utils'
+import { VoicevoxApi } from './api.js'
+import { formatError, handleError } from './error.js'
+import { QueueService } from './queue/queue-service.js'
+import { QueueEventType, QueueItemStatus } from './queue/types.js'
+import type { AudioQuery, PlaybackOptions, SpeakResult, SpeechSegment, VoicevoxConfig } from './types.js'
+import { downloadBlob, isBrowser, splitText } from './utils.js'
 
 /**
  * 話者オプション（統一API用）

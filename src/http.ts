@@ -4,9 +4,9 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import { type Context, Hono, type Next } from 'hono'
 import { cors } from 'hono/cors'
 
-import { getConfig } from './config'
-import { server } from './server'
-import { deleteSessionConfig, setSessionConfig } from './session'
+import { getConfig } from './config.js'
+import { server } from './server.js'
+import { deleteSessionConfig, setSessionConfig } from './session.js'
 
 // 設定を取得
 const config = getConfig()
