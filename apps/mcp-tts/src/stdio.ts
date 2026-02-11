@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import { connectStdio } from '@kajidog/mcp-core'
 import { server } from './server.js'
 
-server.connect(new StdioServerTransport()).catch(() => {
+connectStdio(server).catch(() => {
   process.exit(1)
 })

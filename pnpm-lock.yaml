@@ -8,18 +8,15 @@ importers:
 
   apps/mcp-tts:
     dependencies:
-      '@hono/node-server':
-        specifier: ^1.14.2
-        version: 1.19.9(hono@4.11.9)
+      '@kajidog/mcp-core':
+        specifier: workspace:*
+        version: link:../../packages/mcp-core
       '@kajidog/voicevox-client':
         specifier: workspace:*
         version: link:../../packages/voicevox-client
       '@modelcontextprotocol/sdk':
         specifier: ^1.26.0
         version: 1.26.0(zod@3.25.76)
-      hono:
-        specifier: ^4.7.10
-        version: 4.11.9
       zod:
         specifier: ^3.25.0
         version: 3.25.76
@@ -61,6 +58,28 @@ importers:
       vite:
         specifier: ^5.0.0
         version: 5.4.21(@types/node@20.19.27)
+
+  packages/mcp-core:
+    dependencies:
+      '@hono/node-server':
+        specifier: ^1.14.2
+        version: 1.19.9(hono@4.11.9)
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.26.0
+        version: 1.26.0(zod@3.25.76)
+      hono:
+        specifier: ^4.7.10
+        version: 4.11.9
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.27
+      '@typescript/native-preview':
+        specifier: 7.0.0-dev.20250712.1
+        version: 7.0.0-dev.20250712.1
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
 
   packages/voicevox-client:
     devDependencies:

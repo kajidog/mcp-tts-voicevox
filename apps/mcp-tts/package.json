@@ -60,10 +60,9 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@hono/node-server": "^1.14.2",
+    "@kajidog/mcp-core": "workspace:*",
     "@kajidog/voicevox-client": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.26.0",
-    "hono": "^4.7.10",
     "zod": "^3.25.0"
   },
   "devDependencies": {

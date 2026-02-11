@@ -4,7 +4,9 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isNodejs, launchServer, setSessionConfig } from '@kajidog/mcp-core'
 import { getConfig } from './config.js'
+import { server } from './server.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -14,24 +16,6 @@ interface IndexServerConfig {
   host: string
   isDevelopment: boolean
   isHttpMode: boolean
-}
-
-interface ServerInfo {
-  address: string
-  port: number
-}
-
-/**
- * 実行環境を判定するユーティリティ
- */
-/** Node.js環境かどうかを判定 */
-function isNodejs(): boolean {
-  return typeof process !== 'undefined' && !!process.versions?.node
-}
-
-/** Bunランタイムかどうかを判定 */
-function isBun(): boolean {
-  return 'Bun' in globalThis
 }
 
 /** CLI実行かどうかを判定 */
@@ -68,7 +52,7 @@ function isNpx(): boolean {
 }
 
 /**
- * サーバー設定を取得する関数（設定モジュールを使用）
+ * サーバー設定を取得する関数
  */
 function getServerConfig(): IndexServerConfig {
   const config = getConfig()
@@ -78,83 +62,6 @@ function getServerConfig(): IndexServerConfig {
     host: config.httpHost,
     isDevelopment: process.env.NODE_ENV === 'development',
     isHttpMode: config.httpMode,
-  }
-}
-
-/**
- * HTTP サーバーを起動する
- */
-async function startHttpServer(config: IndexServerConfig): Promise<void> {
-  try {
-    console.error('Starting HTTP server with config:', config)
-    const { default: app } = await import('./http.js')
-    console.error('App loaded successfully')
-
-    if (isBun()) {
-      // Bun native server (HonoはWeb Standard互換なのでそのまま使える)
-      const server = (globalThis as any).Bun.serve({
-        fetch: app.fetch,
-        port: config.port,
-        hostname: config.host,
-      })
-      console.error(`VOICEVOX MCP HTTP server running at http://${server.hostname}:${server.port}/mcp`)
-      console.error(`Health check: http://${server.hostname}:${server.port}/health`)
-    } else {
-      // Node.js: @hono/node-server
-      const { serve } = await import('@hono/node-server')
-      console.error('Server module loaded successfully')
-
-      const serverOptions = {
-        fetch: app.fetch,
-        port: config.port,
-        hostname: config.host,
-      }
-
-      console.error('Attempting to start server with options:', serverOptions)
-
-      serve(serverOptions, (info: ServerInfo) => {
-        console.error(`VOICEVOX MCP HTTP server running at http://${info.address}:${info.port}/mcp`)
-        console.error(`Health check: http://${info.address}:${info.port}/health`)
-      })
-    }
-
-    // サーバー起動の確認を少し待つ
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    console.error('HTTP server startup completed')
-  } catch (error) {
-    console.error('HTTP server startup failed:', error)
-    if (error instanceof Error) {
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      })
-    }
-    throw new Error(`Failed to start HTTP server: ${error}`)
-  }
-}
-
-/**
- * Stdio サーバーを起動する
- */
-async function startStdioServer(_config: IndexServerConfig): Promise<void> {
-  try {
-    await import('./stdio.js')
-
-    // Stdio サーバーは常に実行中なので、プロセス終了までブロック
-    process.on('SIGINT', () => {
-      process.exit(0)
-    })
-  } catch (error) {
-    console.error('Stdio server startup failed:', error)
-    if (error instanceof Error) {
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      })
-    }
-    throw new Error(`Failed to start stdio server: ${error}`)
   }
 }
 
@@ -233,10 +140,11 @@ async function startMCPServer(): Promise<void> {
   // CLI実行またはNPX実行の場合のみサーバーを起動
   const shouldStart = isCLI() || isNpx()
 
-  const config = getServerConfig()
+  const config = getConfig()
+  const serverConfig = getServerConfig()
 
   // HTTPモードの場合のみログを出力
-  if (config.isHttpMode) {
+  if (serverConfig.isHttpMode) {
     console.error('Environment detection:', {
       isCLI: isCLI(),
       isNpx: isNpx(),
@@ -246,26 +154,36 @@ async function startMCPServer(): Promise<void> {
       execPath: process.execPath,
     })
 
-    console.error('Server configuration:', config)
+    console.error('Server configuration:', serverConfig)
   }
 
   if (!shouldStart) {
-    if (config.isHttpMode) {
+    if (serverConfig.isHttpMode) {
       console.error('Running as library, server startup skipped')
     }
     return // ライブラリとして使用されている
   }
 
-  try {
-    if (config.isHttpMode) {
-      await startHttpServer(config)
-    } else {
-      await startStdioServer(config)
-    }
-  } catch (error) {
-    console.error('Server startup failed:', error)
-    process.exit(1)
-  }
+  // mcp-core のランチャーを使用してサーバーを起動
+  await launchServer({
+    server,
+    config,
+    serverName: 'VOICEVOX MCP TTS',
+    httpOptions: {
+      extraCorsHeaders: ['X-Voicevox-Speaker'],
+      onSessionInitialized: (sessionId, request) => {
+        // X-Voicevox-Speaker ヘッダーからセッションのデフォルト話者を設定
+        const speakerHeader = request.headers.get('X-Voicevox-Speaker')
+        if (speakerHeader) {
+          const parsed = Number.parseInt(speakerHeader, 10)
+          if (!Number.isNaN(parsed) && parsed >= 0) {
+            setSessionConfig(sessionId, { defaultSpeaker: parsed })
+            console.log(`Session ${sessionId} default speaker: ${parsed}`)
+          }
+        }
+      },
+    },
+  })
 }
 
 // Node.js環境での自動起動
