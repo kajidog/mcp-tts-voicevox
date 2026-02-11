@@ -9,10 +9,6 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
-    },
-    "./client": {
-      "import": "./dist/client.js",
-      "types": "./dist/client.d.ts"
     }
   },
   "bin": {
@@ -32,7 +28,7 @@
     "start:bun:http": "MCP_HTTP_MODE=true bun dist/index.js",
     "dev:bun": "NODE_ENV=development bun src/index.ts",
     "dev:bun:http": "NODE_ENV=development MCP_HTTP_MODE=true bun src/index.ts",
-    "build": "tsgo",
+    "build": "tsup",
     "build:tsc": "tsc",
     "build:clean": "rm -rf dist && pnpm build",
     "lint": "biome check .",
@@ -60,15 +56,16 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@kajidog/mcp-core": "workspace:*",
     "@kajidog/voicevox-client": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
+    "@kajidog/mcp-core": "workspace:*",
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^20.0.0",
     "@typescript/native-preview": "7.0.0-dev.20250712.1",
+    "tsup": "^8.5.0",
     "vitest": "^2.1.8",
     "tsx": "^4.19.0",
     "typescript": "^5.0.0"
