@@ -8,7 +8,8 @@
   "type": "module",
   "scripts": {
     "build": "tsgo",
-    "build:tsc": "tsc"
+    "build:tsc": "tsc",
+    "prepare": "pnpm build"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.2",

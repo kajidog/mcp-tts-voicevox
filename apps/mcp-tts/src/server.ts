@@ -46,6 +46,7 @@ const createErrorResponse = (error: unknown): CallToolResult => ({
       text: `エラー: ${error instanceof Error ? error.message : String(error)}`,
     },
   ],
+  isError: true,
 })
 
 const createSuccessResponse = (text: string): CallToolResult => ({
@@ -166,6 +167,12 @@ registerToolIfEnabled(
   {
     title: 'Ping VOICEVOX',
     description: 'Check if VOICEVOX Engine is running and reachable',
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
   },
   async (): Promise<CallToolResult> => {
     try {
@@ -190,6 +197,12 @@ registerToolIfEnabled(
     description:
       'Convert text to speech and play it. Text is split by line breaks (\\n) into separate speech units. Each line is processed as an independent audio segment.',
     inputSchema: buildSpeakInputSchema(),
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
   },
   async (
     {
@@ -246,6 +259,12 @@ registerToolIfEnabled(
   {
     title: 'Synthesize File',
     description: 'Generate an audio file and return its absolute path',
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
     inputSchema: {
       text: z
         .string()
@@ -300,6 +319,12 @@ registerToolIfEnabled(
   {
     title: 'Stop Speaker',
     description: 'Stop current audio playback',
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     inputSchema: {
       random_string: z.string().describe('Dummy parameter for no-parameter tools'),
     },
@@ -319,6 +344,12 @@ registerToolIfEnabled(
   {
     title: 'Get Speakers',
     description: 'Get a list of available speakers',
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
   },
   async (): Promise<CallToolResult> => {
     try {
@@ -342,6 +373,12 @@ registerToolIfEnabled(
   {
     title: 'Get Speaker Detail',
     description: 'Get detail of a speaker by id',
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
     inputSchema: {
       uuid: z.string().describe('Speaker UUID (speaker uuid)'),
     },
