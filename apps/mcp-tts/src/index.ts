@@ -98,8 +98,13 @@ Options:
 
   Tool Options:
   --disable-tools <tools>     Comma-separated list of tools to disable
-                              (Allowed: speak, ping_voicevox, synthesize_file,
-                               stop_speaker, get_speakers, get_speaker_detail)
+                              (Allowed: speak, speak_player, ping_voicevox,
+                               synthesize_file, stop_speaker, get_speakers,
+                               get_speaker_detail)
+
+  UI Player Options:
+  --auto-play                 Auto-play audio in UI player (default)
+  --no-auto-play              Require manual play in UI player
 
   Server Options:
   --http                      Enable HTTP server mode (remote MCP)
