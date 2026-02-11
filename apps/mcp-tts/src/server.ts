@@ -1,9 +1,9 @@
+import { getSessionConfig } from '@kajidog/mcp-core'
 import { type AudioQuery, type SpeakResult, VoicevoxClient } from '@kajidog/voicevox-client'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
 import { getConfig } from './config.js'
-import { getSessionConfig } from '@kajidog/mcp-core'
 
 // ツールハンドラーのextraパラメータ用の型定義
 interface ToolHandlerExtra {
