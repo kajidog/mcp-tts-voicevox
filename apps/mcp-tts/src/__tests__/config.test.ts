@@ -69,13 +69,13 @@ describe('config module', () => {
     })
 
     it('--disable-tools を正しくパースする', () => {
-      const result = parseCliArgs(['--disable-tools', 'speak,generate_query'])
-      expect(result.disabledTools).toEqual(['speak', 'generate_query'])
+      const result = parseCliArgs(['--disable-tools', 'speak,get_speaker_detail'])
+      expect(result.disabledTools).toEqual(['speak', 'get_speaker_detail'])
     })
 
     it('--disable-tools でスペースをトリムする', () => {
-      const result = parseCliArgs(['--disable-tools', 'speak, generate_query , stop_speaker'])
-      expect(result.disabledTools).toEqual(['speak', 'generate_query', 'stop_speaker'])
+      const result = parseCliArgs(['--disable-tools', 'speak, get_speaker_detail , stop_speaker'])
+      expect(result.disabledTools).toEqual(['speak', 'get_speaker_detail', 'stop_speaker'])
     })
 
     it('--http を正しくパースする', () => {

@@ -1,0 +1,24 @@
+{
+  "name": "@kajidog/mcp-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Core MCP server infrastructure",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsgo",
+    "build:tsc": "tsc",
+    "prepare": "pnpm build"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.2",
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "hono": "^4.7.10"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript/native-preview": "7.0.0-dev.20250712.1",
+    "typescript": "^5.0.0"
+  }
+}
