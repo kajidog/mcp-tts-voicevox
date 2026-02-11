@@ -8,9 +8,6 @@ importers:
 
   apps/mcp-tts:
     dependencies:
-      '@kajidog/player-ui':
-        specifier: workspace:*
-        version: link:../../packages/player-ui
       '@kajidog/voicevox-client':
         specifier: workspace:*
         version: link:../../packages/voicevox-client
@@ -30,6 +27,9 @@ importers:
       '@kajidog/mcp-core':
         specifier: workspace:*
         version: link:../../packages/mcp-core
+      '@kajidog/player-ui':
+        specifier: workspace:*
+        version: link:../../packages/player-ui
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.27
