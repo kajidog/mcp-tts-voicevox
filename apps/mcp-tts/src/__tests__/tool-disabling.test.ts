@@ -17,11 +17,11 @@ describe('tool disabling', () => {
 
   describe('getConfig with disabled tools', () => {
     it('VOICEVOX_DISABLED_TOOLS で複数ツールを無効化できる', () => {
-      process.env.VOICEVOX_DISABLED_TOOLS = 'speak,generate_query'
+      process.env.VOICEVOX_DISABLED_TOOLS = 'speak,get_speaker_detail'
 
       const config = getConfig([], process.env)
 
-      expect(config.disabledTools).toEqual(['speak', 'generate_query'])
+      expect(config.disabledTools).toEqual(['speak', 'get_speaker_detail'])
     })
 
     it('VOICEVOX_DISABLED_TOOLS が空の場合は空配列を返す', () => {
@@ -35,17 +35,17 @@ describe('tool disabling', () => {
     it('CLI引数 --disable-tools が環境変数を上書きする', () => {
       process.env.VOICEVOX_DISABLED_TOOLS = 'speak'
 
-      const config = getConfig(['--disable-tools', 'generate_query,stop_speaker'], process.env)
+      const config = getConfig(['--disable-tools', 'get_speaker_detail,stop_speaker'], process.env)
 
-      expect(config.disabledTools).toEqual(['generate_query', 'stop_speaker'])
+      expect(config.disabledTools).toEqual(['get_speaker_detail', 'stop_speaker'])
     })
 
     it('無効化ツール名のスペースをトリムする', () => {
-      process.env.VOICEVOX_DISABLED_TOOLS = 'speak , generate_query , stop_speaker'
+      process.env.VOICEVOX_DISABLED_TOOLS = 'speak , get_speaker_detail , stop_speaker'
 
       const config = getConfig([], process.env)
 
-      expect(config.disabledTools).toEqual(['speak', 'generate_query', 'stop_speaker'])
+      expect(config.disabledTools).toEqual(['speak', 'get_speaker_detail', 'stop_speaker'])
     })
   })
 
@@ -53,7 +53,6 @@ describe('tool disabling', () => {
     const validToolNames = [
       'speak',
       'ping_voicevox',
-      'generate_query',
       'synthesize_file',
       'stop_speaker',
       'get_speakers',

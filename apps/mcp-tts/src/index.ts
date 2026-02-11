@@ -98,7 +98,7 @@ Options:
 
   Tool Options:
   --disable-tools <tools>     Comma-separated list of tools to disable
-                              (Allowed: speak, ping_voicevox, generate_query, synthesize_file,
+                              (Allowed: speak, ping_voicevox, synthesize_file,
                                stop_speaker, get_speakers, get_speaker_detail)
 
   Server Options:
@@ -111,7 +111,7 @@ Options:
 Examples:
   npx @kajidog/mcp-tts-voicevox --url http://192.168.1.50:50021 --speaker 3
   npx @kajidog/mcp-tts-voicevox --http --port 8080
-  npx @kajidog/mcp-tts-voicevox --disable-tools generate_query,synthesize_file
+  npx @kajidog/mcp-tts-voicevox --disable-tools synthesize_file
 `)
 }
 

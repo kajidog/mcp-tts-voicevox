@@ -242,40 +242,6 @@ registerToolIfEnabled(
 )
 
 registerToolIfEnabled(
-  'generate_query',
-  {
-    title: 'Generate Query',
-    description: 'Generate a query for voice synthesis',
-    inputSchema: {
-      text: z.string().describe('Text for voice synthesis'),
-      speaker: z.number().optional().describe('Default speaker ID (optional)'),
-      speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
-    },
-  },
-  async (
-    {
-      text,
-      speaker,
-      speedScale,
-    }: {
-      text: string
-      speaker?: number
-      speedScale?: number
-    },
-    extra: ToolHandlerExtra
-  ): Promise<CallToolResult> => {
-    try {
-      // 有効な話者IDを取得（優先順位: 明示的パラメータ > セッション設定 > グローバル設定）
-      const effectiveSpeaker = getEffectiveSpeaker(speaker, extra.sessionId)
-      const query = await voicevoxClient.generateQuery(text, effectiveSpeaker, speedScale)
-      return createSuccessResponse(JSON.stringify(query))
-    } catch (error) {
-      return createErrorResponse(error)
-    }
-  }
-)
-
-registerToolIfEnabled(
   'synthesize_file',
   {
     title: 'Synthesize File',

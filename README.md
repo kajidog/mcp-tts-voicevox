@@ -138,7 +138,6 @@ The main feature callable from Claude.
 | `get_speakers` | Get list of available speakers |
 | `get_speaker_detail` | Get speaker details |
 | `stop_speaker` | Stop playback and clear queue |
-| `generate_query` | Generate speech synthesis query |
 | `synthesize_file` | Generate audio file |
 
 </details>
@@ -181,7 +180,7 @@ Restrict AI from specifying certain options.
 
 ```bash
 # Disable unnecessary tools
-export VOICEVOX_DISABLED_TOOLS=generate_query,synthesize_file
+export VOICEVOX_DISABLED_TOOLS=get_speaker_detail,synthesize_file
 ```
 
 ### Server Settings
@@ -212,7 +211,7 @@ npx @kajidog/mcp-tts-voicevox --http --port 8080
 npx @kajidog/mcp-tts-voicevox --restrict-immediate --restrict-wait-for-end
 
 # Disable tools
-npx @kajidog/mcp-tts-voicevox --disable-tools generate_query,synthesize_file
+npx @kajidog/mcp-tts-voicevox --disable-tools get_speaker_detail,synthesize_file
 ```
 
 | Argument | Description |
