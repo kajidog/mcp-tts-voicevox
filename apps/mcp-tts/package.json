@@ -35,7 +35,7 @@
     "lint:fix": "biome check --write .",
     "test": "vitest run",
     "prepare": "pnpm build",
-    "prepublishOnly": "pnpm test"
+    "prepublishOnly": "cp ../../README.md ./README.md && pnpm test"
   },
   "files": ["dist", "README.md", "LICENSE"],
   "keywords": ["voicevox", "tts", "text-to-speech", "mcp", "mcp-server"],
@@ -57,14 +57,15 @@
   },
   "dependencies": {
     "@kajidog/voicevox-client": "workspace:*",
+    "@modelcontextprotocol/ext-apps": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
     "@kajidog/mcp-core": "workspace:*",
+    "@kajidog/player-ui": "workspace:*",
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^20.0.0",
-    "@typescript/native-preview": "7.0.0-dev.20250712.1",
     "tsup": "^8.5.0",
     "vitest": "^2.1.8",
     "tsx": "^4.19.0",

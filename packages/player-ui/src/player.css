@@ -1,0 +1,787 @@
+/* VOICEVOX Player UI Styles */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #ffffff;
+  --surface: #f5f5f7;
+  --border: #e0e0e4;
+  --text: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --accent: #34c759;
+  --accent-hover: #2db84e;
+  --progress-bg: #e5e5ea;
+  --progress-fill: #34c759;
+  --btn-bg: #f0f0f5;
+  --btn-hover: #e5e5ea;
+  --panel-bg: #fafafa;
+  --tag-bg: #e8e8ed;
+  --tag-active: #34c759;
+  --tag-active-text: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1e;
+    --surface: #2c2c2e;
+    --border: #38383a;
+    --text: #f5f5f7;
+    --text-secondary: #98989d;
+    --accent: #30d158;
+    --accent-hover: #28c950;
+    --progress-bg: #3a3a3c;
+    --progress-fill: #30d158;
+    --btn-bg: #3a3a3c;
+    --btn-hover: #48484a;
+    --panel-bg: #2c2c2e;
+    --tag-bg: #3a3a3c;
+    --tag-active: #30d158;
+    --tag-active-text: #1c1c1e;
+  }
+}
+
+body {
+  padding: 0;
+  margin: 0;
+  min-height: 0;
+}
+
+.player {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+/* Speaker Header */
+.player-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.speaker-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 13px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.speaker-btn:hover {
+  background: var(--btn-hover);
+  border-color: var(--accent);
+}
+
+.speaker-icon {
+  width: 18px;
+  height: 18px;
+  fill: var(--accent);
+  flex-shrink: 0;
+}
+
+.speaker-name {
+  font-weight: 500;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.speaker-chevron {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+
+/* Speaker Panel */
+.speaker-panel {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.speaker-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.speaker-group-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 0 2px;
+}
+
+.speaker-styles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.speaker-style-btn {
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--tag-bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.speaker-style-btn:hover {
+  border-color: var(--accent);
+  background: var(--btn-hover);
+}
+
+.speaker-style-btn.active {
+  background: var(--tag-active);
+  color: var(--tag-active-text);
+  border-color: var(--tag-active);
+  font-weight: 500;
+}
+
+/* Player Text */
+.player-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+  word-break: break-word;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+/* Player Controls */
+.player-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.play-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.play-btn:hover {
+  background: var(--accent-hover);
+}
+
+.play-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.play-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* Skip (prev/next) buttons */
+.skip-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--btn-bg);
+  color: var(--text);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.skip-btn:hover {
+  background: var(--btn-hover);
+}
+
+.skip-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.skip-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.progress-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--progress-bg);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--progress-fill);
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+.progress-time {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Status and Loading */
+.status {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 20px 0;
+}
+
+.status.error {
+  color: #ff3b30;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Speaker Icon Image (used in SpeakerPanel header) */
+.speaker-icon-img {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top center;
+  flex-shrink: 0;
+}
+
+/* Speaker Group Header with Portrait */
+.speaker-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px;
+}
+
+.speaker-portrait {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top center;
+  flex-shrink: 0;
+}
+
+.speaker-portrait-sm {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top center;
+  flex-shrink: 0;
+}
+
+/* ==================== */
+/* Now Playing Row (speaker btn + text + status) */
+/* ==================== */
+
+.now-playing-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.now-playing-speaker-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 12px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+  max-width: 200px;
+}
+
+.now-playing-speaker-btn:hover {
+  background: var(--btn-hover);
+  border-color: var(--accent);
+}
+
+.now-playing-speaker-btn-icon {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--tag-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.now-playing-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 50%;
+}
+
+.now-playing-icon-fallback {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.now-playing-speaker-btn-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.now-playing-speaker-btn-chevron {
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.now-playing-speaker-btn-chevron svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+/* Now Playing text (animated area) */
+.now-playing {
+  position: relative;
+  overflow: hidden;
+  height: 22px;
+  flex: 1;
+  min-width: 0;
+}
+
+.now-playing-content {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  position: relative;
+}
+
+.now-playing-exit {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.now-playing-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Right side: time + equalizer */
+.now-playing-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.playback-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Enter/Exit animations for track change */
+.now-playing-content.enter-up {
+  animation: enterUp 0.3s ease-out;
+}
+
+.now-playing-content.enter-down {
+  animation: enterDown 0.3s ease-out;
+}
+
+.now-playing-content.exit-up {
+  animation: exitUp 0.3s ease-out forwards;
+}
+
+.now-playing-content.exit-down {
+  animation: exitDown 0.3s ease-out forwards;
+}
+
+@keyframes enterUp {
+  0% { transform: translateY(100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes enterDown {
+  0% { transform: translateY(-100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes exitUp {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-100%); opacity: 0; }
+}
+
+@keyframes exitDown {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+/* Track List Toggle Button (inside controls) */
+.track-list-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 14px;
+  border: none;
+  background: var(--btn-bg);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: auto; /* Push to right */
+}
+
+.track-list-toggle-btn:hover {
+  background: var(--btn-hover);
+  color: var(--text);
+}
+
+.track-list-toggle-btn.active {
+  background: var(--btn-hover);
+  color: var(--accent);
+}
+
+.track-counter {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==================== */
+/* Track List Accordion */
+/* ==================== */
+
+/* Track List Accordion */
+/* ==================== */
+
+.track-list-accordion {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.2s ease-out;
+}
+
+.track-list-accordion.open {
+  grid-template-rows: 1fr;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+
+.track-list-chevron {
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+.track-list-chevron.open {
+  transform: rotate(180deg);
+}
+
+.track-list-chevron svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* ==================== */
+/* Multi-Speaker Segment List */
+/* ==================== */
+
+.segment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+.segment-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: none;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.segment-item:hover {
+  background: var(--btn-hover);
+  border-color: var(--border);
+}
+
+.segment-item.active {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+.segment-item.playing {
+  border-color: var(--accent);
+}
+
+/* Segment icon (non-interactive, just display) */
+.segment-icon {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--tag-bg);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.segment-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 50%;
+}
+
+.segment-icon-fallback {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+/* Speaker name in segment list */
+.segment-speaker-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.segment-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Segment actions (right side: play btn / equalizer / spinner) */
+.segment-actions {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Segment play button (visible on hover) */
+.segment-play-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.segment-play-btn svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+
+.segment-item:hover .segment-play-btn {
+  opacity: 1;
+}
+
+/* Small spinner for per-segment resynthesizing */
+.spinner-sm {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Equalizer playing animation */
+.equalizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 16px;
+}
+
+.equalizer-bar {
+  width: 3px;
+  background: var(--accent);
+  border-radius: 1px;
+  animation: equalizer 0.4s ease-in-out infinite alternate;
+}
+
+.equalizer-bar:nth-child(1) {
+  animation-duration: 0.3s;
+}
+
+.equalizer-bar:nth-child(2) {
+  animation-duration: 0.45s;
+  animation-delay: 0.1s;
+}
+
+.equalizer-bar:nth-child(3) {
+  animation-duration: 0.35s;
+  animation-delay: 0.2s;
+}
+
+@keyframes equalizer {
+  0% { height: 20%; }
+  100% { height: 100%; }
+}
+
+/* Auto-advance toggle button */
+.auto-advance-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--btn-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.auto-advance-btn:hover {
+  background: var(--btn-hover);
+}
+
+.auto-advance-btn.active {
+  color: var(--accent);
+}
+
+.auto-advance-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}

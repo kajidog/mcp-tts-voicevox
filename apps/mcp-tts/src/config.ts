@@ -30,6 +30,9 @@ export interface ServerConfig extends BaseServerConfig {
   restrictWaitForStart: boolean
   restrictWaitForEnd: boolean
 
+  // UIプレイヤー設定
+  autoPlay: boolean
+
   // 無効化ツール
   disabledTools: string[]
 }
@@ -47,6 +50,7 @@ const defaultConfig: ServerConfig = {
   restrictImmediate: false,
   restrictWaitForStart: false,
   restrictWaitForEnd: false,
+  autoPlay: true,
   disabledTools: [],
 }
 
@@ -115,6 +119,12 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)): Partial<Se
       case '--restrict-wait-for-end':
         config.restrictWaitForEnd = true
         break
+      case '--auto-play':
+        config.autoPlay = true
+        break
+      case '--no-auto-play':
+        config.autoPlay = false
+        break
       case '--disable-tools':
         if (nextArg && !nextArg.startsWith('-')) {
           config.disabledTools = nextArg.split(',').map((t) => t.trim())
@@ -174,6 +184,10 @@ export function parseEnvVars(env: NodeJS.ProcessEnv = process.env): Partial<Serv
 
   if (env.VOICEVOX_RESTRICT_WAIT_FOR_END === 'true') {
     config.restrictWaitForEnd = true
+  }
+
+  if (env.VOICEVOX_AUTO_PLAY !== undefined) {
+    config.autoPlay = env.VOICEVOX_AUTO_PLAY !== 'false'
   }
 
   if (env.VOICEVOX_DISABLED_TOOLS) {
