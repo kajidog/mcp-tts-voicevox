@@ -1,0 +1,26 @@
+services:
+  voicevox-engine:
+    image: voicevox/voicevox_engine:cpu-ubuntu20.04-latest
+    # GPU版を使用する場合:
+    # image: voicevox/voicevox_engine:nvidia-ubuntu20.04-latest
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    ports:
+      - "50021:50021"
+    restart: unless-stopped
+
+  mcp-tts:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      VOICEVOX_URL: http://voicevox-engine:50021
+      VOICEVOX_DISABLED_TOOLS: speak
+    depends_on:
+      - voicevox-engine
+    restart: unless-stopped
