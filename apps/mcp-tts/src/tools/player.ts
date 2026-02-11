@@ -228,8 +228,9 @@ export function registerPlayerTools(deps: ToolDeps) {
       description: 'Re-synthesize audio with a different speaker. Only callable from the app UI.',
       inputSchema: {
         text: z.string().describe('Text to re-synthesize'),
-        speaker: z.number().describe('New speaker ID'),
-        speedScale: z.number().optional().describe('Playback speed'),
+        speaker: z.number().optional().describe('Speaker ID (uses server default if omitted)'),
+        speedScale: z.number().optional().describe('Playback speed (uses server default if omitted)'),
+        autoPlay: z.boolean().optional().describe('Auto-play audio when loaded (uses server config if omitted)'),
         segments: z
           .array(
             z.object({
@@ -251,29 +252,34 @@ export function registerPlayerTools(deps: ToolDeps) {
       text,
       speaker,
       speedScale,
+      autoPlay,
       segments,
     }: {
       text: string
-      speaker: number
+      speaker?: number
       speedScale?: number
+      autoPlay?: boolean
       segments?: Array<{ text: string; speaker: number }>
     }): Promise<CallToolResult> => {
       try {
-        const speed = speedScale ?? config.defaultSpeedScale
+        const effectiveSpeed = speedScale ?? config.defaultSpeedScale
+        const effectiveAutoPlay = autoPlay ?? config.autoPlay
+        const effectiveDefaultSpeaker = speaker ?? config.defaultSpeaker
 
         // マルチスピーカーモード
         if (segments && segments.length > 0) {
           const results = await Promise.all(
             segments.map(async (seg) => {
-              const audioQuery = await playerVoicevoxApi.generateQuery(seg.text, seg.speaker)
-              audioQuery.speedScale = speed
-              const audioData = await playerVoicevoxApi.synthesize(audioQuery, seg.speaker)
+              const segSpeaker = seg.speaker ?? effectiveDefaultSpeaker
+              const audioQuery = await playerVoicevoxApi.generateQuery(seg.text, segSpeaker)
+              audioQuery.speedScale = effectiveSpeed
+              const audioData = await playerVoicevoxApi.synthesize(audioQuery, segSpeaker)
               const base64Audio = Buffer.from(audioData).toString('base64')
-              const segSpeakerName = await getSpeakerName(seg.speaker)
+              const segSpeakerName = await getSpeakerName(segSpeaker)
               return {
                 audioBase64: base64Audio,
                 text: seg.text,
-                speaker: seg.speaker,
+                speaker: segSpeaker,
                 speakerName: segSpeakerName,
               }
             })
@@ -285,7 +291,7 @@ export function registerPlayerTools(deps: ToolDeps) {
                 type: 'text',
                 text: JSON.stringify({
                   segments: results,
-                  autoPlay: true,
+                  autoPlay: effectiveAutoPlay,
                 }),
               },
             ],
@@ -293,11 +299,11 @@ export function registerPlayerTools(deps: ToolDeps) {
         }
 
         // シングルスピーカーモード（既存の動作）
-        const audioQuery = await playerVoicevoxApi.generateQuery(text, speaker)
-        audioQuery.speedScale = speed
-        const audioData = await playerVoicevoxApi.synthesize(audioQuery, speaker)
+        const audioQuery = await playerVoicevoxApi.generateQuery(text, effectiveDefaultSpeaker)
+        audioQuery.speedScale = effectiveSpeed
+        const audioData = await playerVoicevoxApi.synthesize(audioQuery, effectiveDefaultSpeaker)
         const base64Audio = Buffer.from(audioData).toString('base64')
-        const speakerName = await getSpeakerName(speaker)
+        const speakerName = await getSpeakerName(effectiveDefaultSpeaker)
 
         return {
           content: [
@@ -306,9 +312,9 @@ export function registerPlayerTools(deps: ToolDeps) {
               text: JSON.stringify({
                 audioBase64: base64Audio,
                 text,
-                speaker,
+                speaker: effectiveDefaultSpeaker,
                 speakerName,
-                autoPlay: true,
+                autoPlay: effectiveAutoPlay,
               }),
             },
           ],

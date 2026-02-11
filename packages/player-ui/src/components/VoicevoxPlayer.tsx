@@ -30,15 +30,16 @@ export function VoicevoxPlayer() {
               const parsed = parseStringInput(args.text)
               const segments = parsed.map((s) => ({
                 text: s.text,
-                speaker: s.speaker ?? args.speaker ?? 1,
+                speaker: s.speaker ?? args.speaker,
               }))
 
               const result = await createdApp.callServerTool({
                 name: '_resynthesize_for_player',
                 arguments: {
                   text: args.text,
-                  speaker: segments[0]?.speaker ?? 1,
-                  speedScale: args.speedScale ?? 1.0,
+                  speaker: segments[0]?.speaker,
+                  speedScale: args.speedScale,
+                  autoPlay: args.autoPlay,
                   segments,
                 },
               })
@@ -59,8 +60,9 @@ export function VoicevoxPlayer() {
               name: '_resynthesize_for_player',
               arguments: {
                 text: args.text,
-                speaker: args.speaker ?? 1,
-                speedScale: args.speedScale ?? 1.0,
+                speaker: args.speaker,
+                speedScale: args.speedScale,
+                autoPlay: args.autoPlay,
               },
             })
             const data = extractPlayerData(result)
