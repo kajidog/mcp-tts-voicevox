@@ -11,7 +11,7 @@ COPY packages/mcp-core/package.json packages/mcp-core/
 COPY packages/player-ui/package.json packages/player-ui/
 COPY apps/mcp-tts/package.json apps/mcp-tts/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # ソースコードをコピーしてビルド
 COPY . .
@@ -34,7 +34,7 @@ COPY packages/mcp-core/package.json packages/mcp-core/
 COPY packages/player-ui/package.json packages/player-ui/
 COPY apps/mcp-tts/package.json apps/mcp-tts/
 
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # ビルド成果物をコピー
 COPY --from=base /app/packages/voicevox-client/dist packages/voicevox-client/dist

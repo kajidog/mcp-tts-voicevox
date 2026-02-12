@@ -28,14 +28,16 @@ export interface LaunchOptions {
   server: McpServer
   config: BaseServerConfig
   serverName: string
-  httpOptions?: Omit<CreateHttpAppOptions, 'server' | 'config'>
+  /** セッションごとに新しい McpServer を生成するファクトリ関数（HTTPモード用） */
+  serverFactory?: () => McpServer
+  httpOptions?: Omit<CreateHttpAppOptions, 'server' | 'config' | 'serverFactory'>
 }
 
 /**
  * HTTP サーバーを起動する
  */
 export async function startHttpServer(options: LaunchOptions): Promise<void> {
-  const { server, config, serverName, httpOptions = {} } = options
+  const { server, config, serverName, serverFactory, httpOptions = {} } = options
 
   try {
     console.error(`Starting ${serverName} HTTP server...`)
@@ -43,6 +45,7 @@ export async function startHttpServer(options: LaunchOptions): Promise<void> {
     const app = createHttpApp({
       server,
       config,
+      serverFactory,
       ...httpOptions,
     })
 

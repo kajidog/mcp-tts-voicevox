@@ -37,9 +37,9 @@ VOICEVOX を使用した MCP テキスト読み上げサーバー
 
 ### 必要なもの
 
-- Node.js 18.0.0 以上（または Bun）
-- [VOICEVOX Engine](https://voicevox.hiroshiba.jp/)（起動しておく）
-- ffplay（任意・推奨）
+- Node.js 18.0.0 以上（または Bun）**または Docker**
+- [VOICEVOX Engine](https://voicevox.hiroshiba.jp/)（起動しておく。Docker Compose に含まれています）
+- ffplay（任意・推奨。Docker の場合は不要）
 
 #### FFplay の導入
 
@@ -116,6 +116,35 @@ ffplay -version
 **3. Claude Desktop を再起動**
 
 これだけで Claude に「〇〇と喋って」と頼めば喋ってくれます！
+
+### Docker でクイックスタート
+
+Docker Compose を使えば、MCP サーバーと VOICEVOX Engine をまとめて起動できます。Node.js や VOICEVOX のインストールは不要です。
+
+**1. コンテナを起動**
+
+```bash
+docker compose up -d
+```
+
+VOICEVOX Engine と MCP サーバー（HTTP モード、ポート 3000）が起動します。
+
+**2. Claude Desktop の設定ファイルに追加（mcp-remote 使用）**
+
+```json
+{
+  "mcpServers": {
+    "tts-mcp": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3000/mcp"]
+    }
+  }
+}
+```
+
+**3. Claude Desktop を再起動**
+
+> **制限事項（Docker）:** Docker コンテナには音声デバイスがないため、`speak` ツール（サーバー側再生）はデフォルトで無効化されています。代わりに `speak_player` を使用してください。`speak_player` はクライアント側（Claude Desktop 内）で音声を再生するため、サーバーに音声デバイスがなくても動作します。詳細は [UI オーディオプレーヤー](#ui-オーディオプレーヤーmcp-apps) をご覧ください。
 
 ---
 

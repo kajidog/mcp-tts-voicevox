@@ -27,6 +27,8 @@ interface HealthCheckResponse {
 export interface CreateHttpAppOptions {
   server: McpServer
   config: BaseServerConfig
+  /** セッションごとに新しい McpServer を生成するファクトリ関数（HTTPモード用） */
+  serverFactory?: () => McpServer
   /** 追加のCORSヘッダー（例: 'X-Voicevox-Speaker'） */
   extraCorsHeaders?: string[]
   /** セッション初期化時のコールバック（ヘッダーからの設定読み取り等に使用） */
@@ -128,7 +130,7 @@ function validateHost(config: BaseServerConfig) {
  * @returns 設定済みのHonoアプリケーション
  */
 export function createHttpApp(options: CreateHttpAppOptions): Hono {
-  const { server, config, extraCorsHeaders = [], onSessionInitialized, onSessionClosed } = options
+  const { server, config, serverFactory, extraCorsHeaders = [], onSessionInitialized, onSessionClosed } = options
 
   // セッションごとのtransportを管理
   const transports: Map<string, WebStandardStreamableHTTPServerTransport> = new Map()
@@ -189,8 +191,9 @@ export function createHttpApp(options: CreateHttpAppOptions): Hono {
             }
           }
 
-          // サーバーに接続
-          await server.connect(transport)
+          // セッションごとに新しいサーバーインスタンスを使用
+          const sessionServer = serverFactory ? serverFactory() : server
+          await sessionServer.connect(transport)
 
           // リクエスト処理（parsedBodyを渡す）
           return transport.handleRequest(c.req.raw, { parsedBody: body })

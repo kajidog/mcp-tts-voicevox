@@ -10,8 +10,6 @@ services:
     #         - driver: nvidia
     #           count: 1
     #           capabilities: [gpu]
-    ports:
-      - "50021:50021"
     restart: unless-stopped
 
   mcp-tts:

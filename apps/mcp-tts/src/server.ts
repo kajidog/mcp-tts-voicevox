@@ -10,39 +10,49 @@ import type { ToolDeps } from './tools/types.js'
 // 設定を取得
 const config = getConfig()
 
-// サーバー初期化
-export const server = new McpServer({
-  name: 'MCP TTS Voicevox',
-  version: '0.6.0',
-  description: 'A Voicevox server that converts text to speech for playback and saving.',
-})
+/**
+ * McpServer を作成しツールを登録するファクトリ関数
+ * HTTPモードではセッションごとに新しいインスタンスが必要
+ */
+export function createServer(): McpServer {
+  const server = new McpServer({
+    name: 'MCP TTS Voicevox',
+    version: '0.6.1',
+    description: 'A Voicevox server that converts text to speech for playback and saving.',
+  })
 
-// Voicevoxクライアント初期化
-const voicevoxClient = new VoicevoxClient({
-  url: config.voicevoxUrl,
-  defaultSpeaker: config.defaultSpeaker,
-  defaultSpeedScale: config.defaultSpeedScale,
-  useStreaming: config.useStreaming,
-})
+  // Voicevoxクライアント初期化
+  const voicevoxClient = new VoicevoxClient({
+    url: config.voicevoxUrl,
+    defaultSpeaker: config.defaultSpeaker,
+    defaultSpeedScale: config.defaultSpeedScale,
+    useStreaming: config.useStreaming,
+  })
 
-// 共通依存オブジェクト
-const deps: ToolDeps = {
-  server,
-  voicevoxClient,
-  config,
-  disabledTools: new Set(config.disabledTools),
-  restrictions: {
-    immediate: config.restrictImmediate,
-    waitForStart: config.restrictWaitForStart,
-    waitForEnd: config.restrictWaitForEnd,
-  },
+  // 共通依存オブジェクト
+  const deps: ToolDeps = {
+    server,
+    voicevoxClient,
+    config,
+    disabledTools: new Set(config.disabledTools),
+    restrictions: {
+      immediate: config.restrictImmediate,
+      waitForStart: config.restrictWaitForStart,
+      waitForEnd: config.restrictWaitForEnd,
+    },
+  }
+
+  // ツール登録
+  registerSpeakerTools(deps)
+  registerSpeakTool(deps)
+  registerSynthesizeTool(deps)
+  registerPlayerTools(deps)
+
+  return server
 }
 
-// ツール登録
-registerSpeakerTools(deps)
-registerSpeakTool(deps)
-registerSynthesizeTool(deps)
-registerPlayerTools(deps)
+// 後方互換性のためのデフォルトインスタンス（stdio用）
+export const server = createServer()
 
 // 設定エクスポート（テスト用）
 export { config }

@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isNodejs, launchServer, setSessionConfig } from '@kajidog/mcp-core'
 import { getConfig } from './config.js'
-import { server } from './server.js'
+import { createServer, server } from './server.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -173,6 +173,7 @@ async function startMCPServer(): Promise<void> {
     server,
     config,
     serverName: 'VOICEVOX MCP TTS',
+    serverFactory: createServer,
     httpOptions: {
       extraCorsHeaders: ['X-Voicevox-Speaker'],
       onSessionInitialized: (sessionId, request) => {
