@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isNodejs, launchServer, setSessionConfig } from '@kajidog/mcp-core'
 import { getConfig } from './config.js'
-import { server } from './server.js'
+import { createServer, server } from './server.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -99,8 +99,7 @@ Options:
   Tool Options:
   --disable-tools <tools>     Comma-separated list of tools to disable
                               (Allowed: speak, speak_player, ping_voicevox,
-                               synthesize_file, stop_speaker, get_speakers,
-                               get_speaker_detail)
+                               synthesize_file, stop_speaker, get_speakers)
 
   UI Player Options:
   --auto-play                 Auto-play audio in UI player (default)
@@ -174,6 +173,7 @@ async function startMCPServer(): Promise<void> {
     server,
     config,
     serverName: 'VOICEVOX MCP TTS',
+    serverFactory: createServer,
     httpOptions: {
       extraCorsHeaders: ['X-Voicevox-Speaker'],
       onSessionInitialized: (sessionId, request) => {

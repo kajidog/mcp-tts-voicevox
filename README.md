@@ -37,9 +37,9 @@ The `speak_player` tool uses [MCP Apps](https://github.com/modelcontextprotocol/
 
 ### Requirements
 
-- Node.js 18.0.0 or higher (or [Bun](https://bun.sh/))
-- [VOICEVOX Engine](https://voicevox.hiroshiba.jp/) (must be running)
-- ffplay (optional, recommended)
+- Node.js 18.0.0 or higher (or [Bun](https://bun.sh/)) **or Docker**
+- [VOICEVOX Engine](https://voicevox.hiroshiba.jp/) (must be running; included in Docker Compose)
+- ffplay (optional, recommended — not needed with Docker)
 
 #### Installing FFplay
 
@@ -117,6 +117,35 @@ Config file location:
 
 That's it! Ask Claude to "say hello" and it will speak!
 
+### Quick Start with Docker
+
+You can run both the MCP server and VOICEVOX Engine with a single command using Docker Compose. No Node.js or VOICEVOX installation required.
+
+**1. Start the containers**
+
+```bash
+docker compose up -d
+```
+
+This starts the VOICEVOX Engine and the MCP server (HTTP mode on port 3000).
+
+**2. Add to Claude Desktop config file (using mcp-remote)**
+
+```json
+{
+  "mcpServers": {
+    "tts-mcp": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:3000/mcp"]
+    }
+  }
+}
+```
+
+**3. Restart Claude Desktop**
+
+> **Limitations (Docker):** The Docker container has no audio device, so the `speak` tool (server-side playback) is disabled by default. Use `speak_player` instead — it plays audio on the client side (in Claude Desktop) and works without any audio device on the server. See [UI Audio Player](#ui-audio-player-mcp-apps) for details.
+
 ---
 
 ## MCP Tools
@@ -157,7 +186,6 @@ The main feature callable from Claude.
 | `speak_player` | Speak with UI audio player (disable with `--disable-tools`) |
 | `ping_voicevox` | Check VOICEVOX Engine connection |
 | `get_speakers` | Get list of available speakers |
-| `get_speaker_detail` | Get speaker details |
 | `stop_speaker` | Stop playback and clear queue |
 | `synthesize_file` | Generate audio file |
 
@@ -201,7 +229,7 @@ Restrict AI from specifying certain options.
 
 ```bash
 # Disable unnecessary tools
-export VOICEVOX_DISABLED_TOOLS=get_speaker_detail,synthesize_file
+export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
 ```
 
 ### UI Player Settings
@@ -238,7 +266,7 @@ npx @kajidog/mcp-tts-voicevox --http --port 8080
 npx @kajidog/mcp-tts-voicevox --restrict-immediate --restrict-wait-for-end
 
 # Disable tools
-npx @kajidog/mcp-tts-voicevox --disable-tools get_speaker_detail,synthesize_file
+npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 ```
 
 | Argument | Description |
