@@ -157,7 +157,6 @@ The main feature callable from Claude.
 | `speak_player` | Speak with UI audio player (disable with `--disable-tools`) |
 | `ping_voicevox` | Check VOICEVOX Engine connection |
 | `get_speakers` | Get list of available speakers |
-| `get_speaker_detail` | Get speaker details |
 | `stop_speaker` | Stop playback and clear queue |
 | `synthesize_file` | Generate audio file |
 
@@ -201,7 +200,7 @@ Restrict AI from specifying certain options.
 
 ```bash
 # Disable unnecessary tools
-export VOICEVOX_DISABLED_TOOLS=get_speaker_detail,synthesize_file
+export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
 ```
 
 ### UI Player Settings
@@ -238,7 +237,7 @@ npx @kajidog/mcp-tts-voicevox --http --port 8080
 npx @kajidog/mcp-tts-voicevox --restrict-immediate --restrict-wait-for-end
 
 # Disable tools
-npx @kajidog/mcp-tts-voicevox --disable-tools get_speaker_detail,synthesize_file
+npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 ```
 
 | Argument | Description |

@@ -14,7 +14,6 @@
 |  | `output` | string | 未指定なら一時ファイル|
 | `stop_speaker` | – | – | |
 | `get_speakers` | – | – | |
-| `get_speaker_detail` | `uuid` | string | |
 
 ## シーケンス図
 

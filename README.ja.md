@@ -157,7 +157,6 @@ Claude から呼び出せるメインの機能です。
 | `speak_player` | UI 音声プレイヤー付き読み上げ（`--disable-tools` で無効化可） |
 | `ping_voicevox` | VOICEVOX Engine への接続確認 |
 | `get_speakers` | 利用可能な話者一覧を取得 |
-| `get_speaker_detail` | 話者の詳細情報を取得 |
 | `stop_speaker` | 再生停止とキューのクリア |
 | `synthesize_file` | 音声ファイルを生成 |
 
@@ -201,7 +200,7 @@ AI が特定のオプションを指定できないように制限できます�
 
 ```bash
 # 不要なツールを無効化
-export VOICEVOX_DISABLED_TOOLS=get_speaker_detail,synthesize_file
+export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
 ```
 
 ### UI プレイヤー設定
@@ -238,7 +237,7 @@ npx @kajidog/mcp-tts-voicevox --http --port 8080
 npx @kajidog/mcp-tts-voicevox --restrict-immediate --restrict-wait-for-end
 
 # ツール無効化
-npx @kajidog/mcp-tts-voicevox --disable-tools get_speaker_detail,synthesize_file
+npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 ```
 
 | 引数 | 説明 |

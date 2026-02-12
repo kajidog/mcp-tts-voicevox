@@ -50,7 +50,7 @@ Both packages use `"type": "module"` with `module: NodeNext` in tsconfig. Key co
 
 - **`index.ts`** - Entry point with runtime detection (Node.js/Bun), CLI arg parsing, auto-starts stdio or HTTP server. Reads `package.json` via `readFileSync` (no `require` for JSON).
 - **`config.ts`** - Unified config: CLI args > env vars > defaults. All VOICEVOX and server settings.
-- **`server.ts`** - MCP tool registration via `server.registerTool()`. Tools: `ping_voicevox`, `speak`, `generate_query`, `synthesize_file`, `stop_speaker`, `get_speakers`, `get_speaker_detail`. Uses `registerToolIfEnabled()` for conditional registration. Dynamic schema via `buildSpeakInputSchema()`.
+- **`server.ts`** - MCP tool registration via `server.registerTool()`. Tools: `ping_voicevox`, `speak`, `generate_query`, `synthesize_file`, `stop_speaker`, `get_speakers`. Uses `registerToolIfEnabled()` for conditional registration. Dynamic schema via `buildSpeakInputSchema()`.
 - **`http.ts`** - Hono app with CORS, Origin/Host validation (MCP 2025-11-25 spec), session management via `WebStandardStreamableHTTPServerTransport`.
 - **`stdio.ts`** - Minimal stdio transport wrapper.
 - **`session.ts`** - Per-session speaker config storage (Map-based).
