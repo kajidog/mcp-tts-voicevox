@@ -76,7 +76,11 @@ export class QueueService {
     const callbacks: QueueEventCallbacks = {
       onItemAdded: (item) => this.emitEvent(QueueEventType.ITEM_ADDED, item as QueueItem),
       onItemReady: (item) => this.handleItemReady(item),
-      onItemRemoved: (item) => this.emitEvent(QueueEventType.ITEM_REMOVED, item as QueueItem),
+      onItemRemoved: (item) => {
+        this.emitEvent(QueueEventType.ITEM_REMOVED, item as QueueItem)
+        // アイテム削除によりプリフェッチスロットが空くため、次の生成をトリガー
+        this.triggerPrefetch()
+      },
       onPlaybackStart: (item) => this.handlePlaybackStart(item),
       onPlaybackComplete: (item) => this.emitEvent(QueueEventType.ITEM_COMPLETED, item as QueueItem),
       onError: (item, error) => {
@@ -424,10 +428,8 @@ export class QueueService {
 
       const onError = (errorItem: QueueItemData, error: Error) => {
         this.prefetchManager.decrementGenerating()
+        // ERROR dispatch → removeFromQueue → onItemRemoved で triggerPrefetch される
         this.stateMachine.dispatch({ type: 'ERROR', itemId: errorItem.id, error })
-
-        // エラー時も次のプリフェッチをトリガー
-        this.triggerPrefetch()
       }
 
       // AudioGeneratorを使用して生成
