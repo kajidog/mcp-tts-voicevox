@@ -98,8 +98,9 @@ Options:
 
   Tool Options:
   --disable-tools <tools>     Comma-separated list of tools to disable
-                              (Allowed: speak, speak_player, ping_voicevox,
-                               synthesize_file, stop_speaker, get_speakers)
+                              (e.g.: speak, speak_player, ping, synthesize_file,
+                               stop_speaker, get_speakers)
+                              The "voicevox_" prefix is added automatically.
 
   UI Player Options:
   --auto-play                 Auto-play audio in UI player (default)

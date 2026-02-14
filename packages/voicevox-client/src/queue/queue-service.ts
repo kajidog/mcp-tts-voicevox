@@ -76,7 +76,11 @@ export class QueueService {
     const callbacks: QueueEventCallbacks = {
       onItemAdded: (item) => this.emitEvent(QueueEventType.ITEM_ADDED, item as QueueItem),
       onItemReady: (item) => this.handleItemReady(item),
-      onItemRemoved: (item) => this.emitEvent(QueueEventType.ITEM_REMOVED, item as QueueItem),
+      onItemRemoved: (item) => {
+        this.emitEvent(QueueEventType.ITEM_REMOVED, item as QueueItem)
+        // アイテム削除によりプリフェッチスロットが空くため、次の生成をトリガー
+        this.triggerPrefetch()
+      },
       onPlaybackStart: (item) => this.handlePlaybackStart(item),
       onPlaybackComplete: (item) => this.emitEvent(QueueEventType.ITEM_COMPLETED, item as QueueItem),
       onError: (item, error) => {
@@ -389,7 +393,16 @@ export class QueueService {
    * PrefetchManagerから生成すべきアイテムを取得し、生成を開始する
    */
   private triggerPrefetch(): void {
-    const itemsToGenerate = this.prefetchManager.getItemsToGenerate()
+    const prefetchSize = this.prefetchManager.getPrefetchSize()
+    const readyCount = this.stateMachine.getAllItems().filter((item) => item.status === QueueItemStatus.READY).length
+    const generatingCount = this.prefetchManager.getGeneratingCount()
+    const availableSlots = prefetchSize - readyCount - generatingCount
+
+    if (availableSlots <= 0) {
+      return
+    }
+
+    const itemsToGenerate = this.prefetchManager.getItemsToGenerate().slice(0, availableSlots)
 
     for (const itemId of itemsToGenerate) {
       const item = this.stateMachine.getItem(itemId)
@@ -415,10 +428,8 @@ export class QueueService {
 
       const onError = (errorItem: QueueItemData, error: Error) => {
         this.prefetchManager.decrementGenerating()
+        // ERROR dispatch → removeFromQueue → onItemRemoved で triggerPrefetch される
         this.stateMachine.dispatch({ type: 'ERROR', itemId: errorItem.id, error })
-
-        // エラー時も次のプリフェッチをトリガー
-        this.triggerPrefetch()
       }
 
       // AudioGeneratorを使用して生成
@@ -432,6 +443,8 @@ export class QueueService {
 
   private async handlePlaybackStart(item: QueueItemData): Promise<void> {
     this.emitEvent(QueueEventType.PLAYBACK_STARTED, item as QueueItem)
+    // READY -> PLAYING で先読みスロットが空くため、次の生成を進める
+    this.triggerPrefetch()
 
     // 実際の再生を開始
     const audioSource = this.getAudioSource(item)

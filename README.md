@@ -18,7 +18,7 @@ A text-to-speech MCP server using VOICEVOX
 
 ![Single track player](docs/images/single-player.png)
 
-The `speak_player` tool uses [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) to render an interactive audio player directly inside the chat. Unlike the standard `speak` tool which plays audio on the server, **audio is played on the client side (in the browser/app)** — no audio device needed on the server.
+The `voicevox_speak_player` tool uses [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) to render an interactive audio player directly inside the chat. Unlike the standard `voicevox_speak` tool which plays audio on the server, **audio is played on the client side (in the browser/app)** — no audio device needed on the server.
 
 ### Features
 
@@ -31,7 +31,7 @@ The `speak_player` tool uses [MCP Apps](https://github.com/modelcontextprotocol/
 |:---:|:---:|:---:|
 | ![Multi-speaker player](docs/images/multi-player.png) | ![Track list](docs/images/list-player.png) | ![Speaker selection](docs/images/select-player.png) |
 
-> **Note:** `speak_player` requires a host that supports MCP Apps (e.g., Claude Desktop). In hosts without MCP Apps support, the tool is not available and `speak` (server-side playback) can be used instead.
+> **Note:** `voicevox_speak_player` requires a host that supports MCP Apps (e.g., Claude Desktop). In hosts without MCP Apps support, the tool is not available and `voicevox_speak` (server-side playback) can be used instead.
 
 ## Quick Start
 
@@ -144,13 +144,13 @@ This starts the VOICEVOX Engine and the MCP server (HTTP mode on port 3000).
 
 **3. Restart Claude Desktop**
 
-> **Limitations (Docker):** The Docker container has no audio device, so the `speak` tool (server-side playback) is disabled by default. Use `speak_player` instead — it plays audio on the client side (in Claude Desktop) and works without any audio device on the server. See [UI Audio Player](#ui-audio-player-mcp-apps) for details.
+> **Limitations (Docker):** The Docker container has no audio device, so the `voicevox_speak` tool (server-side playback) is disabled by default. Use `voicevox_speak_player` instead — it plays audio on the client side (in Claude Desktop) and works without any audio device on the server. See [UI Audio Player](#ui-audio-player-mcp-apps) for details.
 
 ---
 
 ## MCP Tools
 
-### `speak` — Text-to-Speech
+### `voicevox_speak` — Text-to-Speech
 
 The main feature callable from Claude.
 
@@ -183,11 +183,11 @@ The main feature callable from Claude.
 
 | Tool | Description |
 |------|-------------|
-| `speak_player` | Speak with UI audio player (disable with `--disable-tools`) |
-| `ping_voicevox` | Check VOICEVOX Engine connection |
-| `get_speakers` | Get list of available speakers |
-| `stop_speaker` | Stop playback and clear queue |
-| `synthesize_file` | Generate audio file |
+| `voicevox_speak_player` | Speak with UI audio player (disable with `--disable-tools`) |
+| `voicevox_ping` | Check VOICEVOX Engine connection |
+| `voicevox_get_speakers` | Get list of available speakers |
+| `voicevox_stop_speaker` | Stop playback and clear queue |
+| `voicevox_synthesize_file` | Generate audio file |
 
 </details>
 

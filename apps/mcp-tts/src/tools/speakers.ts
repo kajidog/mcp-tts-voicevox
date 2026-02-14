@@ -1,5 +1,4 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import * as z from 'zod/v4'
 import { registerToolIfEnabled } from './registration.js'
 import type { ToolDeps } from './types.js'
 import { createErrorResponse, createSuccessResponse } from './utils.js'
@@ -11,7 +10,7 @@ export function registerSpeakerTools(deps: ToolDeps) {
   registerToolIfEnabled(
     server,
     disabledTools,
-    'ping_voicevox',
+    'ping',
     {
       title: 'Ping VOICEVOX',
       description: 'Check if VOICEVOX Engine is running and reachable',
@@ -55,7 +54,7 @@ export function registerSpeakerTools(deps: ToolDeps) {
     async (): Promise<CallToolResult> => {
       try {
         await voicevoxClient.clearQueue()
-        return createSuccessResponse('スピーカーを停止しました')
+        return createSuccessResponse('Speaker stopped successfully')
       } catch (error) {
         return createErrorResponse(error)
       }

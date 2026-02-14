@@ -80,16 +80,23 @@
                 <span class="speed-value" id="speed-value">1.0x</span>
             </div>
 
-            <label>待機オプション</label>
-            <div class="checkbox-group">
-                <label class="checkbox-item">
-                    <input type="checkbox" id="wait-start" />
-                    <span>再生開始を待つ</span>
-                </label>
-                <label class="checkbox-item">
-                    <input type="checkbox" id="wait-end" checked />
-                    <span>再生終了を待つ</span>
-                </label>
+            <div class="queue-only">
+                <label for="prefetch-size">プリフェッチ件数</label>
+                <input type="number" id="prefetch-size" min="1" max="20" step="1" value="2" />
+            </div>
+
+            <div class="queue-only">
+                <label>待機オプション</label>
+                <div class="checkbox-group">
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="wait-start" />
+                        <span>再生開始を待つ</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="wait-end" checked />
+                        <span>再生終了を待つ</span>
+                    </label>
+                </div>
             </div>
 
             <label class="sub-label">詳細パラメータ</label>

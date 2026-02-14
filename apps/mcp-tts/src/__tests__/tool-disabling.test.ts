@@ -50,14 +50,7 @@ describe('tool disabling', () => {
   })
 
   describe('valid tool names for disabling', () => {
-    const validToolNames = [
-      'speak',
-      'ping_voicevox',
-      'synthesize_file',
-      'stop_speaker',
-      'get_speakers',
-      'get_speaker_detail',
-    ]
+    const validToolNames = ['speak', 'ping', 'synthesize_file', 'stop_speaker', 'get_speakers', 'get_speaker_detail']
 
     it.each(validToolNames)('ツール名 "%s" を無効化できる', (toolName) => {
       const config = getConfig(['--disable-tools', toolName], {})

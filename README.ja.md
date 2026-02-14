@@ -18,7 +18,7 @@ VOICEVOX を使用した MCP テキスト読み上げサーバー
 
 ![シングルトラックプレーヤー](docs/images/single-player.png)
 
-`speak_player` ツールは [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) を使用して、チャット内にインタラクティブなオーディオプレーヤーを表示します。通常の `speak` ツールがサーバー側で音声を再生するのに対し、**音声はクライアント側（ブラウザ/アプリ内）で再生されます** — サーバーに音声デバイスは不要です。
+`voicevox_speak_player` ツールは [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) を使用して、チャット内にインタラクティブなオーディオプレーヤーを表示します。通常の `voicevox_speak` ツールがサーバー側で音声を再生するのに対し、**音声はクライアント側（ブラウザ/アプリ内）で再生されます** — サーバーに音声デバイスは不要です。
 
 ### 特徴
 
@@ -31,7 +31,7 @@ VOICEVOX を使用した MCP テキスト読み上げサーバー
 |:---:|:---:|:---:|
 | ![マルチスピーカープレーヤー](docs/images/multi-player.png) | ![トラックリスト](docs/images/list-player.png) | ![スピーカー変更](docs/images/select-player.png) |
 
-> **注意:** `speak_player` は MCP Apps 対応ホスト（Claude Desktop など）が必要です。MCP Apps 非対応のホストでは利用できないため、代わりに `speak`（サーバー側再生）を使用してください。
+> **注意:** `voicevox_speak_player` は MCP Apps 対応ホスト（Claude Desktop など）が必要です。MCP Apps 非対応のホストでは利用できないため、代わりに `voicevox_speak`（サーバー側再生）を使用してください。
 
 ## クイックスタート
 
@@ -144,13 +144,13 @@ VOICEVOX Engine と MCP サーバー（HTTP モード、ポート 3000）が起�
 
 **3. Claude Desktop を再起動**
 
-> **制限事項（Docker）:** Docker コンテナには音声デバイスがないため、`speak` ツール（サーバー側再生）はデフォルトで無効化されています。代わりに `speak_player` を使用してください。`speak_player` はクライアント側（Claude Desktop 内）で音声を再生するため、サーバーに音声デバイスがなくても動作します。詳細は [UI オーディオプレーヤー](#ui-オーディオプレーヤーmcp-apps) をご覧ください。
+> **制限事項（Docker）:** Docker コンテナには音声デバイスがないため、`voicevox_speak` ツール（サーバー側再生）はデフォルトで無効化されています。代わりに `voicevox_speak_player` を使用してください。`voicevox_speak_player` はクライアント側（Claude Desktop 内）で音声を再生するため、サーバーに音声デバイスがなくても動作します。詳細は [UI オーディオプレーヤー](#ui-オーディオプレーヤーmcp-apps) をご覧ください。
 
 ---
 
 ## MCP ツール
 
-### `speak` — テキスト読み上げ
+### `voicevox_speak` — テキスト読み上げ
 
 Claude から呼び出せるメインの機能です。
 
@@ -183,11 +183,11 @@ Claude から呼び出せるメインの機能です。
 
 | ツール | 説明 |
 |--------|------|
-| `speak_player` | UI 音声プレイヤー付き読み上げ（`--disable-tools` で無効化可） |
-| `ping_voicevox` | VOICEVOX Engine への接続確認 |
-| `get_speakers` | 利用可能な話者一覧を取得 |
-| `stop_speaker` | 再生停止とキューのクリア |
-| `synthesize_file` | 音声ファイルを生成 |
+| `voicevox_speak_player` | UI 音声プレイヤー付き読み上げ（`--disable-tools` で無効化可） |
+| `voicevox_ping` | VOICEVOX Engine への接続確認 |
+| `voicevox_get_speakers` | 利用可能な話者一覧を取得 |
+| `voicevox_stop_speaker` | 再生停止とキューのクリア |
+| `voicevox_synthesize_file` | 音声ファイルを生成 |
 
 </details>
 

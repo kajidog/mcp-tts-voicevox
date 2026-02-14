@@ -2,7 +2,32 @@ import { registerAppTool } from '@modelcontextprotocol/ext-apps/server'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
 /**
- * 条件付きツール登録（無効化されたツールは登録しない）
+ * Tool name prefix for public-facing tools.
+ * Internal tools (starting with '_') are not prefixed.
+ */
+export const TOOL_PREFIX = 'voicevox_'
+
+/**
+ * Add the tool prefix to a name.
+ * Internal tools (starting with '_') are returned as-is.
+ */
+export function addToolPrefix(name: string): string {
+  if (name.startsWith('_')) {
+    return name
+  }
+  return `${TOOL_PREFIX}${name}`
+}
+
+/**
+ * Check if a tool is disabled, accepting both prefixed and unprefixed names.
+ */
+function isToolDisabled(disabledTools: Set<string>, name: string): boolean {
+  const fullName = addToolPrefix(name)
+  return disabledTools.has(name) || disabledTools.has(fullName)
+}
+
+/**
+ * Register a tool with auto-prefixed name (disabled tools are skipped).
  */
 export function registerToolIfEnabled(
   server: McpServer,
@@ -11,11 +36,12 @@ export function registerToolIfEnabled(
   definition: any,
   handler: any
 ) {
-  if (disabledTools.has(name)) {
-    console.error(`Tool "${name}" is disabled via configuration`)
+  const fullName = addToolPrefix(name)
+  if (isToolDisabled(disabledTools, name)) {
+    console.error(`Tool "${fullName}" is disabled via configuration`)
     return
   }
-  server.registerTool(name, definition, handler)
+  server.registerTool(fullName, definition, handler)
 }
 
 export function registerAppToolIfEnabled(
@@ -25,9 +51,10 @@ export function registerAppToolIfEnabled(
   definition: any,
   handler: any
 ) {
-  if (disabledTools.has(name)) {
-    console.error(`Tool "${name}" is disabled via configuration`)
+  const fullName = addToolPrefix(name)
+  if (isToolDisabled(disabledTools, name)) {
+    console.error(`Tool "${fullName}" is disabled via configuration`)
     return
   }
-  registerAppTool(server, name, definition, handler)
+  registerAppTool(server, fullName, definition, handler)
 }

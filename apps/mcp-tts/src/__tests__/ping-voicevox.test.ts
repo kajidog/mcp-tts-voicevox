@@ -35,7 +35,7 @@ vi.mock('../config', () => ({
   }),
 }))
 
-describe('ping_voicevox tool', () => {
+describe('ping tool', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })

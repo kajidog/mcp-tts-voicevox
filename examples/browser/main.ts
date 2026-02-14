@@ -13,6 +13,7 @@ const voicevoxUrlInput = document.getElementById('voicevox-url') as HTMLInputEle
 const speakerSelect = document.getElementById('speaker') as HTMLSelectElement
 const speedInput = document.getElementById('speed') as HTMLInputElement
 const speedValue = document.getElementById('speed-value') as HTMLSpanElement
+const prefetchSizeInput = document.getElementById('prefetch-size') as HTMLInputElement
 const textArea = document.getElementById('text') as HTMLTextAreaElement
 const speakButton = document.getElementById('speak-btn') as HTMLButtonElement
 const stopButton = document.getElementById('stop-btn') as HTMLButtonElement
@@ -25,6 +26,7 @@ const waitEndCheckbox = document.getElementById('wait-end') as HTMLInputElement
 const queueCountSpan = document.getElementById('queue-count') as HTMLSpanElement
 const queueItemsDiv = document.getElementById('queue-items') as HTMLDivElement
 const reloadBtn = document.getElementById('reload-btn') as HTMLButtonElement
+const queueOnlyElements = document.querySelectorAll('.queue-only') as NodeListOf<HTMLElement>
 
 // 新規パラメータDOM要素
 const pitchInput = document.getElementById('pitch') as HTMLInputElement
@@ -153,8 +155,13 @@ function showLoading(message: string) {
  */
 async function initClient(): Promise<VoicevoxClient | null> {
   const url = voicevoxUrlInput.value.trim()
+  const prefetchSize = Number(prefetchSizeInput.value)
   if (!url) {
     showStatus('VOICEVOX Engine URLを入力してください', 'error')
+    return null
+  }
+  if (!Number.isInteger(prefetchSize) || prefetchSize <= 0) {
+    showStatus('プリフェッチ件数は1以上の整数で入力してください', 'error')
     return null
   }
 
@@ -163,6 +170,7 @@ async function initClient(): Promise<VoicevoxClient | null> {
       url,
       defaultSpeaker: 1,
       defaultSpeedScale: 1.0,
+      prefetchSize,
     })
     return client
   } catch (error) {
@@ -463,6 +471,10 @@ function setMode(immediate: boolean) {
   isImmediateMode = immediate
   modeImmediateBtn.classList.toggle('active', immediate)
   modeQueueBtn.classList.toggle('active', !immediate)
+  const showQueueOnly = !immediate
+  for (const element of queueOnlyElements) {
+    element.style.display = showQueueOnly ? '' : 'none'
+  }
 }
 
 /**
@@ -517,6 +529,10 @@ reloadBtn.addEventListener('click', async () => {
 
 // 話者選択時にキャラクタープレビューを更新
 speakerSelect.addEventListener('change', updateCharacterPreview)
+prefetchSizeInput.addEventListener('change', async () => {
+  client = null
+  await loadSpeakers()
+})
 
 // オリジンコピー
 if (copyOriginBtn) {
@@ -599,4 +615,5 @@ async function updateCharacterPreview() {
 }
 
 // 初期化
+setMode(isImmediateMode)
 loadSpeakers()

@@ -1,5 +1,5 @@
 import { VoicevoxApi } from './api.js'
-import { formatError, handleError } from './error.js'
+import { handleError } from './error.js'
 import { QueueService } from './queue/queue-service.js'
 import { QueueEventType, QueueItemStatus } from './queue/types.js'
 import type { AudioQuery, PlaybackOptions, SpeakResult, SpeechSegment, VoicevoxConfig } from './types.js'
@@ -99,6 +99,7 @@ export class VoicevoxClient {
     this.api = new VoicevoxApi(config.url)
     this.queueService = new QueueService(this.api, {
       useStreaming: config.useStreaming,
+      prefetchSize: config.prefetchSize,
     })
 
     // デフォルトで再生を開始
@@ -567,6 +568,11 @@ export class VoicevoxClient {
       new URL(config.url)
     } catch {
       throw new Error('無効なVOICEVOXのURLです')
+    }
+    if (config.prefetchSize !== undefined) {
+      if (!Number.isInteger(config.prefetchSize) || config.prefetchSize <= 0) {
+        throw new Error('prefetchSize は 1 以上の整数で指定してください')
+      }
     }
   }
 
