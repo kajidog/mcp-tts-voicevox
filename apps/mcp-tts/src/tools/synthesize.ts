@@ -62,7 +62,7 @@ export function registerSynthesizeTool(deps: ToolDeps) {
           return createSuccessResponse(filePath)
         }
 
-        throw new Error('queryパラメータとtextパラメータのどちらかを指定してください')
+        throw new Error('Either "query" or "text" parameter must be specified')
       } catch (error) {
         return createErrorResponse(error)
       }

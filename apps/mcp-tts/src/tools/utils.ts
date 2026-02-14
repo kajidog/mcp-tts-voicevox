@@ -6,7 +6,7 @@ export const createErrorResponse = (error: unknown): CallToolResult => ({
   content: [
     {
       type: 'text',
-      text: `エラー: ${error instanceof Error ? error.message : String(error)}`,
+      text: `Error: ${error instanceof Error ? error.message : String(error)}`,
     },
   ],
   isError: true,

@@ -52,7 +52,7 @@ describe('tool disabling', () => {
   describe('valid tool names for disabling', () => {
     const validToolNames = [
       'speak',
-      'ping_voicevox',
+      'ping',
       'synthesize_file',
       'stop_speaker',
       'get_speakers',

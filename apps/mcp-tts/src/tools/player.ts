@@ -127,7 +127,7 @@ export function registerPlayerTools(deps: ToolDeps) {
         const segments = parseStringInput(text)
         const firstSegment = segments[0]
         if (!firstSegment) {
-          throw new Error('テキストが空です')
+          throw new Error('Text is empty')
         }
 
         const speakerId = firstSegment.speaker ?? effectiveSpeaker

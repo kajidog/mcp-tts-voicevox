@@ -16,8 +16,8 @@ const config = getConfig()
  */
 export function createServer(): McpServer {
   const server = new McpServer({
-    name: 'MCP TTS Voicevox',
-    version: '0.6.1',
+    name: 'mcp-tts-voicevox',
+    version: '0.6.2',
     description: 'A Voicevox server that converts text to speech for playback and saving.',
   })
 
