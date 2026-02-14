@@ -18,6 +18,8 @@ export interface VoicevoxConfig {
   defaultPostPhonemeLength?: number
   /** テキスト分割時の最大文字数（デフォルト: 150） */
   maxSegmentLength?: number
+  /** 先読みする音声の最大件数（READY + GENERATING の上限、デフォルト: 2） */
+  prefetchSize?: number
   /** デフォルトの再生オプション */
   defaultPlaybackOptions?: PlaybackOptions
   /**
