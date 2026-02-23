@@ -55,6 +55,8 @@ export interface AudioQuery {
   outputStereo: boolean
   /** AquesTalk風記法によるテキスト */
   kana?: string
+  /** 句読点などの間の長さの倍率（VOICEVOX 0.14+） */
+  pauseLengthScale?: number
 }
 
 /**
@@ -175,6 +177,17 @@ export interface Speaker {
   supported_features: {
     permitted_synthesis_morphing: string
   }
+}
+
+/**
+ * ユーザー辞書単語
+ */
+export interface UserDictionaryWord {
+  surface: string
+  pronunciation: string
+  accent_type: number
+  word_type: string
+  priority: number
 }
 
 // VoicevoxError は error.ts から再エクスポートされるため削除

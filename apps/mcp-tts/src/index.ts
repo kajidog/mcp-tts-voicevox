@@ -105,6 +105,9 @@ Options:
   UI Player Options:
   --auto-play                 Auto-play audio in UI player (default)
   --no-auto-play              Require manual play in UI player
+  --player-export             Enable track export(download) in UI player (default)
+  --no-player-export          Disable track export(download) in UI player
+  --player-export-dir <dir>   Default output directory for exported tracks
 
   Server Options:
   --http                      Enable HTTP server mode (remote MCP)

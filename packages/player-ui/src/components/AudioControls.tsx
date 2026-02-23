@@ -8,6 +8,9 @@ interface AudioControlsProps {
   onEnded?: () => void
 }
 
+const iconBtnBase =
+  'flex h-9 w-9 items-center justify-center rounded-full border border-[var(--ui-border)] bg-[var(--ui-bg)] text-[var(--ui-text)] transition-colors hover:border-[var(--ui-accent)] hover:bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-bg))] disabled:cursor-not-allowed disabled:opacity-50'
+
 export function AudioControls({ audioSrc, autoPlay, onEnded }: AudioControlsProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -43,7 +46,6 @@ export function AudioControls({ audioSrc, autoPlay, onEnded }: AudioControlsProp
     }
   }, [onEnded])
 
-  // Auto-play
   useEffect(() => {
     if (autoPlay && audioRef.current) {
       audioRef.current.play().catch((e: Error) => {
@@ -77,15 +79,25 @@ export function AudioControls({ audioSrc, autoPlay, onEnded }: AudioControlsProp
 
   return (
     <>
-      <div className="player-controls">
-        <button type="button" className="play-btn" onClick={togglePlay}>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className={`${iconBtnBase} h-10 w-10 bg-[var(--ui-accent)] text-white hover:bg-[var(--ui-accent-hover)] hover:text-white`}
+          onClick={togglePlay}
+        >
           {isPlaying ? <PauseIcon /> : <PlayIcon />}
         </button>
-        <div className="progress-container">
-          <div className="progress-bar" onClick={handleProgressClick}>
-            <div className="progress-fill" style={{ width: `${progress}%` }} />
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div
+            className="h-2 cursor-pointer rounded-full bg-[var(--ui-progress-bg)]"
+            onClick={handleProgressClick}
+          >
+            <div
+              className="h-full rounded-full bg-[var(--ui-accent)] transition-[width] duration-150"
+              style={{ width: `${progress}%` }}
+            />
           </div>
-          <div className="progress-time">
+          <div className="flex items-center justify-between text-[11px] text-[var(--ui-text-secondary)]">
             <span>{formatTime(currentTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>

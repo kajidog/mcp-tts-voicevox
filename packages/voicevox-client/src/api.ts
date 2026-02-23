@@ -1,5 +1,5 @@
 import { VoicevoxError, VoicevoxErrorCode, handleError } from './error.js'
-import type { AudioQuery, Speaker } from './types.js'
+import type { AccentPhrase, AudioQuery, Speaker, UserDictionaryWord } from './types.js'
 
 export class VoicevoxApi {
   private readonly baseUrl: string
@@ -121,15 +121,109 @@ export class VoicevoxApi {
   }
 
   /**
+   * アクセント句のモーラデータ（音素長・ピッチ）を再計算
+   * UIでアクセント位置（accent整数）を変更した後、mora.pitch値を更新するために使用
+   */
+  public async updateMoraData(accentPhrases: AccentPhrase[], speaker: number): Promise<AccentPhrase[]> {
+    try {
+      return await this.makeRequest<AccentPhrase[]>(
+        'post',
+        `/mora_data?speaker=${encodeURIComponent(speaker.toString())}`,
+        accentPhrases,
+        { 'Content-Type': 'application/json' }
+      )
+    } catch (error) {
+      throw handleError('モーラデータ更新中にエラーが発生しました', error)
+    }
+  }
+
+  /**
+   * ユーザー辞書一覧を取得
+   */
+  public async getUserDictionary(): Promise<Record<string, UserDictionaryWord>> {
+    try {
+      return await this.makeRequest<Record<string, UserDictionaryWord>>('get', '/user_dict')
+    } catch (error) {
+      throw handleError('ユーザー辞書取得中にエラーが発生しました', error)
+    }
+  }
+
+  /**
+   * ユーザー辞書単語を追加
+   */
+  public async addUserDictionaryWord(input: {
+    surface: string
+    pronunciation: string
+    accentType: number
+    priority: number
+    wordType?: string
+  }): Promise<void> {
+    try {
+      const params = new URLSearchParams({
+        surface: input.surface,
+        pronunciation: input.pronunciation,
+        accent_type: input.accentType.toString(),
+        word_type: input.wordType ?? 'PROPER_NOUN',
+        priority: input.priority.toString(),
+      })
+      await this.makeRequest<string>('post', `/user_dict_word?${params.toString()}`, null, {}, 'text')
+    } catch (error) {
+      throw handleError('ユーザー辞書追加中にエラーが発生しました', error)
+    }
+  }
+
+  /**
+   * ユーザー辞書単語を更新
+   */
+  public async updateUserDictionaryWord(input: {
+    wordUuid: string
+    surface: string
+    pronunciation: string
+    accentType: number
+    priority: number
+    wordType?: string
+  }): Promise<void> {
+    try {
+      const params = new URLSearchParams({
+        surface: input.surface,
+        pronunciation: input.pronunciation,
+        accent_type: input.accentType.toString(),
+        word_type: input.wordType ?? 'PROPER_NOUN',
+        priority: input.priority.toString(),
+      })
+      await this.makeRequest<string>(
+        'put',
+        `/user_dict_word/${encodeURIComponent(input.wordUuid)}?${params.toString()}`,
+        null,
+        {},
+        'text'
+      )
+    } catch (error) {
+      throw handleError('ユーザー辞書更新中にエラーが発生しました', error)
+    }
+  }
+
+  /**
+   * ユーザー辞書単語を削除
+   */
+  public async deleteUserDictionaryWord(wordUuid: string): Promise<void> {
+    try {
+      await this.makeRequest<string>('delete', `/user_dict_word/${encodeURIComponent(wordUuid)}`, null, {}, 'text')
+    } catch (error) {
+      throw handleError('ユーザー辞書削除中にエラーが発生しました', error)
+    }
+  }
+
+  /**
    * APIリクエストを実行
    * @private
    */
   private async makeRequest<T>(
-    method: 'get' | 'post',
+    method: 'get' | 'post' | 'put' | 'delete',
     endpoint: string,
     data: any = null,
     headers: Record<string, string> = {},
-    responseType: 'json' | 'arraybuffer' = 'json'
+    responseType: 'json' | 'arraybuffer' | 'text' = 'json'
   ): Promise<T> {
     try {
       const url = `${this.baseUrl}${endpoint}`
@@ -154,6 +248,12 @@ export class VoicevoxApi {
 
       if (responseType === 'arraybuffer') {
         return (await response.arrayBuffer()) as T
+      }
+      if (responseType === 'text') {
+        return (await response.text()) as T
+      }
+      if (response.status === 204) {
+        return null as T
       }
       return (await response.json()) as T
     } catch (error) {

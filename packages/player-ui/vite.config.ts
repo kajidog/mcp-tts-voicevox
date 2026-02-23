@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { viteSingleFile } from 'vite-plugin-singlefile'
@@ -5,7 +6,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile'
 const isDevelopment = process.env.NODE_ENV === 'development'
 
 export default defineConfig({
-  plugins: [react(), viteSingleFile()],
+  plugins: [tailwindcss(), react(), viteSingleFile()],
   build: {
     sourcemap: isDevelopment ? 'inline' : undefined,
     cssMinify: !isDevelopment,

@@ -237,6 +237,8 @@ export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
 | 環境変数 | 説明 | デフォルト |
 |---------|------|-----------|
 | `VOICEVOX_AUTO_PLAY` | UI プレイヤーで自動再生 | `true` |
+| `VOICEVOX_PLAYER_EXPORT_ENABLED` | UI プレイヤーからのトラック書き出し（ダウンロード）を有効化（`false` で無効化） | `true` |
+| `VOICEVOX_PLAYER_EXPORT_DIR` | トラック書き出し先のデフォルトディレクトリ | `./voicevox-player-exports` |
 
 ### サーバー設定
 
@@ -285,6 +287,8 @@ npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 | `--restrict-wait-for-end` | waitForEnd を制限 |
 | `--disable-tools <tools>` | ツールを無効化 |
 | `--auto-play` / `--no-auto-play` | UI プレイヤーで自動再生 |
+| `--player-export` / `--no-player-export` | UI プレイヤーのトラック書き出し（ダウンロード）の有効/無効 |
+| `--player-export-dir <dir>` | トラック書き出し先のデフォルトディレクトリ |
 | `--http` | HTTP モード |
 | `--port <value>` | HTTP ポート |
 | `--host <value>` | HTTP ホスト |

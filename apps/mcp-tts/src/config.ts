@@ -4,6 +4,7 @@
  * 優先順位: CLI引数 > 環境変数 > デフォルト値
  */
 
+import { join } from 'node:path'
 import {
   type BaseServerConfig,
   defaultBaseConfig,
@@ -32,6 +33,8 @@ export interface ServerConfig extends BaseServerConfig {
 
   // UIプレイヤー設定
   autoPlay: boolean
+  playerExportEnabled: boolean
+  playerExportDir: string
 
   // 無効化ツール
   disabledTools: string[]
@@ -51,6 +54,8 @@ const defaultConfig: ServerConfig = {
   restrictWaitForStart: false,
   restrictWaitForEnd: false,
   autoPlay: true,
+  playerExportEnabled: true,
+  playerExportDir: join(process.cwd(), 'voicevox-player-exports'),
   disabledTools: [],
 }
 
@@ -125,6 +130,18 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)): Partial<Se
       case '--no-auto-play':
         config.autoPlay = false
         break
+      case '--player-export':
+        config.playerExportEnabled = true
+        break
+      case '--no-player-export':
+        config.playerExportEnabled = false
+        break
+      case '--player-export-dir':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.playerExportDir = nextArg
+          i++
+        }
+        break
       case '--disable-tools':
         if (nextArg && !nextArg.startsWith('-')) {
           config.disabledTools = nextArg.split(',').map((t) => t.trim())
@@ -188,6 +205,15 @@ export function parseEnvVars(env: NodeJS.ProcessEnv = process.env): Partial<Serv
 
   if (env.VOICEVOX_AUTO_PLAY !== undefined) {
     config.autoPlay = env.VOICEVOX_AUTO_PLAY !== 'false'
+  }
+
+  // player export は 'false' 以外を true 扱い（既存の動作を維持）
+  if (env.VOICEVOX_PLAYER_EXPORT_ENABLED !== undefined) {
+    config.playerExportEnabled = env.VOICEVOX_PLAYER_EXPORT_ENABLED !== 'false'
+  }
+
+  if (env.VOICEVOX_PLAYER_EXPORT_DIR) {
+    config.playerExportDir = env.VOICEVOX_PLAYER_EXPORT_DIR
   }
 
   if (env.VOICEVOX_DISABLED_TOOLS) {

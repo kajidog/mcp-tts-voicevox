@@ -237,6 +237,8 @@ export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `VOICEVOX_AUTO_PLAY` | Auto-play audio in UI player | `true` |
+| `VOICEVOX_PLAYER_EXPORT_ENABLED` | Enable track export(download) from UI player (`false` to disable) | `true` |
+| `VOICEVOX_PLAYER_EXPORT_DIR` | Default output directory for exported tracks | `./voicevox-player-exports` |
 
 ### Server Settings
 
@@ -285,6 +287,8 @@ npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 | `--restrict-wait-for-end` | Restrict waitForEnd |
 | `--disable-tools <tools>` | Disable tools |
 | `--auto-play` / `--no-auto-play` | Auto-play in UI player |
+| `--player-export` / `--no-player-export` | Enable/disable track export(download) in UI player |
+| `--player-export-dir <dir>` | Default output directory for exported tracks |
 | `--http` | HTTP mode |
 | `--port <value>` | HTTP port |
 | `--host <value>` | HTTP host |
