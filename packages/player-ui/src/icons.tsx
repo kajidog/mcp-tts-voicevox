@@ -1,7 +1,7 @@
 /** Play アイコン SVG */
 export function PlayIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-label="Play">
+    <svg viewBox="0 0 24 24" aria-label="Play" className="h-5 w-5 fill-current">
       <title>Play</title>
       <path d="M8 5v14l11-7z" />
     </svg>
@@ -11,7 +11,7 @@ export function PlayIcon() {
 /** Pause アイコン SVG */
 export function PauseIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-label="Pause">
+    <svg viewBox="0 0 24 24" aria-label="Pause" className="h-5 w-5 fill-current">
       <title>Pause</title>
       <path d="M6 4h4v16H6zm8 0h4v16h-4z" />
     </svg>
@@ -21,7 +21,7 @@ export function PauseIcon() {
 /** Speaker アイコン SVG */
 export function SpeakerIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-label="Speaker" className="speaker-icon">
+    <svg viewBox="0 0 24 24" aria-label="Speaker" className="h-5 w-5 fill-current">
       <title>Speaker</title>
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
     </svg>
@@ -42,7 +42,7 @@ export function EqualizerIcon() {
 /** Repeat アイコン (連続再生トグル) */
 export function RepeatIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-label="Repeat">
+    <svg viewBox="0 0 24 24" aria-label="Repeat" className="h-5 w-5 fill-current">
       <title>Repeat</title>
       <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z" />
     </svg>
@@ -52,7 +52,7 @@ export function RepeatIcon() {
 /** 次へアイコン */
 export function NextIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-label="Next">
+    <svg viewBox="0 0 24 24" aria-label="Next" className="h-5 w-5 fill-current">
       <title>Next</title>
       <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
     </svg>
@@ -62,7 +62,7 @@ export function NextIcon() {
 /** 前へアイコン */
 export function PrevIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-label="Previous">
+    <svg viewBox="0 0 24 24" aria-label="Previous" className="h-5 w-5 fill-current">
       <title>Previous</title>
       <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
     </svg>
@@ -72,7 +72,7 @@ export function PrevIcon() {
 /** Chevron Down アイコン */
 export function ChevronDownIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-label="Expand">
+    <svg viewBox="0 0 24 24" aria-label="Expand" className="h-4 w-4 fill-current">
       <title>Expand</title>
       <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
     </svg>
@@ -82,9 +82,46 @@ export function ChevronDownIcon() {
 /** Rewind to Start アイコン */
 export function RewindIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-label="Rewind">
+    <svg viewBox="0 0 24 24" aria-label="Rewind" className="h-5 w-5 fill-current">
       <title>Rewind</title>
       <path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z" />
+    </svg>
+  )
+}
+
+/** Info アイコン (詳細トグル) */
+export function InfoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-label="Info" className="h-5 w-5 fill-current">
+      <title>Info</title>
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+    </svg>
+  )
+}
+
+/** Delete アイコン (トラック削除) */
+export function DeleteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-label="Delete" className="h-4 w-4 fill-current">
+      <title>Delete</title>
+      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+    </svg>
+  )
+}
+
+/** Drag Handle アイコン (並べ替え) */
+export function DragHandleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-label="Drag" className="h-4 w-4 fill-current">
+      <title>Drag</title>
+      <circle cx="9" cy="5" r="1.5" />
+      <circle cx="15" cy="5" r="1.5" />
+      <circle cx="9" cy="10" r="1.5" />
+      <circle cx="15" cy="10" r="1.5" />
+      <circle cx="9" cy="15" r="1.5" />
+      <circle cx="15" cy="15" r="1.5" />
+      <circle cx="9" cy="20" r="1.5" />
+      <circle cx="15" cy="20" r="1.5" />
     </svg>
   )
 }

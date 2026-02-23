@@ -4,6 +4,7 @@
  * 優先順位: CLI引数 > 環境変数 > デフォルト値
  */
 
+import { join } from 'node:path'
 import {
   type BaseServerConfig,
   defaultBaseConfig,
@@ -32,6 +33,13 @@ export interface ServerConfig extends BaseServerConfig {
 
   // UIプレイヤー設定
   autoPlay: boolean
+  playerExportEnabled: boolean
+  playerExportDir: string
+  playerCacheDir: string
+  playerStateFile: string
+  playerAudioCacheEnabled: boolean
+  playerAudioCacheTtlDays: number
+  playerAudioCacheMaxMb: number
 
   // 無効化ツール
   disabledTools: string[]
@@ -51,6 +59,13 @@ const defaultConfig: ServerConfig = {
   restrictWaitForStart: false,
   restrictWaitForEnd: false,
   autoPlay: true,
+  playerExportEnabled: true,
+  playerExportDir: join(process.cwd(), 'voicevox-player-exports'),
+  playerCacheDir: join(process.cwd(), '.voicevox-player-cache'),
+  playerStateFile: join(process.cwd(), '.voicevox-player-cache', 'player-state.json'),
+  playerAudioCacheEnabled: true,
+  playerAudioCacheTtlDays: 30,
+  playerAudioCacheMaxMb: 512,
   disabledTools: [],
 }
 
@@ -125,6 +140,48 @@ export function parseCliArgs(argv: string[] = process.argv.slice(2)): Partial<Se
       case '--no-auto-play':
         config.autoPlay = false
         break
+      case '--player-export':
+        config.playerExportEnabled = true
+        break
+      case '--no-player-export':
+        config.playerExportEnabled = false
+        break
+      case '--player-export-dir':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.playerExportDir = nextArg
+          i++
+        }
+        break
+      case '--player-cache-dir':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.playerCacheDir = nextArg
+          i++
+        }
+        break
+      case '--player-state-file':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.playerStateFile = nextArg
+          i++
+        }
+        break
+      case '--player-audio-cache':
+        config.playerAudioCacheEnabled = true
+        break
+      case '--no-player-audio-cache':
+        config.playerAudioCacheEnabled = false
+        break
+      case '--player-audio-cache-ttl-days':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.playerAudioCacheTtlDays = Number(nextArg)
+          i++
+        }
+        break
+      case '--player-audio-cache-max-mb':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.playerAudioCacheMaxMb = Number(nextArg)
+          i++
+        }
+        break
       case '--disable-tools':
         if (nextArg && !nextArg.startsWith('-')) {
           config.disabledTools = nextArg.split(',').map((t) => t.trim())
@@ -190,6 +247,37 @@ export function parseEnvVars(env: NodeJS.ProcessEnv = process.env): Partial<Serv
     config.autoPlay = env.VOICEVOX_AUTO_PLAY !== 'false'
   }
 
+  // player export は 'false' 以外を true 扱い（既存の動作を維持）
+  if (env.VOICEVOX_PLAYER_EXPORT_ENABLED !== undefined) {
+    config.playerExportEnabled = env.VOICEVOX_PLAYER_EXPORT_ENABLED !== 'false'
+  }
+
+  if (env.VOICEVOX_PLAYER_EXPORT_DIR) {
+    config.playerExportDir = env.VOICEVOX_PLAYER_EXPORT_DIR
+  }
+
+  if (env.VOICEVOX_PLAYER_CACHE_DIR) {
+    config.playerCacheDir = env.VOICEVOX_PLAYER_CACHE_DIR
+  }
+
+  if (env.VOICEVOX_PLAYER_STATE_FILE) {
+    config.playerStateFile = env.VOICEVOX_PLAYER_STATE_FILE
+  }
+
+  if (env.VOICEVOX_PLAYER_AUDIO_CACHE_ENABLED !== undefined) {
+    config.playerAudioCacheEnabled = env.VOICEVOX_PLAYER_AUDIO_CACHE_ENABLED !== 'false'
+  }
+
+  if (env.VOICEVOX_PLAYER_AUDIO_CACHE_TTL_DAYS !== undefined) {
+    const ttlDays = Number(env.VOICEVOX_PLAYER_AUDIO_CACHE_TTL_DAYS)
+    if (Number.isFinite(ttlDays)) config.playerAudioCacheTtlDays = ttlDays
+  }
+
+  if (env.VOICEVOX_PLAYER_AUDIO_CACHE_MAX_MB !== undefined) {
+    const maxMb = Number(env.VOICEVOX_PLAYER_AUDIO_CACHE_MAX_MB)
+    if (Number.isFinite(maxMb)) config.playerAudioCacheMaxMb = maxMb
+  }
+
   if (env.VOICEVOX_DISABLED_TOOLS) {
     config.disabledTools = env.VOICEVOX_DISABLED_TOOLS.split(',').map((t) => t.trim())
   }
@@ -203,12 +291,19 @@ export function parseEnvVars(env: NodeJS.ProcessEnv = process.env): Partial<Serv
 export function getConfig(argv?: string[], env?: NodeJS.ProcessEnv): ServerConfig {
   const cliConfig = parseCliArgs(argv)
   const envConfig = parseEnvVars(env)
-
-  return {
+  const merged: ServerConfig = {
     ...defaultConfig,
     ...filterUndefined(envConfig),
     ...filterUndefined(cliConfig),
   }
+
+  // playerStateFile が明示指定されていない場合は、確定した cacheDir に追従させる
+  const isPlayerStateFileExplicit = envConfig.playerStateFile !== undefined || cliConfig.playerStateFile !== undefined
+  if (!isPlayerStateFileExplicit) {
+    merged.playerStateFile = join(merged.playerCacheDir, 'player-state.json')
+  }
+
+  return merged
 }
 
 // シングルトンとしてエクスポート（キャッシュ）

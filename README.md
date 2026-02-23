@@ -16,7 +16,7 @@ A text-to-speech MCP server using VOICEVOX
 
 ## UI Audio Player (MCP Apps)
 
-![Single track player](docs/images/single-player.png)
+![UI Audio Player](docs/images/player.png)
 
 The `voicevox_speak_player` tool uses [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) to render an interactive audio player directly inside the chat. Unlike the standard `voicevox_speak` tool which plays audio on the server, **audio is played on the client side (in the browser/app)** — no audio device needed on the server.
 
@@ -26,12 +26,35 @@ The `voicevox_speak_player` tool uses [MCP Apps](https://github.com/modelcontext
 - **Play/Pause controls** — Full playback controls embedded in the conversation
 - **Multi-speaker dialogue** — Sequential playback of multiple speakers in one player with track navigation
 - **Speaker switching** — Change the voice of any segment directly from the player UI
+- **Segment editing** — Adjust speed, volume, intonation, pause length, and pre/post silence per segment
+- **Accent phrase editing** — Edit accent positions and mora pitch directly in the UI
+- **Add / delete / reorder segments** — Drag-and-drop track reordering; add new segments inline
+- **WAV export** — Save all tracks as numbered WAV files and open the output folder automatically
+- **User dictionary manager** — Add, edit, and delete VOICEVOX user dictionary words with preview playback
+- **Cross-session state restore** — Player state is persisted on the server; reopening the chat restores previous tracks
 
-| Multi-speaker playback | Track list | Speaker selection |
+Export behavior by environment:
+- `Save and open` always exports WAV files. If opening the file explorer is not supported, export still succeeds and the save path is shown in the UI.
+- `Choose output folder` uses a native directory picker on Windows/macOS. On unsupported environments, this action falls back to the default export directory.
+
+| Multi-speaker playback | Track list | Segment editing |
 |:---:|:---:|:---:|
-| ![Multi-speaker player](docs/images/multi-player.png) | ![Track list](docs/images/list-player.png) | ![Speaker selection](docs/images/select-player.png) |
+| ![Multi-speaker player](docs/images/multi-player.png) | ![Track list](docs/images/list-player.png) | ![Segment editing](docs/images/edit-player.png) |
 
-> **Note:** `voicevox_speak_player` requires a host that supports MCP Apps (e.g., Claude Desktop). In hosts without MCP Apps support, the tool is not available and `voicevox_speak` (server-side playback) can be used instead.
+| Speaker selection | Dictionary manager | WAV export |
+|:---:|:---:|:---:|
+| ![Speaker selection](docs/images/select-player.png) | ![Dictionary manager](docs/images/dictionary-player.png) | ![WAV export](docs/images/export-player.png) |
+
+> **Note:** `speak_player` requires a host that supports MCP Apps (e.g., Claude Desktop). In hosts without MCP Apps support, the tool is not available and `speak` (server-side playback) can be used instead.
+
+### Player MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `speak_player` | Create a new player session and display the UI. Returns `viewUUID`. |
+| `resynthesize_player` | Update all segments for an existing player (new `viewUUID` each call). |
+| `get_player_state` | Read the current player state (paginated) for AI tuning. |
+| `open_dictionary_ui` | Open the user dictionary manager UI. |
 
 ## Quick Start
 
@@ -108,7 +131,7 @@ Config file location:
 }
 ```
 
-> 💡 Bun を使う場合は `npx` を `bunx` に置き換えるだけでOK:
+> 💡 **If using Bun**, just replace `npx` with `bunx`:
 > ```json
 > "command": "bunx", "args": ["@kajidog/mcp-tts-voicevox"]
 > ```
@@ -237,6 +260,13 @@ export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `VOICEVOX_AUTO_PLAY` | Auto-play audio in UI player | `true` |
+| `VOICEVOX_PLAYER_EXPORT_ENABLED` | Enable track export(download) from UI player (`false` to disable) | `true` |
+| `VOICEVOX_PLAYER_EXPORT_DIR` | Default output directory for exported tracks (also used as fallback when folder picker is unavailable) | `./voicevox-player-exports` |
+| `VOICEVOX_PLAYER_CACHE_DIR` | Directory for player cache files (`*.txt`) and default player state file | `./.voicevox-player-cache` |
+| `VOICEVOX_PLAYER_AUDIO_CACHE_ENABLED` | Enable persistent audio cache on disk (`false` disables disk cache writes/reads) | `true` |
+| `VOICEVOX_PLAYER_AUDIO_CACHE_TTL_DAYS` | Audio cache retention in days (`0`: disable disk cache, `-1`: no TTL cleanup) | `30` |
+| `VOICEVOX_PLAYER_AUDIO_CACHE_MAX_MB` | Audio cache size cap in MB (`0`: disable disk cache, `-1`: unlimited) | `512` |
+| `VOICEVOX_PLAYER_STATE_FILE` | Path of persisted player state JSON | `<VOICEVOX_PLAYER_CACHE_DIR>/player-state.json` |
 
 ### Server Settings
 
@@ -285,6 +315,13 @@ npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 | `--restrict-wait-for-end` | Restrict waitForEnd |
 | `--disable-tools <tools>` | Disable tools |
 | `--auto-play` / `--no-auto-play` | Auto-play in UI player |
+| `--player-export` / `--no-player-export` | Enable/disable track export(download) in UI player |
+| `--player-export-dir <dir>` | Default output directory for exported tracks |
+| `--player-cache-dir <dir>` | Player cache directory |
+| `--player-state-file <path>` | Persisted player state file path |
+| `--player-audio-cache` / `--no-player-audio-cache` | Enable/disable disk audio cache for player |
+| `--player-audio-cache-ttl-days <days>` | Audio cache retention days (`0`: disable, `-1`: no TTL cleanup) |
+| `--player-audio-cache-max-mb <mb>` | Audio cache size cap in MB (`0`: disable, `-1`: unlimited) |
 | `--http` | HTTP mode |
 | `--port <value>` | HTTP port |
 | `--host <value>` | HTTP host |

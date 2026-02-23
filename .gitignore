@@ -28,3 +28,6 @@ yarn-error.log*
 
 # 出力ディレクトリ
 /output
+
+# Player cache
+.voicevox-player-cache/

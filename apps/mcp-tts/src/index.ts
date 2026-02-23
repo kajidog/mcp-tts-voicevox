@@ -105,6 +105,15 @@ Options:
   UI Player Options:
   --auto-play                 Auto-play audio in UI player (default)
   --no-auto-play              Require manual play in UI player
+  --player-export             Enable track export(download) in UI player (default)
+  --no-player-export          Disable track export(download) in UI player
+  --player-export-dir <dir>   Default output directory for exported tracks
+  --player-cache-dir <dir>    Player cache directory
+  --player-state-file <path>  Persisted player state file path
+  --player-audio-cache        Enable disk audio cache for player (default)
+  --no-player-audio-cache     Disable disk audio cache for player
+  --player-audio-cache-ttl-days <days>  Audio cache retention days (0 disables, -1 unlimited)
+  --player-audio-cache-max-mb <mb>      Audio cache size cap in MB (0 disables, -1 unlimited)
 
   Server Options:
   --http                      Enable HTTP server mode (remote MCP)
