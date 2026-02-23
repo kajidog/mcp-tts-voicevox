@@ -61,6 +61,7 @@ export function MultiAudioPlayer({ data, app, viewUUID }: MultiAudioPlayerProps)
     reorderSegments,
     addSegment,
     exportTracks,
+    exportTracksWithDialog,
     handleApplyToSameSpeakerChange,
     handleBulkSwitchSpeakerChange,
   } = useMultiAudioPlayer({ app, data, viewUUID })
@@ -189,7 +190,7 @@ export function MultiAudioPlayer({ data, app, viewUUID }: MultiAudioPlayerProps)
             isExporting={isExporting}
             defaultExportDir={exportCapability.defaultOutputDir}
             onExportDefault={() => exportTracks()}
-            onExportWithDir={(dir) => exportTracks(dir)}
+            onExportWithDialog={exportTracksWithDialog}
             getPortrait={getPortrait}
           />
         </div>

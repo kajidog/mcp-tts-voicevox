@@ -6,6 +6,7 @@ import {
   savePlayerStateOnServer,
   previewSegmentOnServer,
   resynthesizeSegmentOnServer,
+  selectExportDirectory,
   type ExportCapability,
 } from './playerToolClient'
 import { useAddSegment } from './useAddSegment'
@@ -133,6 +134,7 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
   const [previewPlayNonce, setPreviewPlayNonce] = useState(0)
   const [isApplying, setIsApplying] = useState(false)
   const [isPreviewLoading, setIsPreviewLoading] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const currentSegment = localSegments[currentIndex]
   const audioSrcBase64 =
@@ -792,6 +794,7 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
     isExporting,
     localSegments,
     setIsExporting,
+    setExportError,
   })
 
   const currentPortrait = currentSegment ? getPortrait(currentSegment.speaker) : null
@@ -816,6 +819,7 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
     resynthesizingSet,
     exportCapability,
     isExporting,
+    exportError,
     showSpeakerPanel,
     showTrackList,
     panelMode,
@@ -848,6 +852,18 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
     reorderSegments,
     addSegment,
     exportTracks,
+    exportTracksWithDialog: useCallback(async () => {
+      try {
+        setExportError(null)
+        const dir = await selectExportDirectory(app, { defaultPath: exportCapability.defaultOutputDir })
+        if (dir) {
+          await exportTracks(dir)
+        }
+      } catch (e) {
+        console.error('[useMultiAudioPlayer] Failed to choose export directory:', e)
+        setExportError(`保存先フォルダの選択に失敗しました:\n${e instanceof Error ? e.message : String(e)}`)
+      }
+    }, [app, exportCapability.defaultOutputDir, exportTracks]),
     handleApplyToSameSpeakerChange,
     handleBulkSwitchSpeakerChange,
   }

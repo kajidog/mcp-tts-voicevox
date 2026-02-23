@@ -234,6 +234,21 @@ export async function exportTracksOnServer(
   assertNoToolError(result)
 }
 
+export async function selectExportDirectory(
+  app: App,
+  args: { defaultPath?: string }
+): Promise<string | null> {
+  const result = await app.callServerTool({
+    name: '_select_directory_for_player',
+    arguments: args,
+  })
+  assertNoToolError(result)
+  const payload = getTextPayload(result.content)
+  if (!payload) return null
+  const parsed = JSON.parse(payload) as { path?: string | null }
+  return parsed.path ?? null
+}
+
 function extractDictionaryWords(payload: string | null): DictionaryWord[] {
   if (!payload) return []
   const parsed = JSON.parse(payload) as { words?: DictionaryWord[] }

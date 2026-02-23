@@ -18,7 +18,8 @@ interface MultiAudioTrackListProps {
   isExporting: boolean
   defaultExportDir?: string
   onExportDefault: () => void
-  onExportWithDir: (dir: string) => void
+  onExportWithDialog: () => void
+  exportError?: string | null
   getPortrait: (speakerId: number) => string | null
 }
 
@@ -36,24 +37,12 @@ export function MultiAudioTrackList({
   onAddSegment,
   canExport,
   isExporting,
-  defaultExportDir,
   onExportDefault,
-  onExportWithDir,
+  onExportWithDialog,
+  exportError,
   getPortrait,
 }: MultiAudioTrackListProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null)
-  const [showExportDirForm, setShowExportDirForm] = useState(false)
-  const [exportDirInput, setExportDirInput] = useState('')
-
-  const handleExportChooseDir = useCallback(() => {
-    setExportDirInput(defaultExportDir ?? '')
-    setShowExportDirForm(true)
-  }, [defaultExportDir])
-
-  const handleExportDirConfirm = useCallback(() => {
-    setShowExportDirForm(false)
-    onExportWithDir(exportDirInput.trim() || defaultExportDir || '')
-  }, [exportDirInput, defaultExportDir, onExportWithDir])
   const [dragOverRawIndex, setDragOverRawIndex] = useState<number | null>(null)
   const [addText, setAddText] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
@@ -232,41 +221,16 @@ export function MultiAudioTrackList({
               <button
                 type="button"
                 className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-3 py-1.5 text-xs text-[var(--ui-text-secondary)] transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={handleExportChooseDir}
+                onClick={onExportWithDialog}
                 disabled={isExporting || segments.length === 0}
                 title="保存先を指定して保存"
               >
                 保存先を指定
               </button>
             </div>
-            {showExportDirForm && (
-              <div className="flex items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] p-2">
-                <input
-                  type="text"
-                  className="min-w-0 flex-1 rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-2 py-1.5 text-xs text-[var(--ui-text)] outline-none placeholder:text-[var(--ui-text-secondary)] focus-visible:border-[var(--ui-accent)]"
-                  value={exportDirInput}
-                  placeholder="保存先ディレクトリ（空欄で既定）"
-                  onChange={(e) => setExportDirInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleExportDirConfirm()
-                    if (e.key === 'Escape') setShowExportDirForm(false)
-                  }}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-3 py-1.5 text-xs font-medium text-[var(--ui-text)] transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)]"
-                  onClick={handleExportDirConfirm}
-                >
-                  保存
-                </button>
-                <button
-                  type="button"
-                  className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-3 py-1.5 text-xs text-[var(--ui-text-secondary)] transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)]"
-                  onClick={() => setShowExportDirForm(false)}
-                >
-                  ✕
-                </button>
+            {exportError && (
+              <div className="rounded-md border border-[var(--ui-danger)] bg-[color-mix(in_oklab,var(--ui-danger)_15%,var(--ui-bg))] px-3 py-2 text-xs text-[var(--ui-danger)] text-left whitespace-pre-wrap">
+                {exportError}
               </div>
             )}
           </div>

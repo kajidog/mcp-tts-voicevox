@@ -10,6 +10,7 @@ interface UseExportTracksArgs {
   isExporting: boolean
   localSegments: AudioSegment[]
   setIsExporting: Dispatch<SetStateAction<boolean>>
+  setExportError: Dispatch<SetStateAction<string | null>>
 }
 
 export function useExportTracks({
@@ -18,12 +19,14 @@ export function useExportTracks({
   isExporting,
   localSegments,
   setIsExporting,
+  setExportError,
 }: UseExportTracksArgs) {
   return useCallback(
     async (outputDir?: string) => {
       if (!exportCapability.available || isExporting || localSegments.length === 0) return
 
       setIsExporting(true)
+      setExportError(null)
       try {
         const exportSegments = localSegments
           .filter((segment) => segment.audioBase64)
@@ -44,10 +47,11 @@ export function useExportTracks({
         })
       } catch (error) {
         console.error('Failed to export tracks:', error)
+        setExportError(`エクスポートに失敗しました:\n${error instanceof Error ? error.message : String(error)}`)
       } finally {
         setIsExporting(false)
       }
     },
-    [app, exportCapability.available, isExporting, localSegments, setIsExporting]
+    [app, exportCapability.available, isExporting, localSegments, setIsExporting, setExportError]
   )
 }

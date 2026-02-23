@@ -68,22 +68,22 @@ export interface PlayerUIShared {
   ) => void
   getSessionState: (key: string) =>
     | {
-        segments: {
-          text: string
-          speaker: number
-          speakerName?: string
-          kana?: string
-          audioQuery?: AudioQuery
-          accentPhrases?: AccentPhrase[]
-          speedScale: number
-          intonationScale?: number
-          volumeScale?: number
-          prePhonemeLength?: number
-          postPhonemeLength?: number
-          pauseLengthScale?: number
-        }[]
-        updatedAt: number
-      }
+      segments: {
+        text: string
+        speaker: number
+        speakerName?: string
+        kana?: string
+        audioQuery?: AudioQuery
+        accentPhrases?: AccentPhrase[]
+        speedScale: number
+        intonationScale?: number
+        volumeScale?: number
+        prePhonemeLength?: number
+        postPhonemeLength?: number
+        pauseLengthScale?: number
+      }[]
+      updatedAt: number
+    }
     | undefined
   getSpeakerList: () => Promise<SpeakerEntry[]>
 }
@@ -97,6 +97,13 @@ const commandExistsCache = new Map<string, boolean>()
 
 function commandExists(command: string): boolean {
   if (commandExistsCache.has(command)) return commandExistsCache.get(command)!
+
+  if (process.platform === 'win32' && command === 'explorer') {
+    // Windowsのexplorer.exeはwhereコマンドで失敗することがあるため、確実に存在する前提にする
+    commandExistsCache.set(command, true)
+    return true
+  }
+
   const checkCmd = process.platform === 'win32' ? 'where' : 'which'
   const result = spawnSync(checkCmd, [command], { stdio: 'ignore' })
   const exists = result.status === 0
@@ -154,6 +161,59 @@ function openDirectoryInExplorer(directoryPath: string): boolean {
   } catch {
     return false
   }
+}
+
+function showDirectoryPicker(defaultPath?: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (process.platform === 'win32') {
+      const defaultPathB64 = defaultPath ? Buffer.from(defaultPath).toString('base64') : ''
+      const psScript = `
+        Add-Type -AssemblyName System.Windows.Forms
+        $form = New-Object System.Windows.Forms.Form
+        $form.TopMost = $true
+        $form.ShowInTaskbar = $false
+        $form.WindowState = 'Minimized'
+        $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+        $dialog.Description = "Select Export Folder"
+        ${defaultPathB64 ? `$dialog.SelectedPath = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("${defaultPathB64}"))` : ''}
+        $dialog.ShowNewFolderButton = $true
+        if ($dialog.ShowDialog($form) -eq [System.Windows.Forms.DialogResult]::OK) {
+            Write-Output $dialog.SelectedPath
+        }
+      `
+      const child = spawn('powershell', ['-NoProfile', '-Command', psScript], { stdio: ['ignore', 'pipe', 'ignore'] })
+      let output = ''
+      child.stdout.on('data', (data) => {
+        output += data.toString()
+      })
+      child.on('close', () => {
+        const path = output.trim()
+        resolve(path || null)
+      })
+    } else if (process.platform === 'darwin') {
+      const script = `on run argv
+try
+  ${defaultPath ? 'set defaultArg to item 1 of argv' : ''}
+  return POSIX path of (choose folder with prompt "Select Export Folder" ${defaultPath ? 'default location POSIX file defaultArg' : ''})
+on error
+  return ""
+end try
+end run`
+      const args = ['-e', script]
+      if (defaultPath) args.push(defaultPath)
+      const child = spawn('osascript', args, { stdio: ['ignore', 'pipe', 'ignore'] })
+      let output = ''
+      child.stdout.on('data', (data) => {
+        output += data.toString()
+      })
+      child.on('close', () => {
+        const path = output.trim()
+        resolve(path || null)
+      })
+    } else {
+      resolve(null)
+    }
+  })
 }
 
 function isKatakana(input: string): boolean {
@@ -816,7 +876,9 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
       },
     },
     async (): Promise<CallToolResult> => {
-      const available = config.playerExportEnabled && canOpenExplorer() && canWriteDirectory(config.playerExportDir)
+      // ユーザーが自由にディレクトリを選択できるようになったため、
+      // 常に（設定で許可されていれば）エクスポートボタンを有効にする
+      const available = config.playerExportEnabled
       return {
         content: [
           {
@@ -824,6 +886,41 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
             text: JSON.stringify({ available, defaultOutputDir: config.playerExportDir }),
           },
         ],
+      }
+    }
+  )
+
+  // ユーザーの保存先ディレクトリ選択（OSのダイアログを開く）
+  registerAppToolIfEnabled(
+    server,
+    disabledTools,
+    '_select_directory_for_player',
+    {
+      title: 'Select Export Directory (Player)',
+      description: 'Open a native OS directory picker dialog, to be called from the player UI.',
+      inputSchema: {
+        defaultPath: z.string().optional().describe('Default directory path to show'),
+      },
+      _meta: {
+        ui: {
+          resourceUri: playerResourceUri,
+          visibility: ['app'],
+        },
+      },
+    },
+    async ({ defaultPath }: { defaultPath?: string }): Promise<CallToolResult> => {
+      try {
+        const selected = await showDirectoryPicker(defaultPath || config.playerExportDir)
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ path: selected }),
+            },
+          ],
+        }
+      } catch (error) {
+        return createErrorResponse(error)
       }
     }
   )
@@ -867,9 +964,6 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
         if (!config.playerExportEnabled) {
           throw new Error('Track export is disabled by VOICEVOX_PLAYER_EXPORT_ENABLED=false')
         }
-        if (!canOpenExplorer()) {
-          throw new Error('File explorer is not available in this environment')
-        }
         if (!segments || segments.length === 0) {
           throw new Error('No tracks to export')
         }
@@ -877,9 +971,6 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
         // Normalize path to eliminate ../ traversal sequences before use
         const rawTarget = outputDir?.trim() || config.playerExportDir
         const targetDir = resolve(rawTarget)
-        if (!canWriteDirectory(targetDir)) {
-          throw new Error(`Cannot write to output directory: ${targetDir}`)
-        }
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
         const sessionDir = join(targetDir, `voicevox-${timestamp}`)
@@ -897,8 +988,20 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
           files.push(filePath)
         }
 
-        if (!openDirectoryInExplorer(sessionDir)) {
-          throw new Error('Failed to open file explorer')
+        if (process.platform === 'win32') {
+          // Windowsでのexplorer.exe呼び出しはClaude Desktop等の環境下で失敗しやすいため
+          // spawnSync等を介さずに単に呼び出して結果を問わない形にする
+          try {
+            const child = spawn('explorer.exe', [sessionDir], { detached: true, stdio: 'ignore' })
+            child.unref()
+          } catch (e) {
+            console.error('Failed to open explorer:', e)
+            throw new Error('Failed to open file explorer')
+          }
+        } else {
+          if (!openDirectoryInExplorer(sessionDir)) {
+            throw new Error('Failed to open file explorer')
+          }
         }
 
         return {
