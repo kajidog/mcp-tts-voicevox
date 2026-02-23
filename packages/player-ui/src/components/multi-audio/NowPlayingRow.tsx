@@ -46,7 +46,7 @@ export function NowPlayingRow({
             <img
               src={`data:image/png;base64,${currentPortrait}`}
               alt={currentSegment?.speakerName}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover object-[center_top]"
             />
           ) : (
             <span className="text-xs font-semibold text-[var(--ui-text-secondary)]">{currentSegment?.speakerName?.charAt(0) || '?'}</span>

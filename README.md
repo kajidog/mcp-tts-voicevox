@@ -16,7 +16,7 @@ A text-to-speech MCP server using VOICEVOX
 
 ## UI Audio Player (MCP Apps)
 
-![Single track player](docs/images/single-player.png)
+![UI Audio Player](docs/images/player.png)
 
 The `voicevox_speak_player` tool uses [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) to render an interactive audio player directly inside the chat. Unlike the standard `voicevox_speak` tool which plays audio on the server, **audio is played on the client side (in the browser/app)** — no audio device needed on the server.
 
@@ -26,12 +26,31 @@ The `voicevox_speak_player` tool uses [MCP Apps](https://github.com/modelcontext
 - **Play/Pause controls** — Full playback controls embedded in the conversation
 - **Multi-speaker dialogue** — Sequential playback of multiple speakers in one player with track navigation
 - **Speaker switching** — Change the voice of any segment directly from the player UI
+- **Segment editing** — Adjust speed, volume, intonation, pause length, and pre/post silence per segment
+- **Accent phrase editing** — Edit accent positions and mora pitch directly in the UI
+- **Add / delete / reorder segments** — Drag-and-drop track reordering; add new segments inline
+- **WAV export** — Save all tracks as numbered WAV files and open the output folder automatically
+- **User dictionary manager** — Add, edit, and delete VOICEVOX user dictionary words with preview playback
+- **Cross-session state restore** — Player state is persisted on the server; reopening the chat restores previous tracks
 
-| Multi-speaker playback | Track list | Speaker selection |
+| Multi-speaker playback | Track list | Segment editing |
 |:---:|:---:|:---:|
-| ![Multi-speaker player](docs/images/multi-player.png) | ![Track list](docs/images/list-player.png) | ![Speaker selection](docs/images/select-player.png) |
+| ![Multi-speaker player](docs/images/multi-player.png) | ![Track list](docs/images/list-player.png) | ![Segment editing](docs/images/edit-player.png) |
 
-> **Note:** `voicevox_speak_player` requires a host that supports MCP Apps (e.g., Claude Desktop). In hosts without MCP Apps support, the tool is not available and `voicevox_speak` (server-side playback) can be used instead.
+| Speaker selection | Dictionary manager | WAV export |
+|:---:|:---:|:---:|
+| ![Speaker selection](docs/images/select-player.png) | ![Dictionary manager](docs/images/dictionary-player.png) | ![WAV export](docs/images/export-player.png) |
+
+> **Note:** `speak_player` requires a host that supports MCP Apps (e.g., Claude Desktop). In hosts without MCP Apps support, the tool is not available and `speak` (server-side playback) can be used instead.
+
+### Player MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `speak_player` | Create a new player session and display the UI. Returns `viewUUID`. |
+| `resynthesize_player` | Update all segments for an existing player (new `viewUUID` each call). |
+| `get_player_state` | Read the current player state (paginated) for AI tuning. |
+| `open_dictionary_ui` | Open the user dictionary manager UI. |
 
 ## Quick Start
 
@@ -108,7 +127,7 @@ Config file location:
 }
 ```
 
-> 💡 Bun を使う場合は `npx` を `bunx` に置き換えるだけでOK:
+> 💡 **If using Bun**, just replace `npx` with `bunx`:
 > ```json
 > "command": "bunx", "args": ["@kajidog/mcp-tts-voicevox"]
 > ```

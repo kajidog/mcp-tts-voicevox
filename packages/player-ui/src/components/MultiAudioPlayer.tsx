@@ -187,8 +187,9 @@ export function MultiAudioPlayer({ data, app, viewUUID }: MultiAudioPlayerProps)
             onAddSegment={addSegment}
             canExport={exportCapability.available}
             isExporting={isExporting}
-            onExportDefault={() => exportTracks(false)}
-            onExportChooseDir={() => exportTracks(true)}
+            defaultExportDir={exportCapability.defaultOutputDir}
+            onExportDefault={() => exportTracks()}
+            onExportWithDir={(dir) => exportTracks(dir)}
             getPortrait={getPortrait}
           />
         </div>

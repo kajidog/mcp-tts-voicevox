@@ -16,7 +16,7 @@ VOICEVOX を使用した MCP テキスト読み上げサーバー
 
 ## UI オーディオプレーヤー（MCP Apps）
 
-![シングルトラックプレーヤー](docs/images/single-player.png)
+![再生プレーヤー](docs/images/player.png)
 
 `voicevox_speak_player` ツールは [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) を使用して、チャット内にインタラクティブなオーディオプレーヤーを表示します。通常の `voicevox_speak` ツールがサーバー側で音声を再生するのに対し、**音声はクライアント側（ブラウザ/アプリ内）で再生されます** — サーバーに音声デバイスは不要です。
 
@@ -26,12 +26,31 @@ VOICEVOX を使用した MCP テキスト読み上げサーバー
 - **再生コントロール** — 再生/一時停止などの操作が会話内に埋め込まれます
 - **マルチスピーカー対話** — 複数話者の会話を1つのプレーヤーでトラック切り替えしながら順次再生
 - **スピーカー変更** — プレーヤー UI から直接、任意のセグメントの声を変更可能
+- **セグメント編集** — 速度・音量・抑揚・間の長さ・前後無音をセグメントごとに調整
+- **アクセント句編集** — アクセント位置・モーラピッチを UI 上で直接編集
+- **トラックの追加 / 削除 / 並び替え** — ドラッグ＆ドロップによる並び替え、インラインでセグメント追加
+- **WAV エクスポート** — 全トラックを番号付き WAV ファイルとして保存し、保存先フォルダを自動で開く
+- **ユーザー辞書管理** — VOICEVOX ユーザー辞書の追加・編集・削除とプレビュー再生
+- **セッション横断の状態復元** — プレーヤー状態はサーバー側に永続化され、チャットを開き直しても復元されます
 
-| マルチスピーカー再生 | トラックリスト | スピーカー変更 |
+| 再生プレーヤー | トラックリスト | セグメント編集 |
 |:---:|:---:|:---:|
-| ![マルチスピーカープレーヤー](docs/images/multi-player.png) | ![トラックリスト](docs/images/list-player.png) | ![スピーカー変更](docs/images/select-player.png) |
+| ![再生プレーヤー](docs/images/multi-player.png) | ![トラックリスト](docs/images/list-player.png) | ![セグメント編集](docs/images/edit-player.png) |
 
-> **注意:** `voicevox_speak_player` は MCP Apps 対応ホスト（Claude Desktop など）が必要です。MCP Apps 非対応のホストでは利用できないため、代わりに `voicevox_speak`（サーバー側再生）を使用してください。
+| スピーカー変更 | ユーザー辞書 | WAV エクスポート |
+|:---:|:---:|:---:|
+| ![スピーカー変更](docs/images/select-player.png) | ![ユーザー辞書](docs/images/dictionary-player.png) | ![WAV エクスポート](docs/images/export-player.png) |
+
+> **注意:** `speak_player` は MCP Apps 対応ホスト（Claude Desktop など）が必要です。MCP Apps 非対応のホストでは利用できないため、代わりに `speak`（サーバー側再生）を使用してください。
+
+### プレーヤー MCP ツール一覧
+
+| ツール | 説明 |
+|--------|------|
+| `speak_player` | 新しいプレーヤーセッションを作成して UI を表示。`viewUUID` を返します。 |
+| `resynthesize_player` | 既存プレーヤーの全セグメントを更新します（毎回新しい `viewUUID` を生成）。 |
+| `get_player_state` | AI チューニング用にプレーヤーの現在状態をページ単位で取得します（読み取り専用）。 |
+| `open_dictionary_ui` | ユーザー辞書管理 UI を開きます。 |
 
 ## クイックスタート
 

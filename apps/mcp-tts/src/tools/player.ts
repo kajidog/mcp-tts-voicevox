@@ -1,9 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
+import { rename, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { VoicevoxApi } from '@kajidog/voicevox-client'
-import type { AudioQuery } from '@kajidog/voicevox-client'
+import type { AccentPhrase, AudioQuery, Mora } from '@kajidog/voicevox-client'
 import { RESOURCE_MIME_TYPE, registerAppResource } from '@modelcontextprotocol/ext-apps/server'
 import type { CallToolResult, ReadResourceResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
@@ -64,22 +65,6 @@ interface PlayerSegmentState {
 interface PlayerSessionState {
   segments: PlayerSegmentState[]
   updatedAt: number
-}
-
-interface Mora {
-  text: string
-  consonant?: string
-  consonant_length?: number
-  vowel: string
-  vowel_length: number
-  pitch: number
-}
-
-interface AccentPhrase {
-  moras: Mora[]
-  accent: number
-  pause_mora?: Mora
-  is_interrogative?: boolean
 }
 
 const playerSessionState = new Map<string, PlayerSessionState>()
@@ -144,17 +129,17 @@ function readCachedAudioBase64(cacheKey: string): string | null {
   return null
 }
 
-function writeCachedAudioBase64(cacheKey: string, base64: string): void {
+async function writeCachedAudioBase64(cacheKey: string, base64: string): Promise<void> {
   audioCacheMem.set(cacheKey, base64)
   const filePath = join(audioCacheDir, `${cacheKey}.txt`)
   try {
-    writeFileSync(filePath, base64, 'utf-8')
+    await writeFile(filePath, base64, 'utf-8')
   } catch (error) {
     console.warn('Warning: failed to write VOICEVOX player cache:', error)
   }
 }
 
-function saveSessionStateToDisk(): void {
+async function saveSessionStateToDisk(): Promise<void> {
   try {
     const now = Date.now()
     const validEntries = [...playerSessionState.entries()]
@@ -173,11 +158,21 @@ function saveSessionStateToDisk(): void {
       entries: validEntries,
     })
     const tempPath = `${stateFilePath}.tmp`
-    writeFileSync(tempPath, payload, 'utf-8')
-    renameSync(tempPath, stateFilePath)
+    await writeFile(tempPath, payload, 'utf-8')
+    await rename(tempPath, stateFilePath)
   } catch (error) {
     console.warn('Warning: failed to persist player state:', error)
   }
+}
+
+let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleStateSave(): void {
+  if (saveDebounceTimer !== null) clearTimeout(saveDebounceTimer)
+  saveDebounceTimer = setTimeout(() => {
+    saveDebounceTimer = null
+    saveSessionStateToDisk().catch((e) => console.warn('Warning: failed to persist player state:', e))
+  }, 300)
 }
 
 function loadSessionStateFromDisk(): void {
@@ -204,7 +199,7 @@ function loadSessionStateFromDisk(): void {
 
 function setSessionState(key: string, state: PlayerSessionState): void {
   playerSessionState.set(key, state)
-  saveSessionStateToDisk()
+  scheduleStateSave()
 }
 
 function getSessionState(viewUUID: string | undefined, sessionId: string | undefined): PlayerSessionState | undefined {
@@ -371,7 +366,7 @@ export function registerPlayerTools(deps: ToolDeps) {
 
     const audioData = await playerVoicevoxApi.synthesize(resolvedQuery, speaker)
     const base64Audio = Buffer.from(audioData).toString('base64')
-    writeCachedAudioBase64(cacheKey, base64Audio)
+    await writeCachedAudioBase64(cacheKey, base64Audio)
 
     return {
       audioBase64: base64Audio,

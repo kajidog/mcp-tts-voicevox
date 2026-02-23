@@ -56,7 +56,7 @@ export function MultiAudioControls({
 
       <button
         type="button"
-        className={`${btnBase} h-10 w-10 bg-[var(--ui-accent)] text-white hover:bg-[var(--ui-accent-hover)] hover:text-white disabled:cursor-not-allowed`}
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--ui-accent)] text-white transition-colors hover:bg-[var(--ui-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
         onClick={onTogglePlay}
         disabled={isPreviewLoading}
         title={isPreviewLoading ? 'プレビュー生成中...' : undefined}

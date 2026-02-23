@@ -1,5 +1,5 @@
 import { VoicevoxError, VoicevoxErrorCode, handleError } from './error.js'
-import type { AccentPhrase, AudioQuery, Speaker, UserDictionaryWord } from './types.js'
+import type { AccentPhrase, AudioQuery, Speaker, SpeakerInfo, UserDictionaryWord } from './types.js'
 
 export class VoicevoxApi {
   private readonly baseUrl: string
@@ -86,10 +86,10 @@ export class VoicevoxApi {
   /**
    * スピーカーの情報を取得
    */
-  public async getSpeakerInfo(uuid: string): Promise<Speaker> {
+  public async getSpeakerInfo(uuid: string): Promise<SpeakerInfo> {
     try {
       const endpoint = `/speaker_info?speaker_uuid=${encodeURIComponent(uuid)}`
-      const response = await this.makeRequest<Speaker>('get', endpoint, null, {
+      const response = await this.makeRequest<SpeakerInfo>('get', endpoint, null, {
         'Content-Type': 'application/json',
       })
 

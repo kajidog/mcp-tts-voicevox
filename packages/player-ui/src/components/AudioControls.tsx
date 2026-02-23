@@ -82,7 +82,7 @@ export function AudioControls({ audioSrc, autoPlay, onEnded }: AudioControlsProp
       <div className="flex items-center gap-2">
         <button
           type="button"
-          className={`${iconBtnBase} h-10 w-10 bg-[var(--ui-accent)] text-white hover:bg-[var(--ui-accent-hover)] hover:text-white`}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--ui-accent)] text-white transition-colors hover:bg-[var(--ui-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
           onClick={togglePlay}
         >
           {isPlaying ? <PauseIcon /> : <PlayIcon />}

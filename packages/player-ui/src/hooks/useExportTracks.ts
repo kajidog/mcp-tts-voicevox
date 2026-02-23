@@ -20,18 +20,8 @@ export function useExportTracks({
   setIsExporting,
 }: UseExportTracksArgs) {
   return useCallback(
-    async (chooseOutputDir: boolean) => {
+    async (outputDir?: string) => {
       if (!exportCapability.available || isExporting || localSegments.length === 0) return
-
-      let outputDir: string | undefined
-      if (chooseOutputDir) {
-        const input = window.prompt(
-          '保存先ディレクトリを入力してください（空欄で既定）',
-          exportCapability.defaultOutputDir ?? ''
-        )
-        if (input === null) return
-        outputDir = input.trim() || undefined
-      }
 
       setIsExporting(true)
       try {
@@ -45,21 +35,19 @@ export function useExportTracks({
           }))
 
         if (exportSegments.length === 0) {
-          window.alert('保存できる音声トラックがありません。')
           return
         }
 
         await exportTracksOnServer(app, {
-          outputDir,
+          outputDir: outputDir || undefined,
           segments: exportSegments,
         })
       } catch (error) {
         console.error('Failed to export tracks:', error)
-        window.alert('音声ファイルの保存に失敗しました。権限または保存先を確認してください。')
       } finally {
         setIsExporting(false)
       }
     },
-    [app, exportCapability.available, exportCapability.defaultOutputDir, isExporting, localSegments, setIsExporting]
+    [app, exportCapability.available, isExporting, localSegments, setIsExporting]
   )
 }

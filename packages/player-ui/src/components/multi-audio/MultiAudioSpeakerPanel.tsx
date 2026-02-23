@@ -194,7 +194,7 @@ export function MultiAudioSpeakerPanel({
                     <img
                       src={`data:image/png;base64,${selectedPortrait}`}
                       alt={selectedSpeakerName}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover object-top"
                     />
                   ) : (
                     <span className="text-xs font-semibold text-[var(--ui-text-secondary)]">
@@ -223,7 +223,7 @@ export function MultiAudioSpeakerPanel({
                             <img
                               src={`data:image/png;base64,${groupPortrait}`}
                               alt={charName}
-                              className="h-5 w-5 rounded-full border border-[var(--ui-border)] object-cover"
+                              className="h-5 w-5 rounded-full border border-[var(--ui-border)] object-cover object-[center_top]"
                             />
                           )}
                           <span>{charName}</span>
@@ -277,7 +277,7 @@ export function MultiAudioSpeakerPanel({
                     <img
                       src={`data:image/png;base64,${currentPortrait}`}
                       alt={currentSegment.speakerName ?? ''}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover object-top"
                     />
                   ) : (
                     <span className="text-xs font-semibold text-[var(--ui-text-secondary)]">

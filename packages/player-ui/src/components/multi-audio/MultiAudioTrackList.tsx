@@ -1,4 +1,4 @@
-import { type MutableRefObject, useRef, useState } from 'react'
+import { type MutableRefObject, useRef, useState, useCallback } from 'react'
 import { DragHandleIcon, DeleteIcon, EqualizerIcon, PlayIcon } from '../../icons'
 import type { AudioSegment } from '../../types'
 
@@ -16,8 +16,9 @@ interface MultiAudioTrackListProps {
   onAddSegment: (text: string, speaker: number) => void
   canExport: boolean
   isExporting: boolean
+  defaultExportDir?: string
   onExportDefault: () => void
-  onExportChooseDir: () => void
+  onExportWithDir: (dir: string) => void
   getPortrait: (speakerId: number) => string | null
 }
 
@@ -35,11 +36,24 @@ export function MultiAudioTrackList({
   onAddSegment,
   canExport,
   isExporting,
+  defaultExportDir,
   onExportDefault,
-  onExportChooseDir,
+  onExportWithDir,
   getPortrait,
 }: MultiAudioTrackListProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [showExportDirForm, setShowExportDirForm] = useState(false)
+  const [exportDirInput, setExportDirInput] = useState('')
+
+  const handleExportChooseDir = useCallback(() => {
+    setExportDirInput(defaultExportDir ?? '')
+    setShowExportDirForm(true)
+  }, [defaultExportDir])
+
+  const handleExportDirConfirm = useCallback(() => {
+    setShowExportDirForm(false)
+    onExportWithDir(exportDirInput.trim() || defaultExportDir || '')
+  }, [exportDirInput, defaultExportDir, onExportWithDir])
   const [dragOverRawIndex, setDragOverRawIndex] = useState<number | null>(null)
   const [addText, setAddText] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
@@ -146,7 +160,7 @@ export function MultiAudioTrackList({
                     <img
                       src={`data:image/png;base64,${portrait}`}
                       alt={segment.speakerName}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover object-[center_top]"
                     />
                   ) : (
                     <span className="text-xs font-semibold text-[var(--ui-text-secondary)]">{segment.speakerName?.charAt(0) || '?'}</span>
@@ -204,25 +218,57 @@ export function MultiAudioTrackList({
 
       <div className="mt-2 space-y-1.5">
         {canExport && (
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              className="flex-1 rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-3 py-1.5 text-xs text-[var(--ui-text-secondary)] transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={onExportDefault}
-              disabled={isExporting || segments.length === 0}
-              title="WAVを保存してフォルダを開く"
-            >
-              {isExporting ? '保存中...' : '保存して開く'}
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-3 py-1.5 text-xs text-[var(--ui-text-secondary)] transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={onExportChooseDir}
-              disabled={isExporting || segments.length === 0}
-              title="保存先を指定して保存"
-            >
-              保存先を指定
-            </button>
+          <div className="space-y-1.5">
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                className="flex-1 rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-3 py-1.5 text-xs text-[var(--ui-text-secondary)] transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={onExportDefault}
+                disabled={isExporting || segments.length === 0}
+                title="WAVを保存してフォルダを開く"
+              >
+                {isExporting ? '保存中...' : '保存して開く'}
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-3 py-1.5 text-xs text-[var(--ui-text-secondary)] transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={handleExportChooseDir}
+                disabled={isExporting || segments.length === 0}
+                title="保存先を指定して保存"
+              >
+                保存先を指定
+              </button>
+            </div>
+            {showExportDirForm && (
+              <div className="flex items-center gap-2 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-surface)] p-2">
+                <input
+                  type="text"
+                  className="min-w-0 flex-1 rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-2 py-1.5 text-xs text-[var(--ui-text)] outline-none placeholder:text-[var(--ui-text-secondary)] focus-visible:border-[var(--ui-accent)]"
+                  value={exportDirInput}
+                  placeholder="保存先ディレクトリ（空欄で既定）"
+                  onChange={(e) => setExportDirInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleExportDirConfirm()
+                    if (e.key === 'Escape') setShowExportDirForm(false)
+                  }}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-3 py-1.5 text-xs font-medium text-[var(--ui-text)] transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)]"
+                  onClick={handleExportDirConfirm}
+                >
+                  保存
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-3 py-1.5 text-xs text-[var(--ui-text-secondary)] transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)]"
+                  onClick={() => setShowExportDirForm(false)}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
         )}
 

@@ -1,8 +1,8 @@
 import { spawn, spawnSync } from 'node:child_process'
-import { constants, accessSync, mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import type { VoicevoxApi } from '@kajidog/voicevox-client'
-import type { AudioQuery } from '@kajidog/voicevox-client'
+import { constants, accessSync, mkdirSync } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { dirname, join, resolve } from 'node:path'
+import type { AccentPhrase, AudioQuery, Mora, VoicevoxApi } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
 import { registerAppToolIfEnabled } from './registration.js'
@@ -30,20 +30,6 @@ type SynthesizeResult = {
 }
 
 type SpeakerEntry = { id: number; name: string; characterName: string; uuid: string }
-type Mora = {
-  text: string
-  consonant?: string
-  consonant_length?: number
-  vowel: string
-  vowel_length: number
-  pitch: number
-}
-type AccentPhrase = {
-  moras: Mora[]
-  accent: number
-  pause_mora?: Mora
-  is_interrogative?: boolean
-}
 
 export interface PlayerUIShared {
   playerVoicevoxApi: VoicevoxApi
@@ -106,10 +92,16 @@ export interface PlayerUIShared {
 // Export utilities (only used by UI tools)
 // ---------------------------------------------------------------------------
 
+// Cache spawnSync results to avoid repeated blocking shell lookups
+const commandExistsCache = new Map<string, boolean>()
+
 function commandExists(command: string): boolean {
+  if (commandExistsCache.has(command)) return commandExistsCache.get(command)!
   const checkCmd = process.platform === 'win32' ? 'where' : 'which'
   const result = spawnSync(checkCmd, [command], { stdio: 'ignore' })
-  return result.status === 0
+  const exists = result.status === 0
+  commandExistsCache.set(command, exists)
+  return exists
 }
 
 function canOpenExplorer(): boolean {
@@ -122,13 +114,20 @@ function canOpenExplorer(): boolean {
   return false
 }
 
+// Check write capability without creating the directory as a side effect.
+// If the directory exists, check it is writable.
+// If it does not exist, check that the parent directory is writable.
 function canWriteDirectory(directoryPath: string): boolean {
   try {
-    mkdirSync(directoryPath, { recursive: true })
     accessSync(directoryPath, constants.W_OK)
     return true
   } catch {
-    return false
+    try {
+      accessSync(dirname(resolve(directoryPath)), constants.W_OK)
+      return true
+    } catch {
+      return false
+    }
   }
 }
 
@@ -280,7 +279,7 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
         }
 
         const info = await playerVoicevoxApi.getSpeakerInfo(speakerUuid)
-        const portrait = (info as any).portrait as string | undefined
+        const portrait = info.portrait
         if (portrait) {
           speakerIconCache.set(speakerUuid, portrait)
           return { content: [{ type: 'text', text: JSON.stringify({ portrait }) }] }
@@ -875,14 +874,16 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
           throw new Error('No tracks to export')
         }
 
-        const targetDir = outputDir?.trim() || config.playerExportDir
+        // Normalize path to eliminate ../ traversal sequences before use
+        const rawTarget = outputDir?.trim() || config.playerExportDir
+        const targetDir = resolve(rawTarget)
         if (!canWriteDirectory(targetDir)) {
           throw new Error(`Cannot write to output directory: ${targetDir}`)
         }
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
         const sessionDir = join(targetDir, `voicevox-${timestamp}`)
-        mkdirSync(sessionDir, { recursive: true })
+        await mkdir(sessionDir, { recursive: true })
 
         const files: string[] = []
         for (let i = 0; i < segments.length; i++) {
@@ -892,7 +893,7 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
           const textPart = sanitizeFilePart(seg.text, `segment-${i + 1}`)
           const fileName = `${indexPart}-${speakerPart}-${textPart}.wav`
           const filePath = join(sessionDir, fileName)
-          writeFileSync(filePath, Buffer.from(seg.audioBase64, 'base64'))
+          await writeFile(filePath, Buffer.from(seg.audioBase64, 'base64'))
           files.push(filePath)
         }
 

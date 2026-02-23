@@ -110,7 +110,7 @@ export function SpeakerPanel({
         >
           <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-[var(--ui-border)] bg-[var(--ui-tag-bg)] text-[var(--ui-accent)]">
             {headerIcon ? (
-              <img src={`data:image/png;base64,${headerIcon}`} alt="Speaker" className="h-full w-full object-cover" />
+              <img src={`data:image/png;base64,${headerIcon}`} alt="Speaker" className="h-full w-full object-cover object-[center_top]" />
             ) : (
               <svg viewBox="0 0 24 24" aria-label="Speaker" className="h-4 w-4 fill-current">
                 <title>Speaker</title>
@@ -140,7 +140,7 @@ export function SpeakerPanel({
                     <img
                       src={`data:image/png;base64,${groupPortrait}`}
                       alt={charName}
-                      className="h-5 w-5 rounded-full border border-[var(--ui-border)] object-cover"
+                      className="h-5 w-5 rounded-full border border-[var(--ui-border)] object-cover object-[center_top]"
                     />
                   )}
                   <span>{charName}</span>

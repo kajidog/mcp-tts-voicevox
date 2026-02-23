@@ -180,6 +180,22 @@ export interface Speaker {
 }
 
 /**
+ * スピーカー詳細情報 (/speaker_info レスポンス)
+ */
+export interface SpeakerStyleInfo {
+  id: number
+  icon: string
+  portrait?: string
+  voice_samples: string[]
+}
+
+export interface SpeakerInfo {
+  policy: string
+  portrait: string
+  style_infos: SpeakerStyleInfo[]
+}
+
+/**
  * ユーザー辞書単語
  */
 export interface UserDictionaryWord {
