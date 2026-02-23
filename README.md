@@ -262,6 +262,11 @@ export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
 | `VOICEVOX_AUTO_PLAY` | Auto-play audio in UI player | `true` |
 | `VOICEVOX_PLAYER_EXPORT_ENABLED` | Enable track export(download) from UI player (`false` to disable) | `true` |
 | `VOICEVOX_PLAYER_EXPORT_DIR` | Default output directory for exported tracks (also used as fallback when folder picker is unavailable) | `./voicevox-player-exports` |
+| `VOICEVOX_PLAYER_CACHE_DIR` | Directory for player cache files (`*.txt`) and default player state file | `./.voicevox-player-cache` |
+| `VOICEVOX_PLAYER_AUDIO_CACHE_ENABLED` | Enable persistent audio cache on disk (`false` disables disk cache writes/reads) | `true` |
+| `VOICEVOX_PLAYER_AUDIO_CACHE_TTL_DAYS` | Audio cache retention in days (`0`: disable disk cache, `-1`: no TTL cleanup) | `30` |
+| `VOICEVOX_PLAYER_AUDIO_CACHE_MAX_MB` | Audio cache size cap in MB (`0`: disable disk cache, `-1`: unlimited) | `512` |
+| `VOICEVOX_PLAYER_STATE_FILE` | Path of persisted player state JSON | `<VOICEVOX_PLAYER_CACHE_DIR>/player-state.json` |
 
 ### Server Settings
 
@@ -312,6 +317,11 @@ npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 | `--auto-play` / `--no-auto-play` | Auto-play in UI player |
 | `--player-export` / `--no-player-export` | Enable/disable track export(download) in UI player |
 | `--player-export-dir <dir>` | Default output directory for exported tracks |
+| `--player-cache-dir <dir>` | Player cache directory |
+| `--player-state-file <path>` | Persisted player state file path |
+| `--player-audio-cache` / `--no-player-audio-cache` | Enable/disable disk audio cache for player |
+| `--player-audio-cache-ttl-days <days>` | Audio cache retention days (`0`: disable, `-1`: no TTL cleanup) |
+| `--player-audio-cache-max-mb <mb>` | Audio cache size cap in MB (`0`: disable, `-1`: unlimited) |
 | `--http` | HTTP mode |
 | `--port <value>` | HTTP port |
 | `--host <value>` | HTTP host |

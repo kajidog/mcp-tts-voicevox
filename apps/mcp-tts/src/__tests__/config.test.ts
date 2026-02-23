@@ -68,6 +68,11 @@ describe('config module', () => {
       expect(result.playerExportDir).toBe('/tmp/my-exports')
     })
 
+    it('--player-state-file を正しくパースする', () => {
+      const result = parseCliArgs(['--player-state-file', '/tmp/player-state.json'])
+      expect(result.playerStateFile).toBe('/tmp/player-state.json')
+    })
+
     it('--restrict-immediate を正しくパースする', () => {
       const result = parseCliArgs(['--restrict-immediate'])
       expect(result.restrictImmediate).toBe(true)
@@ -201,6 +206,11 @@ describe('config module', () => {
       expect(result.playerExportDir).toBe('/tmp/exports')
     })
 
+    it('VOICEVOX_PLAYER_STATE_FILE を正しく読み込む', () => {
+      const result = parseEnvVars({ VOICEVOX_PLAYER_STATE_FILE: '/tmp/player-state.json' })
+      expect(result.playerStateFile).toBe('/tmp/player-state.json')
+    })
+
     it('VOICEVOX_DISABLED_TOOLS を正しく読み込む', () => {
       const result = parseEnvVars({ VOICEVOX_DISABLED_TOOLS: 'speak,generate_query' })
       expect(result.disabledTools).toEqual(['speak', 'generate_query'])
@@ -240,6 +250,8 @@ describe('config module', () => {
       expect(result.restrictWaitForEnd).toBe(false)
       expect(result.playerExportEnabled).toBe(true)
       expect(result.playerExportDir).toContain('voicevox-player-exports')
+      expect(result.playerCacheDir).toContain('.voicevox-player-cache')
+      expect(result.playerStateFile).toContain('.voicevox-player-cache/player-state.json')
       expect(result.disabledTools).toEqual([])
       expect(result.httpMode).toBe(false)
       expect(result.httpPort).toBe(3000)
@@ -277,6 +289,18 @@ describe('config module', () => {
       })
       expect(result.playerExportEnabled).toBe(false)
       expect(result.playerExportDir).toBe('/tmp/cli-exports')
+    })
+
+    it('player state file 未指定時は player cache dir に追従する', () => {
+      const result = getConfig(['--player-cache-dir', '/tmp/cache-dir'], {})
+      expect(result.playerCacheDir).toBe('/tmp/cache-dir')
+      expect(result.playerStateFile).toBe('/tmp/cache-dir/player-state.json')
+    })
+
+    it('player state file 指定時は player cache dir より優先する', () => {
+      const result = getConfig(['--player-cache-dir', '/tmp/cache-dir', '--player-state-file', '/tmp/state.json'], {})
+      expect(result.playerCacheDir).toBe('/tmp/cache-dir')
+      expect(result.playerStateFile).toBe('/tmp/state.json')
     })
 
     it('優先順位: CLI > ENV > デフォルト の順に設定される', () => {

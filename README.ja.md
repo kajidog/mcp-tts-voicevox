@@ -262,6 +262,11 @@ export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
 | `VOICEVOX_AUTO_PLAY` | UI プレイヤーで自動再生 | `true` |
 | `VOICEVOX_PLAYER_EXPORT_ENABLED` | UI プレイヤーからのトラック書き出し（ダウンロード）を有効化（`false` で無効化） | `true` |
 | `VOICEVOX_PLAYER_EXPORT_DIR` | トラック書き出し先のデフォルトディレクトリ（フォルダ選択非対応環境でのフォールバック先としても使用） | `./voicevox-player-exports` |
+| `VOICEVOX_PLAYER_CACHE_DIR` | プレーヤーのキャッシュファイル（`*.txt`）と状態ファイルの既定保存先 | `./.voicevox-player-cache` |
+| `VOICEVOX_PLAYER_AUDIO_CACHE_ENABLED` | 音声キャッシュのディスク永続化を有効化（`false` でディスク保存/読み込みを無効化） | `true` |
+| `VOICEVOX_PLAYER_AUDIO_CACHE_TTL_DAYS` | 音声キャッシュ保持日数（`0`: ディスクキャッシュ無効、`-1`: 期限削除なし） | `30` |
+| `VOICEVOX_PLAYER_AUDIO_CACHE_MAX_MB` | 音声キャッシュ上限サイズ MB（`0`: ディスクキャッシュ無効、`-1`: 無制限） | `512` |
+| `VOICEVOX_PLAYER_STATE_FILE` | プレーヤー状態 JSON の保存パス | `<VOICEVOX_PLAYER_CACHE_DIR>/player-state.json` |
 
 ### サーバー設定
 
@@ -312,6 +317,11 @@ npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 | `--auto-play` / `--no-auto-play` | UI プレイヤーで自動再生 |
 | `--player-export` / `--no-player-export` | UI プレイヤーのトラック書き出し（ダウンロード）の有効/無効 |
 | `--player-export-dir <dir>` | トラック書き出し先のデフォルトディレクトリ |
+| `--player-cache-dir <dir>` | プレーヤーキャッシュディレクトリ |
+| `--player-state-file <path>` | プレーヤー状態ファイルの保存パス |
+| `--player-audio-cache` / `--no-player-audio-cache` | プレーヤー音声のディスクキャッシュ有効/無効 |
+| `--player-audio-cache-ttl-days <days>` | 音声キャッシュ保持日数（`0`: 無効、`-1`: 期限削除なし） |
+| `--player-audio-cache-max-mb <mb>` | 音声キャッシュ上限サイズMB（`0`: 無効、`-1`: 無制限） |
 | `--http` | HTTP モード |
 | `--port <value>` | HTTP ポート |
 | `--host <value>` | HTTP ホスト |
