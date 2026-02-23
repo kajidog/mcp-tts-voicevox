@@ -41,10 +41,13 @@ export function useExportTracks({
           return
         }
 
-        await exportTracksOnServer(app, {
+        const result = await exportTracksOnServer(app, {
           outputDir: outputDir || undefined,
           segments: exportSegments,
         })
+        if (typeof result?.warning === 'string' && result.warning.length > 0) {
+          setExportError(result.warning)
+        }
       } catch (error) {
         console.error('Failed to export tracks:', error)
         setExportError(`エクスポートに失敗しました:\n${error instanceof Error ? error.message : String(error)}`)

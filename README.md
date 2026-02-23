@@ -33,6 +33,10 @@ The `voicevox_speak_player` tool uses [MCP Apps](https://github.com/modelcontext
 - **User dictionary manager** — Add, edit, and delete VOICEVOX user dictionary words with preview playback
 - **Cross-session state restore** — Player state is persisted on the server; reopening the chat restores previous tracks
 
+Export behavior by environment:
+- `Save and open` always exports WAV files. If opening the file explorer is not supported, export still succeeds and the save path is shown in the UI.
+- `Choose output folder` uses a native directory picker on Windows/macOS. On unsupported environments, this action falls back to the default export directory.
+
 | Multi-speaker playback | Track list | Segment editing |
 |:---:|:---:|:---:|
 | ![Multi-speaker player](docs/images/multi-player.png) | ![Track list](docs/images/list-player.png) | ![Segment editing](docs/images/edit-player.png) |
@@ -257,7 +261,7 @@ export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
 |----------|-------------|---------|
 | `VOICEVOX_AUTO_PLAY` | Auto-play audio in UI player | `true` |
 | `VOICEVOX_PLAYER_EXPORT_ENABLED` | Enable track export(download) from UI player (`false` to disable) | `true` |
-| `VOICEVOX_PLAYER_EXPORT_DIR` | Default output directory for exported tracks | `./voicevox-player-exports` |
+| `VOICEVOX_PLAYER_EXPORT_DIR` | Default output directory for exported tracks (also used as fallback when folder picker is unavailable) | `./voicevox-player-exports` |
 
 ### Server Settings
 

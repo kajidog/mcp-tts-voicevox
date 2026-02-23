@@ -32,6 +32,7 @@ export function MultiAudioPlayer({ data, app, viewUUID }: MultiAudioPlayerProps)
     resynthesizingSet,
     exportCapability,
     isExporting,
+    exportError,
     showSpeakerPanel,
     showTrackList,
     panelMode,
@@ -187,10 +188,11 @@ export function MultiAudioPlayer({ data, app, viewUUID }: MultiAudioPlayerProps)
             onReorderSegments={reorderSegments}
             onAddSegment={addSegment}
             canExport={exportCapability.available}
+            canChooseDirectory={exportCapability.canChooseDirectory}
             isExporting={isExporting}
-            defaultExportDir={exportCapability.defaultOutputDir}
             onExportDefault={() => exportTracks()}
             onExportWithDialog={exportTracksWithDialog}
+            exportError={exportError}
             getPortrait={getPortrait}
           />
         </div>

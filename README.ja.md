@@ -33,6 +33,10 @@ VOICEVOX を使用した MCP テキスト読み上げサーバー
 - **ユーザー辞書管理** — VOICEVOX ユーザー辞書の追加・編集・削除とプレビュー再生
 - **セッション横断の状態復元** — プレーヤー状態はサーバー側に永続化され、チャットを開き直しても復元されます
 
+エクスポートの環境差分:
+- `保存して開く` は常に WAV 保存を実行します。ファイラー起動に非対応の環境でも保存は成功し、保存先パスを UI に表示します。
+- `保存先を指定` は Windows/macOS ではネイティブのフォルダ選択ダイアログを使用します。非対応環境では既定の保存先にフォールバックします。
+
 | 再生プレーヤー | トラックリスト | セグメント編集 |
 |:---:|:---:|:---:|
 | ![再生プレーヤー](docs/images/multi-player.png) | ![トラックリスト](docs/images/list-player.png) | ![セグメント編集](docs/images/edit-player.png) |
@@ -257,7 +261,7 @@ export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
 |---------|------|-----------|
 | `VOICEVOX_AUTO_PLAY` | UI プレイヤーで自動再生 | `true` |
 | `VOICEVOX_PLAYER_EXPORT_ENABLED` | UI プレイヤーからのトラック書き出し（ダウンロード）を有効化（`false` で無効化） | `true` |
-| `VOICEVOX_PLAYER_EXPORT_DIR` | トラック書き出し先のデフォルトディレクトリ | `./voicevox-player-exports` |
+| `VOICEVOX_PLAYER_EXPORT_DIR` | トラック書き出し先のデフォルトディレクトリ（フォルダ選択非対応環境でのフォールバック先としても使用） | `./voicevox-player-exports` |
 
 ### サーバー設定
 

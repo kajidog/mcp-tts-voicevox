@@ -122,7 +122,11 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
   const [resynthesizingSet, setResynthesizingSet] = useState<Set<number>>(new Set())
   // resynthesizingSet の最新値を ref で保持（auto-fetch effect の dep array を増やさないため）
   const resynthesizingSetRef = useRef(resynthesizingSet)
-  const [exportCapability, setExportCapability] = useState<ExportCapability>({ available: false })
+  const [exportCapability, setExportCapability] = useState<ExportCapability>({
+    available: false,
+    canChooseDirectory: false,
+    canOpenDirectory: false,
+  })
   const [isExporting, setIsExporting] = useState(false)
   const [prevSegment, setPrevSegment] = useState<PreviousSegment | null>(null)
   const [panelMode, setPanelMode] = useState<PanelMode>('closed')
@@ -171,7 +175,7 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
         const capability = await fetchExportCapability(app)
         setExportCapability(capability)
       } catch {
-        setExportCapability({ available: false })
+        setExportCapability({ available: false, canChooseDirectory: false, canOpenDirectory: false })
       }
     })()
   }, [app])
@@ -855,6 +859,11 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
     exportTracksWithDialog: useCallback(async () => {
       try {
         setExportError(null)
+        if (!exportCapability.canChooseDirectory) {
+          await exportTracks()
+          setExportError('この環境では保存先フォルダの選択に対応していないため、既定の保存先に保存しました。')
+          return
+        }
         const dir = await selectExportDirectory(app, { defaultPath: exportCapability.defaultOutputDir })
         if (dir) {
           await exportTracks(dir)
@@ -863,7 +872,7 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
         console.error('[useMultiAudioPlayer] Failed to choose export directory:', e)
         setExportError(`保存先フォルダの選択に失敗しました:\n${e instanceof Error ? e.message : String(e)}`)
       }
-    }, [app, exportCapability.defaultOutputDir, exportTracks]),
+    }, [app, exportCapability.canChooseDirectory, exportCapability.defaultOutputDir, exportTracks]),
     handleApplyToSameSpeakerChange,
     handleBulkSwitchSpeakerChange,
   }

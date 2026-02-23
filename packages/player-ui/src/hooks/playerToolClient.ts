@@ -8,7 +8,18 @@ interface TextContent {
 
 export interface ExportCapability {
   available: boolean
+  canChooseDirectory: boolean
+  canOpenDirectory: boolean
   defaultOutputDir?: string
+}
+
+export interface ExportTracksResult {
+  ok: boolean
+  outputDir?: string
+  count?: number
+  files?: string[]
+  openedDirectory?: boolean
+  warning?: string
 }
 
 export interface ResynthesizedSegment {
@@ -90,11 +101,13 @@ export async function fetchExportCapability(app: App): Promise<ExportCapability>
   })
   const payload = getTextPayload(result.content)
 
-  if (!payload) return { available: false }
+  if (!payload) return { available: false, canChooseDirectory: false, canOpenDirectory: false }
 
   const parsed = JSON.parse(payload) as ExportCapability
   return {
     available: Boolean(parsed?.available),
+    canChooseDirectory: Boolean(parsed?.canChooseDirectory),
+    canOpenDirectory: Boolean(parsed?.canOpenDirectory),
     defaultOutputDir: typeof parsed?.defaultOutputDir === 'string' ? parsed.defaultOutputDir : undefined,
   }
 }
@@ -226,12 +239,14 @@ export async function exportTracksOnServer(
     outputDir?: string
     segments: Array<Pick<AudioSegment, 'audioBase64' | 'text' | 'speaker' | 'speakerName'>>
   }
-) {
+): Promise<ExportTracksResult | null> {
   const result = await app.callServerTool({
     name: '_export_tracks_for_player',
     arguments: args,
   })
   assertNoToolError(result)
+  const payload = getTextPayload(result.content)
+  return payload ? (JSON.parse(payload) as ExportTracksResult) : null
 }
 
 export async function selectExportDirectory(

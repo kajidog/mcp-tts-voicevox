@@ -68,22 +68,22 @@ export interface PlayerUIShared {
   ) => void
   getSessionState: (key: string) =>
     | {
-      segments: {
-        text: string
-        speaker: number
-        speakerName?: string
-        kana?: string
-        audioQuery?: AudioQuery
-        accentPhrases?: AccentPhrase[]
-        speedScale: number
-        intonationScale?: number
-        volumeScale?: number
-        prePhonemeLength?: number
-        postPhonemeLength?: number
-        pauseLengthScale?: number
-      }[]
-      updatedAt: number
-    }
+        segments: {
+          text: string
+          speaker: number
+          speakerName?: string
+          kana?: string
+          audioQuery?: AudioQuery
+          accentPhrases?: AccentPhrase[]
+          speedScale: number
+          intonationScale?: number
+          volumeScale?: number
+          prePhonemeLength?: number
+          postPhonemeLength?: number
+          pauseLengthScale?: number
+        }[]
+        updatedAt: number
+      }
     | undefined
   getSpeakerList: () => Promise<SpeakerEntry[]>
 }
@@ -119,6 +119,10 @@ function canOpenExplorer(): boolean {
     return hasDisplay && commandExists('xdg-open')
   }
   return false
+}
+
+function canChooseDirectoryDialog(): boolean {
+  return process.platform === 'win32' || process.platform === 'darwin'
 }
 
 // Check write capability without creating the directory as a side effect.
@@ -876,14 +880,19 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
       },
     },
     async (): Promise<CallToolResult> => {
-      // ユーザーが自由にディレクトリを選択できるようになったため、
-      // 常に（設定で許可されていれば）エクスポートボタンを有効にする
-      const available = config.playerExportEnabled
+      const canExport = config.playerExportEnabled
+      const canChooseDirectory = canExport && canChooseDirectoryDialog()
+      const canOpenDirectory = canExport && canOpenExplorer()
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({ available, defaultOutputDir: config.playerExportDir }),
+            text: JSON.stringify({
+              available: canExport,
+              canChooseDirectory,
+              canOpenDirectory,
+              defaultOutputDir: config.playerExportDir,
+            }),
           },
         ],
       }
@@ -988,27 +997,42 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
           files.push(filePath)
         }
 
-        if (process.platform === 'win32') {
-          // Windowsでのexplorer.exe呼び出しはClaude Desktop等の環境下で失敗しやすいため
-          // spawnSync等を介さずに単に呼び出して結果を問わない形にする
-          try {
-            const child = spawn('explorer.exe', [sessionDir], { detached: true, stdio: 'ignore' })
-            child.unref()
-          } catch (e) {
-            console.error('Failed to open explorer:', e)
-            throw new Error('Failed to open file explorer')
+        let warning: string | undefined
+        let openedDirectory = false
+
+        if (canOpenExplorer()) {
+          if (process.platform === 'win32') {
+            // Windowsでのexplorer.exe呼び出しはClaude Desktop等の環境下で失敗しやすいため
+            // spawnSync等を介さずに単に呼び出して結果を問わない形にする
+            try {
+              const child = spawn('explorer.exe', [sessionDir], { detached: true, stdio: 'ignore' })
+              child.unref()
+              openedDirectory = true
+            } catch (e) {
+              console.error('Failed to open explorer:', e)
+              warning = `WAVファイルは保存されましたが、フォルダを開けませんでした: ${sessionDir}`
+            }
+          } else if (openDirectoryInExplorer(sessionDir)) {
+            openedDirectory = true
+          } else {
+            warning = `WAVファイルは保存されましたが、フォルダを開けませんでした: ${sessionDir}`
           }
         } else {
-          if (!openDirectoryInExplorer(sessionDir)) {
-            throw new Error('Failed to open file explorer')
-          }
+          warning = `WAVファイルは保存されました。現在の環境ではフォルダ自動オープンに対応していません: ${sessionDir}`
         }
 
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ ok: true, outputDir: sessionDir, count: files.length, files }),
+              text: JSON.stringify({
+                ok: true,
+                outputDir: sessionDir,
+                count: files.length,
+                files,
+                openedDirectory,
+                warning,
+              }),
             },
           ],
         }

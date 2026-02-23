@@ -15,8 +15,8 @@ interface MultiAudioTrackListProps {
   onReorderSegments: (fromIndex: number, toIndex: number) => void
   onAddSegment: (text: string, speaker: number) => void
   canExport: boolean
+  canChooseDirectory: boolean
   isExporting: boolean
-  defaultExportDir?: string
   onExportDefault: () => void
   onExportWithDialog: () => void
   exportError?: string | null
@@ -36,6 +36,7 @@ export function MultiAudioTrackList({
   onReorderSegments,
   onAddSegment,
   canExport,
+  canChooseDirectory,
   isExporting,
   onExportDefault,
   onExportWithDialog,
@@ -222,8 +223,8 @@ export function MultiAudioTrackList({
                 type="button"
                 className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-3 py-1.5 text-xs text-[var(--ui-text-secondary)] transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={onExportWithDialog}
-                disabled={isExporting || segments.length === 0}
-                title="保存先を指定して保存"
+                disabled={!canChooseDirectory || isExporting || segments.length === 0}
+                title={canChooseDirectory ? '保存先を指定して保存' : 'この環境では保存先の選択に対応していません'}
               >
                 保存先を指定
               </button>
