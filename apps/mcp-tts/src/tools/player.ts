@@ -553,6 +553,11 @@ export function registerPlayerTools(deps: ToolDeps) {
         const notice = '辞書変更は既存トラックに自動反映されません。Playerで再生成すると反映されます。'
         return {
           content: [{ type: 'text', text: `Dictionary manager opened. ${words.length} word(s).` }],
+          structuredContent: {
+            mode: 'dictionary',
+            dictionaryWords: words,
+            dictionaryNotice: notice,
+          },
           _meta: {
             mode: 'dictionary',
             dictionaryWords: words,
@@ -649,6 +654,11 @@ export function registerPlayerTools(deps: ToolDeps) {
               text: `Voicevox Player started. viewUUID: ${viewUUID} 「${textPreview}」`,
             },
           ],
+          structuredContent: {
+            viewUUID,
+            autoPlay: config.autoPlay,
+            segments: uiSegments,
+          },
           _meta: {
             viewUUID,
             autoPlay: config.autoPlay,
@@ -805,6 +815,11 @@ export function registerPlayerTools(deps: ToolDeps) {
               text: `Voicevox Player updated. viewUUID: ${viewUUID} (${segments.length} segment(s))`,
             },
           ],
+          structuredContent: {
+            viewUUID,
+            autoPlay: effectiveAutoPlay,
+            segments: uiSegments,
+          },
           _meta: {
             viewUUID,
             autoPlay: effectiveAutoPlay,

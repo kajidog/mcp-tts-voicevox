@@ -9,7 +9,7 @@ VOICEVOX を使用した MCP テキスト読み上げサーバー
 ## 何ができるか
 
 - **AI アシスタントに喋らせる** — Claude Desktop などの MCP クライアントからテキストを読み上げ
-- **UI オーディオプレーヤー（MCP Apps）** — チャット内で直接音声を再生できるインタラクティブプレーヤー
+- **UI オーディオプレーヤー（MCP Apps）** — チャット内で直接音声を再生できるインタラクティブプレーヤー（ChatGPT / Claude Desktop / Claude Web版 などが対応）
 - **複数キャラクターの会話** — 1 回の呼び出しでセグメントごとに話者を切り替え可能
 - **スムーズな再生** — キュー管理、即時再生、先読み、ストリーミング再生
 - **クロスプラットフォーム** — Windows, macOS, Linux（WSL 含む）で動作
@@ -45,7 +45,15 @@ VOICEVOX を使用した MCP テキスト読み上げサーバー
 |:---:|:---:|:---:|
 | ![スピーカー変更](docs/images/select-player.png) | ![ユーザー辞書](docs/images/dictionary-player.png) | ![WAV エクスポート](docs/images/export-player.png) |
 
-> **注意:** `speak_player` は MCP Apps 対応ホスト（Claude Desktop など）が必要です。MCP Apps 非対応のホストでは利用できないため、代わりに `speak`（サーバー側再生）を使用してください。
+### 対応クライアント
+
+| クライアント | 接続方式 | 備考 |
+|------------|---------|------|
+| **ChatGPT** | HTTP（リモート） | `VOICEVOX_PLAYER_DOMAIN` の設定が必要 |
+| **Claude Desktop** | stdio（ローカル） | そのまま動作 |
+| **Claude Desktop** | HTTP（mcp-remote 経由） | `VOICEVOX_PLAYER_DOMAIN` は設定しないこと |
+
+> **注意:** `speak_player` は MCP Apps 対応ホストが必要です。MCP Apps 非対応のホストでは利用できないため、代わりに `speak`（サーバー側再生）を使用してください。
 
 ### プレーヤー MCP ツール一覧
 
@@ -259,6 +267,7 @@ export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
 
 | 環境変数 | 説明 | デフォルト |
 |---------|------|-----------|
+| `VOICEVOX_PLAYER_DOMAIN` | UI プレーヤーのウィジェットドメイン（ChatGPT 使用時に必要。例: `https://your-app.onrender.com`） | _(未設定)_ |
 | `VOICEVOX_AUTO_PLAY` | UI プレイヤーで自動再生 | `true` |
 | `VOICEVOX_PLAYER_EXPORT_ENABLED` | UI プレイヤーからのトラック書き出し（ダウンロード）を有効化（`false` で無効化） | `true` |
 | `VOICEVOX_PLAYER_EXPORT_DIR` | トラック書き出し先のデフォルトディレクトリ（フォルダ選択非対応環境でのフォールバック先としても使用） | `./voicevox-player-exports` |
@@ -441,6 +450,60 @@ npx @kajidog/mcp-tts-voicevox --http --allowed-hosts "localhost,127.0.0.1,172.29
 ```
 
 > ⚠️ WSL 内では `localhost` は WSL 自身を指すため、Windows ホストには WSL ゲートウェイ IP でアクセスします。
+
+</details>
+
+<details>
+<summary><b>ChatGPT で使う</b></summary>
+
+ChatGPT から使用するには、MCP サーバーを HTTP モードでクラウドにデプロイし、VOICEVOX Engine にアクセスできる状態にする必要があります。
+
+### 1. クラウドにデプロイ
+
+Render、Railway などに Docker でデプロイします（Dockerfile 同梱）。
+
+### 2. VOICEVOX Engine を用意
+
+ローカルで起動して ngrok 等で公開するか、クラウド上で一緒にデプロイします。
+
+### 3. 環境変数を設定
+
+| 環境変数 | 値の例 | 説明 |
+|---------|--------|------|
+| `VOICEVOX_URL` | `https://xxxx.ngrok-free.app` | VOICEVOX Engine の URL |
+| `MCP_HTTP_MODE` | `true` | HTTP モードを有効化 |
+| `MCP_ALLOWED_HOSTS` | `your-app.onrender.com` | デプロイ先のホスト名 |
+| `VOICEVOX_PLAYER_DOMAIN` | `https://your-app.onrender.com` | UI プレーヤーのウィジェットドメイン（ChatGPT で必須） |
+| `VOICEVOX_DISABLED_TOOLS` | `speak` | サーバー側再生を無効化（音声デバイスなし） |
+| `VOICEVOX_PLAYER_EXPORT_ENABLED` | `false` | エクスポート機能を無効化（クラウド上ではファイルをダウンロードできないため） |
+
+### 4. ChatGPT でコネクターを追加
+
+ChatGPT の設定 → コネクター → MCP サーバーの URL（`https://your-app.onrender.com/mcp`）を追加します。
+
+</details>
+
+<details>
+<summary><b>Web 版 Claude で使う</b></summary>
+
+基本的な手順は ChatGPT と同じですが、`VOICEVOX_PLAYER_DOMAIN` の値が異なります。
+
+Claude Web 版では `ui.domain` に **ハッシュベースの専用ドメイン** が必要です。以下のコマンドで計算できます：
+
+```bash
+node -e "console.log(require('crypto').createHash('sha256').update('あなたのMCPサーバーURL').digest('hex').slice(0,32)+'.claudemcpcontent.com')"
+```
+
+例：MCP サーバーの URL が `https://your-app.onrender.com/mcp` の場合：
+
+```bash
+node -e "console.log(require('crypto').createHash('sha256').update('https://your-app.onrender.com/mcp').digest('hex').slice(0,32)+'.claudemcpcontent.com')"
+# 出力例: 48fb73a6...claudemcpcontent.com
+```
+
+この出力値を `VOICEVOX_PLAYER_DOMAIN` に設定してください。
+
+> **注意**: ChatGPT と Claude Web 版では `VOICEVOX_PLAYER_DOMAIN` の値が異なるため、同じインスタンスで両方に対応することはできません。それぞれ別のインスタンスをデプロイするか、接続先に合わせて環境変数を切り替えてください。
 
 </details>
 

@@ -9,7 +9,7 @@ A text-to-speech MCP server using VOICEVOX
 ## What You Can Do
 
 - **Make your AI assistant speak** — Text-to-speech from MCP clients like Claude Desktop
-- **UI Audio Player (MCP Apps)** — Play audio directly in the chat with an interactive player
+- **UI Audio Player (MCP Apps)** — Play audio directly in the chat with an interactive player (ChatGPT / Claude Desktop / Claude Web etc.)
 - **Multi-character conversations** — Switch speakers per segment in a single call
 - **Smooth playback** — Queue management, immediate playback, prefetching, streaming
 - **Cross-platform** — Works on Windows, macOS, Linux (including WSL)
@@ -45,7 +45,15 @@ Export behavior by environment:
 |:---:|:---:|:---:|
 | ![Speaker selection](docs/images/select-player.png) | ![Dictionary manager](docs/images/dictionary-player.png) | ![WAV export](docs/images/export-player.png) |
 
-> **Note:** `speak_player` requires a host that supports MCP Apps (e.g., Claude Desktop). In hosts without MCP Apps support, the tool is not available and `speak` (server-side playback) can be used instead.
+### Supported Clients
+
+| Client | Connection | Notes |
+|--------|-----------|-------|
+| **ChatGPT** | HTTP (remote) | Requires `VOICEVOX_PLAYER_DOMAIN` |
+| **Claude Desktop** | stdio (local) | Works out of the box |
+| **Claude Desktop** | HTTP (via mcp-remote) | Do not set `VOICEVOX_PLAYER_DOMAIN` |
+
+> **Note:** `speak_player` requires a host that supports MCP Apps. In hosts without MCP Apps support, the tool is not available and `speak` (server-side playback) can be used instead.
 
 ### Player MCP Tools
 
@@ -259,6 +267,7 @@ export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
 
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `VOICEVOX_PLAYER_DOMAIN` | Widget domain for UI player (required for ChatGPT, e.g. `https://your-app.onrender.com`) | _(unset)_ |
 | `VOICEVOX_AUTO_PLAY` | Auto-play audio in UI player | `true` |
 | `VOICEVOX_PLAYER_EXPORT_ENABLED` | Enable track export(download) from UI player (`false` to disable) | `true` |
 | `VOICEVOX_PLAYER_EXPORT_DIR` | Default output directory for exported tracks (also used as fallback when folder picker is unavailable) | `./voicevox-player-exports` |
@@ -441,6 +450,60 @@ npx @kajidog/mcp-tts-voicevox --http --allowed-hosts "localhost,127.0.0.1,172.29
 ```
 
 > ⚠️ Within WSL, `localhost` refers to WSL itself. Use the WSL gateway IP to access the Windows host.
+
+</details>
+
+<details>
+<summary><b>Using with ChatGPT</b></summary>
+
+To use with ChatGPT, deploy the MCP server in HTTP mode to the cloud with access to a VOICEVOX Engine.
+
+### 1. Deploy to the Cloud
+
+Deploy with Docker to Render, Railway, etc. (Dockerfile included).
+
+### 2. Set Up VOICEVOX Engine
+
+Run VOICEVOX Engine locally and expose it via ngrok, or deploy it alongside the MCP server.
+
+### 3. Configure Environment Variables
+
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `VOICEVOX_URL` | `https://xxxx.ngrok-free.app` | VOICEVOX Engine URL |
+| `MCP_HTTP_MODE` | `true` | Enable HTTP mode |
+| `MCP_ALLOWED_HOSTS` | `your-app.onrender.com` | Deployed hostname |
+| `VOICEVOX_PLAYER_DOMAIN` | `https://your-app.onrender.com` | Widget domain for UI player (required for ChatGPT) |
+| `VOICEVOX_DISABLED_TOOLS` | `speak` | Disable server-side playback (no audio device) |
+| `VOICEVOX_PLAYER_EXPORT_ENABLED` | `false` | Disable export feature (files cannot be downloaded from cloud) |
+
+### 4. Add Connector in ChatGPT
+
+Go to ChatGPT Settings → Connectors → Add MCP server URL (`https://your-app.onrender.com/mcp`).
+
+</details>
+
+<details>
+<summary><b>Using with Claude Web</b></summary>
+
+The basic steps are the same as ChatGPT, but the `VOICEVOX_PLAYER_DOMAIN` value is different.
+
+Claude Web requires `ui.domain` to be a **hash-based dedicated domain**. Compute it with the following command:
+
+```bash
+node -e "console.log(require('crypto').createHash('sha256').update('Your MCP server URL').digest('hex').slice(0,32)+'.claudemcpcontent.com')"
+```
+
+Example: If your MCP server URL is `https://your-app.onrender.com/mcp`:
+
+```bash
+node -e "console.log(require('crypto').createHash('sha256').update('https://your-app.onrender.com/mcp').digest('hex').slice(0,32)+'.claudemcpcontent.com')"
+# Example output: 48fb73a6...claudemcpcontent.com
+```
+
+Set this output value as `VOICEVOX_PLAYER_DOMAIN`.
+
+> **Note**: Since ChatGPT and Claude Web require different `VOICEVOX_PLAYER_DOMAIN` values, a single instance cannot serve both clients simultaneously. Deploy separate instances for each, or switch the environment variable depending on your target client.
 
 </details>
 
