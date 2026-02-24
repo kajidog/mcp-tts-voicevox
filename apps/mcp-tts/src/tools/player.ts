@@ -516,7 +516,19 @@ export function registerPlayerTools(deps: ToolDeps) {
       mimeType: RESOURCE_MIME_TYPE,
     },
     async (): Promise<ReadResourceResult> => ({
-      contents: [{ uri: playerResourceUri, mimeType: RESOURCE_MIME_TYPE, text: playerHtml }],
+      contents: [
+        {
+          uri: playerResourceUri,
+          mimeType: RESOURCE_MIME_TYPE,
+          text: playerHtml,
+          _meta: {
+            ui: {
+              csp: {},
+              ...(config.playerDomain ? { domain: config.playerDomain } : {}),
+            },
+          },
+        },
+      ],
     })
   )
 

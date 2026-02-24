@@ -64,6 +64,14 @@ function forbiddenError(message: string): ErrorResponse {
   }
 }
 
+function unauthorizedError(message: string): ErrorResponse {
+  return {
+    jsonrpc: '2.0',
+    error: { code: -32001, message },
+    id: null,
+  }
+}
+
 /**
  * Origin検証ミドルウェア
  */
@@ -117,6 +125,29 @@ function validateHost(config: BaseServerConfig) {
     if (!config.allowedHosts.includes(hostname)) {
       console.log(`Rejected request with invalid Host: ${host} (allowed: ${config.allowedHosts.join(', ')})`)
       return c.json(forbiddenError('Forbidden: Invalid Host header'), { status: 403 })
+    }
+
+    return next()
+  }
+}
+
+/**
+ * APIキー検証ミドルウェア
+ */
+function validateApiKey(config: BaseServerConfig) {
+  return async (c: Context, next: Next) => {
+    if (!config.apiKey || c.req.method === 'OPTIONS') {
+      return next()
+    }
+
+    const xApiKey = c.req.header('X-API-Key')
+    const authorization = c.req.header('Authorization')
+    const bearerToken = authorization?.startsWith('Bearer ') ? authorization.slice(7).trim() : undefined
+    const providedKey = xApiKey ?? bearerToken
+
+    if (providedKey !== config.apiKey) {
+      console.log('Rejected request with invalid API key')
+      return c.json(unauthorizedError('Unauthorized: Invalid API key'), { status: 401 })
     }
 
     return next()
@@ -230,6 +261,8 @@ export function createHttpApp(options: CreateHttpAppOptions): Hono {
     'mcp-session-id',
     'Last-Event-ID',
     'mcp-protocol-version',
+    'X-API-Key',
+    'Authorization',
     ...extraCorsHeaders,
   ]
 
@@ -246,6 +279,7 @@ export function createHttpApp(options: CreateHttpAppOptions): Hono {
   // セキュリティミドルウェアを適用
   app.use('/mcp', validateOrigin(config))
   app.use('/mcp', validateHost(config))
+  app.use('/mcp', validateApiKey(config))
 
   // ルート定義
   app.all('/mcp', handleMCP)

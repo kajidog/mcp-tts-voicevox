@@ -32,6 +32,7 @@ export interface ServerConfig extends BaseServerConfig {
   restrictWaitForEnd: boolean
 
   // UIプレイヤー設定
+  playerDomain: string
   autoPlay: boolean
   playerExportEnabled: boolean
   playerExportDir: string
@@ -58,6 +59,7 @@ const defaultConfig: ServerConfig = {
   restrictImmediate: false,
   restrictWaitForStart: false,
   restrictWaitForEnd: false,
+  playerDomain: '',
   autoPlay: true,
   playerExportEnabled: true,
   playerExportDir: join(process.cwd(), 'voicevox-player-exports'),
@@ -241,6 +243,10 @@ export function parseEnvVars(env: NodeJS.ProcessEnv = process.env): Partial<Serv
 
   if (env.VOICEVOX_RESTRICT_WAIT_FOR_END === 'true') {
     config.restrictWaitForEnd = true
+  }
+
+  if (env.VOICEVOX_PLAYER_DOMAIN) {
+    config.playerDomain = env.VOICEVOX_PLAYER_DOMAIN
   }
 
   if (env.VOICEVOX_AUTO_PLAY !== undefined) {

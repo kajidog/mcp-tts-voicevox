@@ -113,6 +113,11 @@ describe('config module', () => {
       expect(result.httpHost).toBe('127.0.0.1')
     })
 
+    it('--api-key を正しくパースする', () => {
+      const result = parseCliArgs(['--api-key', 'test-key'])
+      expect(result.apiKey).toBe('test-key')
+    })
+
     it('複数の引数を正しくパースする', () => {
       const result = parseCliArgs([
         '--url',
@@ -230,6 +235,11 @@ describe('config module', () => {
       const result = parseEnvVars({ MCP_HTTP_HOST: '127.0.0.1' })
       expect(result.httpHost).toBe('127.0.0.1')
     })
+
+    it('MCP_API_KEY を正しく読み込む', () => {
+      const result = parseEnvVars({ MCP_API_KEY: 'env-key' })
+      expect(result.apiKey).toBe('env-key')
+    })
   })
 
   describe('getConfig', () => {
@@ -256,6 +266,7 @@ describe('config module', () => {
       expect(result.httpMode).toBe(false)
       expect(result.httpPort).toBe(3000)
       expect(result.httpHost).toBe('0.0.0.0')
+      expect(result.apiKey).toBeUndefined()
     })
 
     it('環境変数がデフォルト値を上書きする', () => {

@@ -15,6 +15,7 @@ export interface BaseServerConfig {
   // セキュリティ設定（許可するホスト/オリジン）
   allowedHosts: string[]
   allowedOrigins: string[]
+  apiKey?: string
 }
 
 // デフォルト設定
@@ -64,6 +65,12 @@ export function parseBaseCliArgs(argv: string[] = process.argv.slice(2)): Partia
           i++
         }
         break
+      case '--api-key':
+        if (nextArg && !nextArg.startsWith('-')) {
+          config.apiKey = nextArg
+          i++
+        }
+        break
     }
   }
 
@@ -94,6 +101,10 @@ export function parseBaseEnvVars(env: NodeJS.ProcessEnv = process.env): Partial<
 
   if (env.MCP_ALLOWED_ORIGINS) {
     config.allowedOrigins = env.MCP_ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+  }
+
+  if (env.MCP_API_KEY) {
+    config.apiKey = env.MCP_API_KEY
   }
 
   return config

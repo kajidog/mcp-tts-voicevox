@@ -277,6 +277,7 @@ export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
 | `MCP_HTTP_HOST` | HTTP host | `0.0.0.0` |
 | `MCP_ALLOWED_HOSTS` | Allowed hosts (comma-separated) | `localhost,127.0.0.1,[::1]` |
 | `MCP_ALLOWED_ORIGINS` | Allowed origins (comma-separated) | `http://localhost,http://127.0.0.1,...` |
+| `MCP_API_KEY` | Required API key for `/mcp` (sent via `X-API-Key` or `Authorization: Bearer`) | _(unset)_ |
 
 </details>
 
@@ -327,6 +328,7 @@ npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 | `--host <value>` | HTTP host |
 | `--allowed-hosts <hosts>` | Allowed hosts (comma-separated) |
 | `--allowed-origins <origins>` | Allowed origins (comma-separated) |
+| `--api-key <key>` | Required API key for `/mcp` |
 
 </details>
 
@@ -365,6 +367,7 @@ With Claude Code, you can configure different default speakers per project using
 | Header | Description |
 |--------|-------------|
 | `X-Voicevox-Speaker` | Default speaker ID for this project |
+| `X-API-Key` | API key when `MCP_API_KEY` is configured |
 
 **Example `.mcp.json`:**
 
@@ -375,7 +378,8 @@ With Claude Code, you can configure different default speakers per project using
       "type": "http",
       "url": "http://localhost:3000/mcp",
       "headers": {
-        "X-Voicevox-Speaker": "113"
+        "X-Voicevox-Speaker": "113",
+        "X-API-Key": "your-api-key"
       }
     }
   }
