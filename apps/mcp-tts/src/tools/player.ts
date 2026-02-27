@@ -10,6 +10,7 @@ import { RESOURCE_MIME_TYPE, registerAppResource } from '@modelcontextprotocol/e
 import type { CallToolResult, ReadResourceResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
 import { planAudioCacheCleanup, resolveAudioCachePolicy } from './player-cache-utils.js'
+import { accentPhrasesToSimplifiedPhrases, applyAccentsToAccentPhrases } from './player-phrase-utils.js'
 import { registerPlayerUITools } from './player-ui-tools.js'
 import { registerAppToolIfEnabled, registerToolIfEnabled } from './registration.js'
 import type { ToolDeps, ToolHandlerExtra } from './types.js'
@@ -671,7 +672,7 @@ export function registerPlayerTools(deps: ToolDeps) {
     }
   )
 
-  // 公開ツール: セグメント単位で再合成（パラメータ調整用）
+  // 公開ツール: 単一トラック更新（パラメータ調整用）
   registerAppToolIfEnabled(
     server,
     disabledTools,
@@ -679,55 +680,36 @@ export function registerPlayerTools(deps: ToolDeps) {
     {
       title: 'Resynthesize Player',
       description:
-        'Update player segments for a new player instance (new viewUUID every call). Typical loop: get_player_state (fetch additional pages if hasMore) -> edit segment parameters -> resynthesize_player -> use returned viewUUID for the next loop. Audio synthesis is performed by the player UI when needed.',
+        'Update a single player track by index. Pass viewUUID + trackIndex to identify the segment. Provide text to regenerate from scratch, or accents [number] to adjust accent positions only. Omitted parameters keep existing values. Returns new viewUUID for subsequent operations. Audio synthesis is performed by the player UI.',
       inputSchema: {
-        segments: z
-          .array(
-            z.object({
-              text: z.string().describe('Segment text'),
-              speaker: z.number().optional().describe('Speaker ID'),
-              speedScale: z.number().optional().describe('Playback speed'),
-              intonationScale: z.number().optional().describe('Intonation scale (抑揚)'),
-              volumeScale: z.number().optional().describe('Volume scale (音量)'),
-              prePhonemeLength: z.number().optional().describe('Pre-phoneme silence in seconds'),
-              postPhonemeLength: z.number().optional().describe('Post-phoneme silence in seconds'),
-              pauseLengthScale: z.number().optional().describe('Pause length scale between phrases (間の長さ)'),
-              accentPhrases: z
-                .array(
-                  z.object({
-                    moras: z.array(
-                      z.object({
-                        text: z.string(),
-                        consonant: z.string().nullable().optional(),
-                        consonant_length: z.number().nullable().optional(),
-                        vowel: z.string(),
-                        vowel_length: z.number(),
-                        pitch: z.number(),
-                      })
-                    ),
-                    accent: z.number().int(),
-                    pause_mora: z
-                      .object({
-                        text: z.string(),
-                        consonant: z.string().nullable().optional(),
-                        consonant_length: z.number().nullable().optional(),
-                        vowel: z.string(),
-                        vowel_length: z.number(),
-                        pitch: z.number(),
-                      })
-                      .nullable()
-                      .optional(),
-                    is_interrogative: z.boolean().nullable().optional(),
-                  })
-                )
-                .optional()
-                .describe('Accent phrases'),
-            })
-          )
+        viewUUID: z
+          .string()
+          .describe('Player instance ID from speak_player/resynthesize_player. Required to identify the session.'),
+        trackIndex: z
+          .number()
+          .int()
+          .min(0)
+          .describe('Index of the segment to update (from get_player_state trackIndex).'),
+        text: z
+          .string()
+          .optional()
           .describe(
-            'Full segment list to update. Start from get_player_state.segments, edit needed fields, and send the complete array.'
+            'New text for this segment. If provided, triggers full re-generation. Takes priority over accents.'
           ),
-        autoPlay: z.boolean().optional().describe('Auto-play when loaded (default: true)'),
+        accents: z
+          .array(z.number().int())
+          .optional()
+          .describe(
+            'Accent positions as a number array, one per phrase (position-based). Only used when text is not provided.'
+          ),
+        speaker: z.number().optional().describe('Speaker ID (omit to keep existing)'),
+        speedScale: z.number().optional().describe('Playback speed (omit to keep existing)'),
+        intonationScale: z.number().optional().describe('Intonation scale (omit to keep existing)'),
+        volumeScale: z.number().optional().describe('Volume scale (omit to keep existing)'),
+        prePhonemeLength: z.number().optional().describe('Pre-phoneme silence in seconds (omit to keep existing)'),
+        postPhonemeLength: z.number().optional().describe('Post-phoneme silence in seconds (omit to keep existing)'),
+        pauseLengthScale: z.number().optional().describe('Pause length scale (omit to keep existing)'),
+        autoPlay: z.boolean().optional().describe('Auto-play when loaded (default from config)'),
       },
       annotations: {
         readOnlyHint: false,
@@ -739,67 +721,136 @@ export function registerPlayerTools(deps: ToolDeps) {
     },
     async (
       {
-        segments,
+        viewUUID: inputViewUUID,
+        trackIndex,
+        text,
+        accents,
+        speaker,
+        speedScale,
+        intonationScale,
+        volumeScale,
+        prePhonemeLength,
+        postPhonemeLength,
+        pauseLengthScale,
         autoPlay,
       }: {
-        segments: Array<{
-          text: string
-          speaker?: number
-          speedScale?: number
-          intonationScale?: number
-          volumeScale?: number
-          prePhonemeLength?: number
-          postPhonemeLength?: number
-          pauseLengthScale?: number
-          accentPhrases?: AccentPhrase[]
-        }>
+        viewUUID: string
+        trackIndex: number
+        text?: string
+        accents?: number[]
+        speaker?: number
+        speedScale?: number
+        intonationScale?: number
+        volumeScale?: number
+        prePhonemeLength?: number
+        postPhonemeLength?: number
+        pauseLengthScale?: number
         autoPlay?: boolean
       },
       extra: ToolHandlerExtra
     ): Promise<CallToolResult> => {
       try {
-        if (!segments || segments.length === 0) {
-          throw new Error('segments is required')
+        const state = getSessionState(inputViewUUID, extra?.sessionId)
+        if (!state) {
+          throw new Error('No player state found for the given viewUUID. Use speak_player first.')
+        }
+        if (trackIndex < 0 || trackIndex >= state.segments.length) {
+          throw new Error(`trackIndex ${trackIndex} is out of range. Valid range: 0-${state.segments.length - 1}`)
         }
 
+        const existingSegment = state.segments[trackIndex]
         const effectiveDefaultSpeaker = getEffectiveSpeaker(undefined, extra.sessionId) ?? config.defaultSpeaker
-        const effectiveSpeed = config.defaultSpeedScale
         const effectiveAutoPlay = autoPlay ?? config.autoPlay
-        // 常に新しいUUIDを生成（MCPクライアント再起動時に同一UUIDのUIが重複表示されることを防ぐ）
+
+        // パラメータ優先順位: 指定値 > 既存セグメント値 > config デフォルト
+        const effectiveSpeaker = speaker ?? existingSegment.speaker ?? effectiveDefaultSpeaker
+        const effectiveSpeed = speedScale ?? existingSegment.speedScale ?? config.defaultSpeedScale
+        const effectiveIntonation = intonationScale ?? existingSegment.intonationScale
+        const effectiveVolume = volumeScale ?? existingSegment.volumeScale
+        const effectivePrePhoneme = prePhonemeLength ?? existingSegment.prePhonemeLength
+        const effectivePostPhoneme = postPhonemeLength ?? existingSegment.postPhonemeLength
+        const effectivePauseLength = pauseLengthScale ?? existingSegment.pauseLengthScale
+
+        let updatedAccentPhrases: AccentPhrase[] | undefined
+        const effectiveText = text ?? existingSegment.text
+
+        if (text) {
+          // テキスト変更 → 全再生成。accentsは無視。
+          updatedAccentPhrases = undefined
+        } else if (accents && accents.length > 0) {
+          // アクセントのみ変更: 既存AccentPhraseにマージ
+          const existingAccentPhrases =
+            existingSegment.accentPhrases ?? (existingSegment.audioQuery?.accent_phrases as AccentPhrase[] | undefined)
+
+          if (existingAccentPhrases && existingAccentPhrases.length > 0) {
+            updatedAccentPhrases = applyAccentsToAccentPhrases(existingAccentPhrases, accents)
+          } else {
+            // 既存AccentPhraseがない場合、テキストからベース構造を生成してaccent適用
+            const tempQuery = await playerVoicevoxApi.generateQuery(effectiveText, effectiveSpeaker)
+            updatedAccentPhrases = applyAccentsToAccentPhrases(tempQuery.accent_phrases as AccentPhrase[], accents)
+          }
+        } else {
+          // テキスト変更なし・アクセント変更なし → 既存パラメータで再合成
+          updatedAccentPhrases =
+            existingSegment.accentPhrases ?? (existingSegment.audioQuery?.accent_phrases as AccentPhrase[] | undefined)
+        }
+
+        // audioQueryの更新（テキスト変更なし + 既存audioQueryあり + AccentPhraseあり の場合）
+        let audioQueryForState: AudioQuery | undefined
+        if (!text && existingSegment.audioQuery && updatedAccentPhrases) {
+          audioQueryForState = {
+            ...existingSegment.audioQuery,
+            accent_phrases: updatedAccentPhrases,
+            speedScale: effectiveSpeed,
+            ...(effectiveIntonation !== undefined && { intonationScale: effectiveIntonation }),
+            ...(effectiveVolume !== undefined && { volumeScale: effectiveVolume }),
+            ...(effectivePrePhoneme !== undefined && { prePhonemeLength: effectivePrePhoneme }),
+            ...(effectivePostPhoneme !== undefined && { postPhonemeLength: effectivePostPhoneme }),
+            ...(effectivePauseLength !== undefined && { pauseLengthScale: effectivePauseLength }),
+          }
+        }
+
+        // 新しいviewUUID生成（MCPクライアント再起動時に同一UUIDのUIが重複表示されることを防ぐ）
         const viewUUID = randomUUID()
-        const normalizedSegments = segments.map((seg) => ({
-          text: seg.text,
-          speaker: seg.speaker ?? effectiveDefaultSpeaker,
-          speedScale: seg.speedScale ?? effectiveSpeed,
-          intonationScale: seg.intonationScale,
-          volumeScale: seg.volumeScale,
-          prePhonemeLength: seg.prePhonemeLength,
-          postPhonemeLength: seg.postPhonemeLength,
-          pauseLengthScale: seg.pauseLengthScale,
-          accentPhrases: seg.accentPhrases,
+        const speakerName = await getSpeakerName(effectiveSpeaker)
+
+        // 更新されたセグメントを構築
+        const updatedSegmentState: PlayerSegmentState = {
+          text: effectiveText,
+          speaker: effectiveSpeaker,
+          speakerName,
+          kana: text ? undefined : existingSegment.kana,
+          audioQuery: audioQueryForState ?? (text ? undefined : existingSegment.audioQuery),
+          accentPhrases: updatedAccentPhrases,
+          speedScale: effectiveSpeed,
+          intonationScale: effectiveIntonation,
+          volumeScale: effectiveVolume,
+          prePhonemeLength: effectivePrePhoneme,
+          postPhonemeLength: effectivePostPhoneme,
+          pauseLengthScale: effectivePauseLength,
+        }
+
+        // セグメント配列をコピーして対象トラックを差し替え
+        const newSegments = state.segments.slice()
+        newSegments[trackIndex] = updatedSegmentState
+
+        // 全セグメントのスピーカー名を再解決
+        const speakerNameMap = await resolveSpeakerNames(newSegments.map((s) => s.speaker))
+        const enrichedSegments = newSegments.map((seg) => ({
+          ...seg,
+          speakerName: speakerNameMap.get(seg.speaker) ?? seg.speakerName,
         }))
-        const speakerNameMap = await resolveSpeakerNames(normalizedSegments.map((seg) => seg.speaker))
 
         setSessionState(viewUUID, {
-          segments: normalizedSegments.map((seg) => ({
-            text: seg.text,
-            speaker: seg.speaker,
-            speakerName: speakerNameMap.get(seg.speaker),
-            speedScale: seg.speedScale,
-            intonationScale: seg.intonationScale,
-            volumeScale: seg.volumeScale,
-            prePhonemeLength: seg.prePhonemeLength,
-            postPhonemeLength: seg.postPhonemeLength,
-            pauseLengthScale: seg.pauseLengthScale,
-            accentPhrases: seg.accentPhrases,
-          })),
+          segments: enrichedSegments,
           updatedAt: Date.now(),
         })
 
-        const uiSegments = normalizedSegments.map((seg) => ({
+        // UIセグメント構築（structuredContent / _meta 用）
+        const uiSegments = enrichedSegments.map((seg) => ({
           text: seg.text,
           speaker: seg.speaker,
-          speakerName: speakerNameMap.get(seg.speaker),
+          speakerName: seg.speakerName,
           speedScale: seg.speedScale,
           intonationScale: seg.intonationScale,
           volumeScale: seg.volumeScale,
@@ -808,22 +859,25 @@ export function registerPlayerTools(deps: ToolDeps) {
           pauseLengthScale: seg.pauseLengthScale,
           accentPhrases: seg.accentPhrases,
         }))
+
         return {
           content: [
             {
               type: 'text',
-              text: `Voicevox Player updated. viewUUID: ${viewUUID} (${segments.length} segment(s))`,
+              text: `Voicevox Player updated track ${trackIndex}. viewUUID: ${viewUUID}`,
             },
           ],
           structuredContent: {
             viewUUID,
             autoPlay: effectiveAutoPlay,
             segments: uiSegments,
+            resynthesizedTrackIndex: trackIndex,
           },
           _meta: {
             viewUUID,
             autoPlay: effectiveAutoPlay,
             segments: uiSegments,
+            resynthesizedTrackIndex: trackIndex,
           },
         }
       } catch (error) {
@@ -849,7 +903,7 @@ export function registerPlayerTools(deps: ToolDeps) {
     {
       title: 'Get VOICEVOX Player State',
       description:
-        'Returns paged editable player state for AI tuning. Use the latest viewUUID from speak_player/resynthesize_player. If hasMore is true, call again with nextCursor to continue.',
+        'Returns paged player state for AI tuning. Each segment includes trackIndex and simplified phrases [{text, accent}]. Use the latest viewUUID from speak_player/resynthesize_player. If hasMore is true, call again with nextCursor to continue.',
       inputSchema: {
         viewUUID: z
           .string()
@@ -909,8 +963,24 @@ export function registerPlayerTools(deps: ToolDeps) {
 
         const buildPayload = () => {
           const hasMore = pageEnd < total
+          const responseSegments = pageSegments.map((seg, i) => {
+            const rawAccentPhrases = seg.accentPhrases ?? (seg.audioQuery?.accent_phrases as AccentPhrase[] | undefined)
+            return {
+              trackIndex: effectiveCursor + i,
+              text: seg.text,
+              speaker: seg.speaker,
+              speakerName: seg.speakerName,
+              phrases: rawAccentPhrases ? accentPhrasesToSimplifiedPhrases(rawAccentPhrases) : null,
+              speedScale: seg.speedScale,
+              intonationScale: seg.intonationScale,
+              volumeScale: seg.volumeScale,
+              prePhonemeLength: seg.prePhonemeLength,
+              postPhonemeLength: seg.postPhonemeLength,
+              pauseLengthScale: seg.pauseLengthScale,
+            }
+          })
           return {
-            segments: pageSegments,
+            segments: responseSegments,
             updatedAt: state.updatedAt,
             total,
             cursor: effectiveCursor,
