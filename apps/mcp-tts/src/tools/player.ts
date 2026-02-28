@@ -352,7 +352,7 @@ export function registerPlayerTools(deps: ToolDeps) {
         const speakerNameMap = await resolveSpeakerNames(baseSegments.map((s) => s.speaker))
         const viewUUID = randomUUID()
 
-        setSessionState(viewUUID, {
+        const nextState = {
           segments: baseSegments.map((s) => ({
             text: s.text,
             speaker: s.speaker,
@@ -360,7 +360,11 @@ export function registerPlayerTools(deps: ToolDeps) {
             speedScale: s.speedScale,
           })),
           updatedAt: Date.now(),
-        })
+        }
+        setSessionState(viewUUID, nextState)
+        if (extra.sessionId && extra.sessionId !== viewUUID) {
+          setSessionState(extra.sessionId, nextState)
+        }
 
         // content はAI向け最小情報のみ（1MB制限遵守）。
         // セグメント構造は _meta に格納してUIが利用する。
@@ -566,10 +570,14 @@ export function registerPlayerTools(deps: ToolDeps) {
           speakerName: speakerNameMap.get(seg.speaker) ?? seg.speakerName,
         }))
 
-        setSessionState(viewUUID, {
+        const nextState = {
           segments: enrichedSegments,
           updatedAt: Date.now(),
-        })
+        }
+        setSessionState(viewUUID, nextState)
+        if (extra.sessionId && extra.sessionId !== viewUUID) {
+          setSessionState(extra.sessionId, nextState)
+        }
 
         // UIセグメント構築（structuredContent / _meta 用）
         const uiSegments = enrichedSegments.map((seg) => ({

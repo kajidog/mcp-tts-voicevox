@@ -9,6 +9,7 @@ import {
   selectExportDirectory,
   type ExportCapability,
 } from './playerToolClient'
+import { saveLocalSnapshot } from './playerStateRecovery'
 import { useAddSegment } from './useAddSegment'
 import { useExportTracks } from './useExportTracks'
 import { usePersistentBoolean } from './usePersistentBoolean'
@@ -179,6 +180,10 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
       }
     })()
   }, [app])
+
+  useEffect(() => {
+    saveLocalSnapshot(viewUUID, localSegments)
+  }, [viewUUID, localSegments])
 
   const prevDataSegmentsStr = useRef<string>('')
   const initialAutoPlayPendingRef = useRef(false)
