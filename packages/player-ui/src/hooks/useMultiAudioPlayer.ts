@@ -513,19 +513,19 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
     })
 
     try {
+      // audioQuery・accentPhrases を渡さないことで generateQuery() を再実行させ、
+      // 辞書変更やイントネーションのリフレッシュを反映する
       const result = await resynthesizeSegmentOnServer(app, {
         viewUUID,
         segmentIndex: currentIndex,
         text: segment.text,
         speaker: segment.speaker,
-        audioQuery: segment.audioQuery,
         speedScale: segment.speedScale,
         intonationScale: segment.intonationScale,
         volumeScale: segment.volumeScale,
         prePhonemeLength: segment.prePhonemeLength,
         postPhonemeLength: segment.postPhonemeLength,
         pauseLengthScale: segment.pauseLengthScale,
-        accentPhrases: segment.audioQuery?.accent_phrases ?? segment.accentPhrases,
         persistState: true,
       })
       if (!result) return

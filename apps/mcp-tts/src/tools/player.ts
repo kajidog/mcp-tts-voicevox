@@ -14,7 +14,7 @@ import {
   readCachedAudioBase64,
   writeCachedAudioBase64,
 } from './player-audio-cache.js'
-import { accentPhrasesToSimplifiedPhrases, applyAccentsToAccentPhrases } from './player-phrase-utils.js'
+import { accentPhrasesToNotation, applyNotationAccents, parseNotation } from './player-phrase-utils.js'
 import {
   DEFAULT_STATE_PAGE_LIMIT,
   MAX_STATE_PAGE_LIMIT,
@@ -408,7 +408,7 @@ export function registerPlayerTools(deps: ToolDeps) {
     {
       title: 'Resynthesize Player',
       description:
-        'Update a single player track by index. Pass viewUUID + trackIndex to identify the segment. Provide text to regenerate from scratch, or accents [number] to adjust accent positions only. Omitted parameters keep existing values. Returns new viewUUID for subsequent operations. Audio synthesis is performed by the player UI.',
+        'Update a single player track by index. Pass viewUUID + trackIndex to identify the segment. Provide phrases in inline notation to change text and/or accents (e.g. "コン[ニ]チワ,セカイ" — comma-separated phrases, [bracket] marks accent mora, omit brackets to keep VOICEVOX default). Omitted parameters keep existing values. Returns new viewUUID for subsequent operations. Audio synthesis is performed by the player UI.',
       inputSchema: {
         viewUUID: z
           .string()
@@ -418,17 +418,11 @@ export function registerPlayerTools(deps: ToolDeps) {
           .int()
           .min(0)
           .describe('Index of the segment to update (from get_player_state trackIndex).'),
-        text: z
+        phrases: z
           .string()
           .optional()
           .describe(
-            'New text for this segment. If provided, triggers full re-generation. Takes priority over accents.'
-          ),
-        accents: z
-          .array(z.number().int().min(1))
-          .optional()
-          .describe(
-            'Accent positions as a number array, one per phrase (position-based). Only used when text is not provided.'
+            'Inline notation for text and accents. Comma-separated phrases, [bracket] marks accent mora. Example: "コン[ニ]チワ,セカイ". If text differs from existing, triggers full re-generation.'
           ),
         speaker: z.number().optional().describe('Speaker ID (omit to keep existing)'),
         speedScale: z.number().optional().describe('Playback speed (omit to keep existing)'),
@@ -451,8 +445,7 @@ export function registerPlayerTools(deps: ToolDeps) {
       {
         viewUUID: inputViewUUID,
         trackIndex,
-        text,
-        accents,
+        phrases,
         speaker,
         speedScale,
         intonationScale,
@@ -464,8 +457,7 @@ export function registerPlayerTools(deps: ToolDeps) {
       }: {
         viewUUID: string
         trackIndex: number
-        text?: string
-        accents?: number[]
+        phrases?: string
         speaker?: number
         speedScale?: number
         intonationScale?: number
@@ -500,33 +492,43 @@ export function registerPlayerTools(deps: ToolDeps) {
         const effectivePauseLength = pauseLengthScale ?? existingSegment.pauseLengthScale
 
         let updatedAccentPhrases: AccentPhrase[] | undefined
-        const textProvided = text !== undefined
-        const effectiveText = textProvided ? text : existingSegment.text
+        let textChanged = false
+        let effectiveText = existingSegment.text
 
-        if (textProvided) {
-          // テキスト変更 → 全再生成。accentsは無視。
-          updatedAccentPhrases = undefined
-        } else if (accents && accents.length > 0) {
-          // アクセントのみ変更: 既存AccentPhraseにマージ
+        if (phrases !== undefined) {
+          const parsedPhrases = parseNotation(phrases)
+          const newCleanText = parsedPhrases.map((p) => p.cleanText).join('')
+
+          // 既存AccentPhrasesのテキストを連結して比較
           const existingAccentPhrases =
             existingSegment.accentPhrases ?? (existingSegment.audioQuery?.accent_phrases as AccentPhrase[] | undefined)
+          const existingCleanText = existingAccentPhrases
+            ? existingAccentPhrases.flatMap((ap) => ap.moras.map((m) => m.text)).join('')
+            : existingSegment.text
 
-          if (existingAccentPhrases && existingAccentPhrases.length > 0) {
-            updatedAccentPhrases = applyAccentsToAccentPhrases(existingAccentPhrases, accents)
+          if (newCleanText !== existingCleanText) {
+            // テキスト変更あり → /audio_query で新規生成 → アクセント適用
+            textChanged = true
+            effectiveText = newCleanText
+            const newQuery = await playerVoicevoxApi.generateQuery(newCleanText, effectiveSpeaker)
+            updatedAccentPhrases = applyNotationAccents(parsedPhrases, newQuery.accent_phrases as AccentPhrase[])
           } else {
-            // 既存AccentPhraseがない場合、テキストからベース構造を生成してaccent適用
-            const tempQuery = await playerVoicevoxApi.generateQuery(effectiveText, effectiveSpeaker)
-            updatedAccentPhrases = applyAccentsToAccentPhrases(tempQuery.accent_phrases as AccentPhrase[], accents)
+            // テキスト同一 → 既存AccentPhraseにアクセント適用、[]省略はVOICEVOXデフォルトに戻す
+            const defaultQuery = await playerVoicevoxApi.generateQuery(effectiveText, effectiveSpeaker)
+            const defaultAccentPhrases = defaultQuery.accent_phrases as AccentPhrase[]
+            const baseAccentPhrases =
+              existingAccentPhrases && existingAccentPhrases.length > 0 ? existingAccentPhrases : defaultAccentPhrases
+            updatedAccentPhrases = applyNotationAccents(parsedPhrases, baseAccentPhrases, defaultAccentPhrases)
           }
         } else {
-          // テキスト変更なし・アクセント変更なし → 既存パラメータで再合成
+          // phrases未指定 → 既存パラメータで再合成
           updatedAccentPhrases =
             existingSegment.accentPhrases ?? (existingSegment.audioQuery?.accent_phrases as AccentPhrase[] | undefined)
         }
 
         // audioQueryの更新（テキスト変更なし + 既存audioQueryあり + AccentPhraseあり の場合）
         let audioQueryForState: AudioQuery | undefined
-        if (!textProvided && existingSegment.audioQuery && updatedAccentPhrases) {
+        if (!textChanged && existingSegment.audioQuery && updatedAccentPhrases) {
           audioQueryForState = {
             ...existingSegment.audioQuery,
             accent_phrases: updatedAccentPhrases,
@@ -548,8 +550,8 @@ export function registerPlayerTools(deps: ToolDeps) {
           text: effectiveText,
           speaker: effectiveSpeaker,
           speakerName,
-          kana: textProvided ? undefined : existingSegment.kana,
-          audioQuery: audioQueryForState ?? (textProvided ? undefined : existingSegment.audioQuery),
+          kana: textChanged ? undefined : existingSegment.kana,
+          audioQuery: audioQueryForState ?? (textChanged ? undefined : existingSegment.audioQuery),
           accentPhrases: updatedAccentPhrases,
           speedScale: effectiveSpeed,
           intonationScale: effectiveIntonation,
@@ -636,7 +638,7 @@ export function registerPlayerTools(deps: ToolDeps) {
     {
       title: 'Get VOICEVOX Player State',
       description:
-        'Returns paged player state for AI tuning. Each segment includes trackIndex and simplified phrases [{text, accent}]. Use the latest viewUUID from speak_player/resynthesize_player. If hasMore is true, call again with nextCursor to continue.',
+        'Returns paged player state for AI tuning. Each segment includes trackIndex and phrases in inline notation (e.g. "コン[ニ]チワ,セ[カ]イ"). Use the latest viewUUID from speak_player/resynthesize_player. If hasMore is true, call again with nextCursor to continue.',
       inputSchema: {
         viewUUID: z
           .string()
@@ -703,7 +705,7 @@ export function registerPlayerTools(deps: ToolDeps) {
               text: seg.text,
               speaker: seg.speaker,
               speakerName: seg.speakerName,
-              phrases: rawAccentPhrases ? accentPhrasesToSimplifiedPhrases(rawAccentPhrases) : null,
+              phrases: rawAccentPhrases ? accentPhrasesToNotation(rawAccentPhrases) : null,
               speedScale: seg.speedScale,
               intonationScale: seg.intonationScale,
               volumeScale: seg.volumeScale,

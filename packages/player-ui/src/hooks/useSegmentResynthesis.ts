@@ -143,7 +143,9 @@ export function useSegmentResynthesis({
                 prePhonemeLength: applyToSameSpeaker ? draft.prePhonemeLength : (seg.prePhonemeLength ?? 0.1),
                 postPhonemeLength: applyToSameSpeaker ? draft.postPhonemeLength : (seg.postPhonemeLength ?? 0.1),
                 pauseLengthScale: applyToSameSpeaker ? draft.pauseLengthScale : (seg.pauseLengthScale ?? 1.0),
-                accentPhrases: seg.audioQuery?.accent_phrases ?? seg.accentPhrases,
+                // 話者変更時は旧話者のaccentPhrasesを渡さない（ピッチ値が旧話者用で棒読みになるため）
+                // generateQuery() で新話者用のアクセント句を生成させる
+                accentPhrases: (bulkSwitchSpeaker && speakerChanged) ? undefined : (seg.audioQuery?.accent_phrases ?? seg.accentPhrases),
                 persistState: false,
               })
               if (result) return { index: i, data: result }

@@ -1,6 +1,13 @@
 import type { AccentPhrase, Mora } from '@kajidog/voicevox-client'
 import { describe, expect, it } from 'vitest'
-import { accentPhrasesToSimplifiedPhrases, applyAccentsToAccentPhrases } from '../tools/player-phrase-utils'
+import {
+  accentPhrasesToNotation,
+  accentPhrasesToSimplifiedPhrases,
+  applyAccentsToAccentPhrases,
+  applyNotationAccents,
+  parseNotation,
+  resolveAccentFromMoras,
+} from '../tools/player-phrase-utils'
 
 function makeMora(text: string, vowel = 'a', pitch = 5.0): Mora {
   return { text, vowel, vowel_length: 0.1, pitch }
@@ -96,5 +103,260 @@ describe('applyAccentsToAccentPhrases', () => {
     const result = applyAccentsToAccentPhrases(existing, [5])
     expect(existing[0].accent).toBe(1)
     expect(result[0].accent).toBe(5)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// インライン表記方式のテスト
+// ---------------------------------------------------------------------------
+
+describe('accentPhrasesToNotation', () => {
+  it('基本変換: accent位置のモーラを[]で囲む', () => {
+    const phrases: AccentPhrase[] = [
+      makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 3),
+      makeAccentPhrase(['セ', 'カ', 'イ'], 1),
+    ]
+    expect(accentPhrasesToNotation(phrases)).toBe('コン[ニ]チワ,[セ]カイ')
+  })
+
+  it('平板型(accent=0)は[]なし', () => {
+    const phrases: AccentPhrase[] = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 0)]
+    expect(accentPhrasesToNotation(phrases)).toBe('コンニチワ')
+  })
+
+  it('空配列は空文字列', () => {
+    expect(accentPhrasesToNotation([])).toBe('')
+  })
+
+  it('単一モーラのフレーズ', () => {
+    const phrases: AccentPhrase[] = [makeAccentPhrase(['ア'], 1)]
+    expect(accentPhrasesToNotation(phrases)).toBe('[ア]')
+  })
+
+  it('拗音(text.length=2)のモーラを含む場合', () => {
+    const phrases: AccentPhrase[] = [
+      {
+        moras: [makeMora('キョ'), makeMora('ウ')],
+        accent: 1,
+      },
+    ]
+    expect(accentPhrasesToNotation(phrases)).toBe('[キョ]ウ')
+  })
+})
+
+describe('parseNotation', () => {
+  it('[]ありのフレーズをパースする', () => {
+    const result = parseNotation('コン[ニ]チワ')
+    expect(result).toEqual([{ cleanText: 'コンニチワ', bracketCharIndex: 2, bracketLength: 1 }])
+  })
+
+  it('[]なしのフレーズをパースする', () => {
+    const result = parseNotation('セカイ')
+    expect(result).toEqual([{ cleanText: 'セカイ', bracketCharIndex: null, bracketLength: 0 }])
+  })
+
+  it('複数フレーズをカンマ区切りでパースする', () => {
+    const result = parseNotation('コン[ニ]チワ,セカイ')
+    expect(result).toHaveLength(2)
+    expect(result[0]).toEqual({ cleanText: 'コンニチワ', bracketCharIndex: 2, bracketLength: 1 })
+    expect(result[1]).toEqual({ cleanText: 'セカイ', bracketCharIndex: null, bracketLength: 0 })
+  })
+
+  it('空文字列は空配列を返す', () => {
+    expect(parseNotation('')).toEqual([])
+    expect(parseNotation('  ')).toEqual([])
+  })
+
+  it('空フレーズ(連続カンマ)はフィルタされる', () => {
+    const result = parseNotation(',コン[ニ]チワ,,セカイ,')
+    expect(result).toHaveLength(2)
+  })
+
+  it('拗音を[]で囲める', () => {
+    const result = parseNotation('[キョ]ウ')
+    expect(result).toEqual([{ cleanText: 'キョウ', bracketCharIndex: 0, bracketLength: 2 }])
+  })
+
+  it('[が2つ以上でエラー', () => {
+    expect(() => parseNotation('[コ][ン]')).toThrow('multiple')
+  })
+
+  it('括弧の対応不正でエラー', () => {
+    expect(() => parseNotation('[コン')).toThrow('mismatched')
+    expect(() => parseNotation('コン]')).toThrow('mismatched')
+  })
+
+  it(']が[より前でエラー', () => {
+    expect(() => parseNotation(']コン[')).toThrow()
+  })
+
+  it('空の括弧でエラー', () => {
+    expect(() => parseNotation('コン[]チワ')).toThrow('empty')
+  })
+})
+
+describe('resolveAccentFromMoras', () => {
+  it('通常モーラで正しいインデックスを返す(1-based)', () => {
+    const moras = [makeMora('コ'), makeMora('ン'), makeMora('ニ'), makeMora('チ'), makeMora('ワ')]
+    // bracketCharIndex=2 → "ニ"(index 2) → accent 3 (1-based)
+    expect(resolveAccentFromMoras(moras, 2, 1)).toBe(3)
+  })
+
+  it('先頭モーラ', () => {
+    const moras = [makeMora('セ'), makeMora('カ'), makeMora('イ')]
+    expect(resolveAccentFromMoras(moras, 0, 1)).toBe(1)
+  })
+
+  it('拗音(text.length=2)のモーラ', () => {
+    const moras = [makeMora('キョ'), makeMora('ウ')]
+    // "キョ"はcharIndex=0, length=2
+    expect(resolveAccentFromMoras(moras, 0, 2)).toBe(1)
+    // "ウ"はcharIndex=2, length=1
+    expect(resolveAccentFromMoras(moras, 2, 1)).toBe(2)
+  })
+
+  it('bracketLengthがモーラのtext.lengthと不一致でエラー', () => {
+    const moras = [makeMora('キョ'), makeMora('ウ')]
+    // bracketCharIndex=0 は "キョ"(length=2) だが bracketLength=1 → エラー
+    expect(() => resolveAccentFromMoras(moras, 0, 1)).toThrow('does not match mora text length')
+  })
+
+  it('不正な位置でエラー', () => {
+    const moras = [makeMora('コ'), makeMora('ン')]
+    expect(() => resolveAccentFromMoras(moras, 5, 1)).toThrow('does not align')
+  })
+
+  it('モーラ境界でない位置でエラー', () => {
+    const moras = [makeMora('キョ'), makeMora('ウ')]
+    // charIndex=1 はモーラ境界ではない（"キョ"の途中）
+    expect(() => resolveAccentFromMoras(moras, 1, 1)).toThrow('does not align')
+  })
+})
+
+describe('applyNotationAccents', () => {
+  it('[]指定ありのフレーズはアクセントを上書きする', () => {
+    const parsed = parseNotation('[コ]ンニチワ')
+    const accentPhrases = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 3)]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result[0].accent).toBe(1)
+  })
+
+  it('[]指定なしでdefaultAccentPhrasesなし → 既存accent維持', () => {
+    const parsed = parseNotation('セカイ')
+    const accentPhrases = [makeAccentPhrase(['セ', 'カ', 'イ'], 2)]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result[0].accent).toBe(2)
+  })
+
+  it('[]指定なしでdefaultAccentPhrasesあり → VOICEVOXデフォルトaccentを使用', () => {
+    const parsed = parseNotation('セカイ')
+    const existing = [makeAccentPhrase(['セ', 'カ', 'イ'], 2)] // 手動変更済み
+    const defaults = [makeAccentPhrase(['セ', 'カ', 'イ'], 1)] // VOICEVOX自動判定
+    const result = applyNotationAccents(parsed, existing, defaults)
+    expect(result[0].accent).toBe(1) // デフォルトに戻る
+  })
+
+  it('[]あり/なし混在（defaultAccentPhrasesあり）', () => {
+    const parsed = parseNotation('コン[ニ]チワ,セカイ')
+    const existing = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 1), makeAccentPhrase(['セ', 'カ', 'イ'], 2)]
+    const defaults = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 4), makeAccentPhrase(['セ', 'カ', 'イ'], 1)]
+    const result = applyNotationAccents(parsed, existing, defaults)
+    expect(result[0].accent).toBe(3) // [ニ] → 3番目のモーラ（明示指定）
+    expect(result[1].accent).toBe(1) // []省略 → VOICEVOXデフォルト
+  })
+
+  it('[]あり/なし混在（defaultAccentPhrasesなし）', () => {
+    const parsed = parseNotation('コン[ニ]チワ,セカイ')
+    const accentPhrases = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 1), makeAccentPhrase(['セ', 'カ', 'イ'], 2)]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result[0].accent).toBe(3) // [ニ] → 3番目のモーラ
+    expect(result[1].accent).toBe(2) // defaultsなし → 既存維持
+  })
+
+  it('parsedPhrasesがaccentPhrasesより少ない場合、余分なAccentPhraseはデフォルト維持', () => {
+    const parsed = parseNotation('[コ]ンニチワ')
+    const accentPhrases = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 3), makeAccentPhrase(['セ', 'カ', 'イ'], 2)]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result[0].accent).toBe(1)
+    expect(result[1].accent).toBe(2) // デフォルト維持
+  })
+
+  it('parsedPhrasesがaccentPhrasesより多い場合、余分は無視', () => {
+    const parsed = parseNotation('[コ]ンニチワ,[セ]カイ,[ア]イウ')
+    const accentPhrases = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 3)]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result).toHaveLength(1)
+    expect(result[0].accent).toBe(1)
+  })
+
+  it('元のAccentPhraseを変更しない（イミュータブル）', () => {
+    const parsed = parseNotation('[コ]ンニチワ')
+    const original = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 3)]
+    const result = applyNotationAccents(parsed, original)
+    expect(original[0].accent).toBe(3)
+    expect(result[0].accent).toBe(1)
+  })
+})
+
+describe('ラウンドトリップ', () => {
+  it('accentPhrasesToNotation → parseNotation → applyNotationAccents で元のaccent値が復元される', () => {
+    const original: AccentPhrase[] = [
+      makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 3),
+      makeAccentPhrase(['セ', 'カ', 'イ'], 1),
+    ]
+    const notation = accentPhrasesToNotation(original)
+    const parsed = parseNotation(notation)
+    // applyNotationAccentsにはaccentがリセットされたコピーを渡す
+    const resetAccent = original.map((p) => ({ ...p, accent: 0 }))
+    const result = applyNotationAccents(parsed, resetAccent)
+    expect(result[0].accent).toBe(3)
+    expect(result[1].accent).toBe(1)
+  })
+
+  it('平板型(accent=0)はラウンドトリップでVOICEVOXデフォルトに戻る', () => {
+    const original: AccentPhrase[] = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 0)]
+    const notation = accentPhrasesToNotation(original)
+    expect(notation).toBe('コンニチワ') // []なし
+    const parsed = parseNotation(notation)
+    // 手動変更でaccent=5になっていた既存フレーズに適用
+    const existing = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 5)]
+    // VOICEVOXデフォルトはaccent=3
+    const defaults = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 3)]
+    const result = applyNotationAccents(parsed, existing, defaults)
+    // []省略 → VOICEVOXデフォルト(3)が使われる
+    expect(result[0].accent).toBe(3)
+  })
+
+  it('拗音を含むフレーズのラウンドトリップ', () => {
+    const original: AccentPhrase[] = [
+      {
+        moras: [makeMora('キョ'), makeMora('ウ')],
+        accent: 1,
+      },
+    ]
+    const notation = accentPhrasesToNotation(original)
+    expect(notation).toBe('[キョ]ウ')
+    const parsed = parseNotation(notation)
+    const resetAccent = original.map((p) => ({ ...p, accent: 0 }))
+    const result = applyNotationAccents(parsed, resetAccent)
+    expect(result[0].accent).toBe(1)
+  })
+})
+
+describe('I/O契約テスト', () => {
+  it('get_player_stateの出力phrasesをresynthesize_playerの入力としてパースできる', () => {
+    const accentPhrases: AccentPhrase[] = [
+      makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 3),
+      makeAccentPhrase(['セ', 'カ', 'イ'], 1),
+    ]
+    // get_player_stateが返す文字列
+    const phrasesOutput = accentPhrasesToNotation(accentPhrases)
+    // resynthesize_playerへの入力としてパース（エラーにならないこと）
+    const parsed = parseNotation(phrasesOutput)
+    expect(parsed).toHaveLength(2)
+    // 再適用してaccent値が復元されること
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result[0].accent).toBe(3)
+    expect(result[1].accent).toBe(1)
   })
 })
