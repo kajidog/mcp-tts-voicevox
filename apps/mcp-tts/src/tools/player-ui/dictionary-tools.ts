@@ -1,10 +1,14 @@
+import {
+  accentPhrasesToNotation,
+  estimateAccentType,
+  isKatakana,
+  normalizeUserDictionaryWords,
+} from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
-import { accentPhrasesToNotation } from '../player/phrase-utils.js'
 import { registerAppToolIfEnabled } from '../registration.js'
 import { createErrorResponse } from '../utils.js'
 import type { PlayerUIToolContext } from './context.js'
-import { estimateAccentType, isKatakana, normalizeUserDictionaryWords } from './dictionary-utils.js'
 
 export function registerPlayerDictionaryTools(context: PlayerUIToolContext): void {
   const { deps, shared } = context

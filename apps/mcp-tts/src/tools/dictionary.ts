@@ -1,15 +1,15 @@
-import { VoicevoxApi } from '@kajidog/voicevox-client'
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import * as z from 'zod/v4'
 import {
   type NormalizedDictionaryWord,
+  VoicevoxApi,
+  accentPhrasesToNotation,
   estimateAccentType,
   insertAccentBrackets,
   isKatakana,
   normalizeUserDictionaryWords,
   parseAccentNotation,
-} from './player-ui/dictionary-utils.js'
-import { accentPhrasesToNotation } from './player/phrase-utils.js'
+} from '@kajidog/voicevox-client'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+import * as z from 'zod/v4'
 import { registerToolIfEnabled } from './registration.js'
 import type { ToolDeps } from './types.js'
 import { createErrorResponse } from './utils.js'

@@ -3,6 +3,7 @@ export * from './types.js'
 export * from './api.js'
 export * from './utils.js'
 export * from './error.js'
+export * from './accent-utils.js'
 
 // queueモジュールから再エクスポート（stateと重複するものを除く）
 export {

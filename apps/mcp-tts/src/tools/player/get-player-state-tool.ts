@@ -1,10 +1,9 @@
-import type { AccentPhrase } from '@kajidog/voicevox-client'
+import { type AccentPhrase, accentPhrasesToNotation } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
 import { registerToolIfEnabled } from '../registration.js'
 import type { ToolDeps, ToolHandlerExtra } from '../types.js'
 import { createErrorResponse } from '../utils.js'
-import { accentPhrasesToNotation } from './phrase-utils.js'
 import {
   DEFAULT_STATE_PAGE_LIMIT,
   MAX_STATE_PAGE_LIMIT,

@@ -1,5 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { registerDictionaryTools } from '../dictionary.js'
 import {
   estimateAccentType,
   insertAccentBrackets,
@@ -7,7 +5,9 @@ import {
   normalizeUserDictionaryWords,
   parseAccentNotation,
   splitToMoras,
-} from '../player-ui/dictionary-utils.js'
+} from '@kajidog/voicevox-client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { registerDictionaryTools } from '../dictionary.js'
 import type { ToolDeps } from '../types.js'
 
 const mockRegisterTool = vi.fn()
