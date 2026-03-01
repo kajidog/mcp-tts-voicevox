@@ -2,7 +2,7 @@ import type { App } from '@modelcontextprotocol/ext-apps'
 import { useApp } from '@modelcontextprotocol/ext-apps/react'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { useEffect, useRef, useState } from 'react'
-import { fetchPlayerStateOnServer } from '../hooks/playerToolClient'
+import { resolveRestoredSegments } from '../hooks/playerStateRecovery'
 import type { AudioSegment, DictionaryData, MultiPlayerData } from '../types'
 import { extractDictionaryData, extractMultiPlayerData, extractPlayerData } from '../utils'
 import { DictionaryManager } from './dictionary/DictionaryManager'
@@ -80,17 +80,7 @@ export function VoicevoxPlayer() {
           if (multiData.viewUUID) {
             playerViewUUIDRef.current = multiData.viewUUID
           }
-          let restoredSegments = multiData.segments
-          if (multiData.viewUUID) {
-            try {
-              const restoredState = await fetchPlayerStateOnServer(createdApp, { viewUUID: multiData.viewUUID })
-              if (restoredState?.segments?.length) {
-                restoredSegments = restoredState.segments
-              }
-            } catch (error) {
-              console.warn('[VOICEVOX Player] Failed to restore player state:', error)
-            }
-          }
+          const restoredSegments = await resolveRestoredSegments(createdApp, multiData.viewUUID, multiData.segments)
           setMultiPlayerData({
             ...multiData,
             segments: restoredSegments,

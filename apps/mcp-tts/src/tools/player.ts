@@ -1,15 +1,30 @@
-import { createHash, randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync } from 'node:fs'
-import type { Stats } from 'node:fs'
-import { readdir, rename, stat, unlink, writeFile } from 'node:fs/promises'
-import { basename, dirname, join } from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { VoicevoxApi } from '@kajidog/voicevox-client'
-import type { AccentPhrase, AudioQuery, Mora } from '@kajidog/voicevox-client'
+import type { AccentPhrase, AudioQuery } from '@kajidog/voicevox-client'
 import { RESOURCE_MIME_TYPE, registerAppResource } from '@modelcontextprotocol/ext-apps/server'
 import type { CallToolResult, ReadResourceResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
-import { planAudioCacheCleanup, resolveAudioCachePolicy } from './player-cache-utils.js'
+import {
+  createAudioCacheKey,
+  getAudioCacheDir,
+  initializeAudioCache,
+  readCachedAudioBase64,
+  writeCachedAudioBase64,
+} from './player-audio-cache.js'
+import { accentPhrasesToNotation, applyNotationAccents, parseNotation } from './player-phrase-utils.js'
+import {
+  DEFAULT_STATE_PAGE_LIMIT,
+  MAX_STATE_PAGE_LIMIT,
+  MAX_TOOL_CONTENT_BYTES,
+  getSessionState,
+  getSessionStateByKey,
+  initializeSessionState,
+  setSessionState,
+} from './player-session-state.js'
+import type { PlayerSegmentState } from './player-session-state.js'
 import { registerPlayerUITools } from './player-ui-tools.js'
 import { registerAppToolIfEnabled, registerToolIfEnabled } from './registration.js'
 import type { ToolDeps, ToolHandlerExtra } from './types.js'
@@ -38,262 +53,6 @@ const playerResourceUri = 'ui://speak-player/player.html'
 
 let speakerCache: Array<{ id: number; name: string; characterName: string; uuid: string }> | null = null
 let playerStorageInitialized = false
-let audioCacheDir = join(process.cwd(), '.voicevox-player-cache')
-const audioCacheMem = new Map<string, string>()
-const AUDIO_CACHE_FILE_PATTERN = /^[a-f0-9]{64}\.txt$/
-const DEFAULT_AUDIO_CACHE_TTL_DAYS = 30
-const DEFAULT_AUDIO_CACHE_MAX_MB = 512
-const AUDIO_CACHE_CLEANUP_EVERY_WRITES = 20
-
-let audioCacheEnabledFlag = true
-let audioCacheTtlDays = DEFAULT_AUDIO_CACHE_TTL_DAYS
-let audioCacheMaxMb = DEFAULT_AUDIO_CACHE_MAX_MB
-
-let isAudioDiskCacheEnabled = audioCacheEnabledFlag && audioCacheTtlDays !== 0 && audioCacheMaxMb !== 0
-let audioCacheTtlMs: number | null = audioCacheTtlDays < 0 ? null : audioCacheTtlDays * 24 * 60 * 60 * 1000
-let audioCacheMaxBytes: number | null = audioCacheMaxMb < 0 ? null : audioCacheMaxMb * 1024 * 1024
-
-let isAudioCacheCleanupRunning = false
-let pendingAudioCacheCleanup = false
-let writesSinceLastAudioCleanup = 0
-
-async function cleanupAudioCacheFiles(): Promise<void> {
-  if (!isAudioDiskCacheEnabled) return
-
-  try {
-    const entries = await readdir(audioCacheDir, { withFileTypes: true })
-    const now = Date.now()
-    const files: Array<{ name: string; path: string; size: number; mtimeMs: number }> = []
-
-    for (const entry of entries) {
-      if (!entry.isFile() || !AUDIO_CACHE_FILE_PATTERN.test(entry.name)) continue
-      const filePath = join(audioCacheDir, entry.name)
-      let fileStat: Stats
-      try {
-        fileStat = await stat(filePath)
-      } catch {
-        continue
-      }
-      files.push({ name: entry.name, path: filePath, size: fileStat.size, mtimeMs: fileStat.mtimeMs })
-    }
-
-    const toDelete = planAudioCacheCleanup({
-      entries: files,
-      now,
-      ttlMs: audioCacheTtlMs,
-      maxBytes: audioCacheMaxBytes,
-    })
-
-    if (toDelete.size === 0) return
-
-    for (const path of toDelete) {
-      try {
-        await unlink(path)
-      } catch {
-        // ignore cleanup races
-      }
-      const fileName = basename(path)
-      if (fileName.endsWith('.txt')) {
-        audioCacheMem.delete(fileName.slice(0, -4))
-      }
-    }
-  } catch (error) {
-    console.warn('Warning: failed to cleanup VOICEVOX player audio cache:', error)
-  }
-}
-
-function scheduleAudioCacheCleanup(force = false): void {
-  if (!isAudioDiskCacheEnabled) return
-  if (!force) {
-    writesSinceLastAudioCleanup += 1
-    if (writesSinceLastAudioCleanup < AUDIO_CACHE_CLEANUP_EVERY_WRITES) return
-  }
-  writesSinceLastAudioCleanup = 0
-  if (isAudioCacheCleanupRunning) {
-    pendingAudioCacheCleanup = true
-    return
-  }
-  isAudioCacheCleanupRunning = true
-  void cleanupAudioCacheFiles()
-    .catch((error) => console.warn('Warning: failed to cleanup VOICEVOX player audio cache:', error))
-    .finally(() => {
-      isAudioCacheCleanupRunning = false
-      if (pendingAudioCacheCleanup) {
-        pendingAudioCacheCleanup = false
-        scheduleAudioCacheCleanup(true)
-      }
-    })
-}
-
-// ---------------------------------------------------------------------------
-// Player session state types and store
-// ---------------------------------------------------------------------------
-
-interface PlayerSegmentState {
-  text: string
-  speaker: number
-  speakerName?: string
-  kana?: string
-  audioQuery?: AudioQuery
-  accentPhrases?: AccentPhrase[]
-  speedScale: number
-  intonationScale?: number
-  volumeScale?: number
-  prePhonemeLength?: number
-  postPhonemeLength?: number
-  pauseLengthScale?: number
-}
-
-interface PlayerSessionState {
-  segments: PlayerSegmentState[]
-  updatedAt: number
-}
-
-const playerSessionState = new Map<string, PlayerSessionState>()
-const MAX_TOOL_CONTENT_BYTES = 1024 * 1024
-const DEFAULT_STATE_PAGE_LIMIT = 100
-const MAX_STATE_PAGE_LIMIT = 1000
-const MAX_PERSISTED_STATES = 500
-const MAX_STATE_AGE_MS = 30 * 24 * 60 * 60 * 1000
-let stateFilePath = join(audioCacheDir, 'player-state.json')
-
-function createAudioCacheKey(input: {
-  text: string
-  speaker: number
-  audioQuery?: AudioQuery
-  speedScale: number
-  intonationScale?: number
-  volumeScale?: number
-  prePhonemeLength?: number
-  postPhonemeLength?: number
-  pauseLengthScale?: number
-  accentPhrases?: AccentPhrase[]
-}): string {
-  const keyInput = input.audioQuery
-    ? JSON.stringify({
-        speaker: input.speaker,
-        text: input.text,
-        audioQuery: input.audioQuery,
-      })
-    : JSON.stringify({
-        speaker: input.speaker,
-        text: input.text,
-        speedScale: Number(input.speedScale.toFixed(4)),
-        intonationScale: input.intonationScale === undefined ? null : Number(input.intonationScale.toFixed(4)),
-        volumeScale: input.volumeScale === undefined ? null : Number(input.volumeScale.toFixed(4)),
-        prePhonemeLength: input.prePhonemeLength === undefined ? null : Number(input.prePhonemeLength.toFixed(4)),
-        postPhonemeLength: input.postPhonemeLength === undefined ? null : Number(input.postPhonemeLength.toFixed(4)),
-        pauseLengthScale: input.pauseLengthScale === undefined ? null : Number(input.pauseLengthScale.toFixed(4)),
-        accentPhrases: input.accentPhrases ?? null,
-      })
-  return createHash('sha256').update(keyInput).digest('hex')
-}
-
-function readCachedAudioBase64(cacheKey: string): string | null {
-  const inMemory = audioCacheMem.get(cacheKey)
-  if (inMemory) return inMemory
-  if (!isAudioDiskCacheEnabled) return null
-
-  const filePath = join(audioCacheDir, `${cacheKey}.txt`)
-  try {
-    const base64 = readFileSync(filePath, 'utf-8').trim()
-    if (base64.length > 0) {
-      audioCacheMem.set(cacheKey, base64)
-      return base64
-    }
-  } catch {
-    // cache miss
-  }
-  return null
-}
-
-async function writeCachedAudioBase64(cacheKey: string, base64: string): Promise<void> {
-  audioCacheMem.set(cacheKey, base64)
-  if (!isAudioDiskCacheEnabled) return
-  const filePath = join(audioCacheDir, `${cacheKey}.txt`)
-  try {
-    await writeFile(filePath, base64, 'utf-8')
-    scheduleAudioCacheCleanup()
-  } catch (error) {
-    console.warn('Warning: failed to write VOICEVOX player cache:', error)
-  }
-}
-
-async function saveSessionStateToDisk(): Promise<void> {
-  try {
-    const now = Date.now()
-    const validEntries = [...playerSessionState.entries()]
-      .filter(([, state]) => now - state.updatedAt <= MAX_STATE_AGE_MS)
-      .sort((a, b) => b[1].updatedAt - a[1].updatedAt)
-      .slice(0, MAX_PERSISTED_STATES)
-
-    playerSessionState.clear()
-    for (const [key, state] of validEntries) {
-      playerSessionState.set(key, state)
-    }
-
-    const payload = JSON.stringify({
-      version: 1,
-      savedAt: now,
-      entries: validEntries,
-    })
-    const tempPath = `${stateFilePath}.tmp`
-    await writeFile(tempPath, payload, 'utf-8')
-    await rename(tempPath, stateFilePath)
-  } catch (error) {
-    console.warn('Warning: failed to persist player state:', error)
-  }
-}
-
-let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null
-
-function scheduleStateSave(): void {
-  if (saveDebounceTimer !== null) clearTimeout(saveDebounceTimer)
-  saveDebounceTimer = setTimeout(() => {
-    saveDebounceTimer = null
-    saveSessionStateToDisk().catch((e) => console.warn('Warning: failed to persist player state:', e))
-  }, 300)
-}
-
-function loadSessionStateFromDisk(): void {
-  try {
-    const raw = readFileSync(stateFilePath, 'utf-8')
-    const parsed = JSON.parse(raw) as {
-      entries?: Array<[string, PlayerSessionState]>
-    }
-    if (!Array.isArray(parsed.entries)) return
-
-    const now = Date.now()
-    for (const entry of parsed.entries) {
-      if (!Array.isArray(entry) || entry.length !== 2) continue
-      const [key, state] = entry
-      if (!key || typeof key !== 'string') continue
-      if (!state || typeof state.updatedAt !== 'number' || !Array.isArray(state.segments)) continue
-      if (now - state.updatedAt > MAX_STATE_AGE_MS) continue
-      playerSessionState.set(key, state)
-    }
-  } catch {
-    // 初回起動や破損時は空状態で継続
-  }
-}
-
-function setSessionState(key: string, state: PlayerSessionState): void {
-  playerSessionState.set(key, state)
-  scheduleStateSave()
-}
-
-function getSessionState(viewUUID: string | undefined, sessionId: string | undefined): PlayerSessionState | undefined {
-  // viewUUID が指定されていれば最優先で検索
-  if (viewUUID) {
-    const s = playerSessionState.get(viewUUID)
-    if (s) return s
-  }
-  // sessionId でフォールバック
-  const key = sessionId ?? 'global'
-  const s = playerSessionState.get(key)
-  if (s) return s
-  return undefined
-}
 
 // ---------------------------------------------------------------------------
 
@@ -301,42 +60,8 @@ function initializePlayerStorage(config: ToolDeps['config']): void {
   if (playerStorageInitialized) return
   playerStorageInitialized = true
 
-  audioCacheDir = config.playerCacheDir || audioCacheDir
-  stateFilePath = config.playerStateFile || join(audioCacheDir, 'player-state.json')
-
-  audioCacheEnabledFlag = config.playerAudioCacheEnabled !== false
-  audioCacheTtlDays = Number.isFinite(config.playerAudioCacheTtlDays)
-    ? config.playerAudioCacheTtlDays
-    : DEFAULT_AUDIO_CACHE_TTL_DAYS
-  audioCacheMaxMb = Number.isFinite(config.playerAudioCacheMaxMb)
-    ? config.playerAudioCacheMaxMb
-    : DEFAULT_AUDIO_CACHE_MAX_MB
-
-  const cachePolicy = resolveAudioCachePolicy({
-    enabledFlag: audioCacheEnabledFlag,
-    ttlDays: audioCacheTtlDays,
-    maxMb: audioCacheMaxMb,
-  })
-  isAudioDiskCacheEnabled = cachePolicy.isDiskCacheEnabled
-  audioCacheTtlMs = cachePolicy.ttlMs
-  audioCacheMaxBytes = cachePolicy.maxBytes
-
-  try {
-    mkdirSync(audioCacheDir, { recursive: true })
-    if (isAudioDiskCacheEnabled) {
-      scheduleAudioCacheCleanup(true)
-    }
-  } catch (error) {
-    console.warn('Warning: failed to create VOICEVOX player cache directory:', error)
-  }
-
-  try {
-    mkdirSync(dirname(stateFilePath), { recursive: true })
-  } catch (error) {
-    console.warn('Warning: failed to prepare player state directory:', error)
-  }
-
-  loadSessionStateFromDisk()
+  initializeAudioCache(config)
+  initializeSessionState(config, getAudioCacheDir())
 }
 
 export function registerPlayerTools(deps: ToolDeps) {
@@ -627,7 +352,7 @@ export function registerPlayerTools(deps: ToolDeps) {
         const speakerNameMap = await resolveSpeakerNames(baseSegments.map((s) => s.speaker))
         const viewUUID = randomUUID()
 
-        setSessionState(viewUUID, {
+        const nextState = {
           segments: baseSegments.map((s) => ({
             text: s.text,
             speaker: s.speaker,
@@ -635,7 +360,11 @@ export function registerPlayerTools(deps: ToolDeps) {
             speedScale: s.speedScale,
           })),
           updatedAt: Date.now(),
-        })
+        }
+        setSessionState(viewUUID, nextState)
+        if (extra.sessionId && extra.sessionId !== viewUUID) {
+          setSessionState(extra.sessionId, nextState)
+        }
 
         // content はAI向け最小情報のみ（1MB制限遵守）。
         // セグメント構造は _meta に格納してUIが利用する。
@@ -671,63 +400,26 @@ export function registerPlayerTools(deps: ToolDeps) {
     }
   )
 
-  // 公開ツール: セグメント単位で再合成（パラメータ調整用）
+  // 公開ツール: 単一トラック更新（パラメータ調整用）
   registerAppToolIfEnabled(
     server,
     disabledTools,
     'resynthesize_player',
     {
       title: 'Resynthesize Player',
-      description:
-        'Update player segments for a new player instance (new viewUUID every call). Typical loop: get_player_state (fetch additional pages if hasMore) -> edit segment parameters -> resynthesize_player -> use returned viewUUID for the next loop. Audio synthesis is performed by the player UI when needed.',
+      description: 'Update a single player track. Returns new viewUUID. See get_player_state for notation details.',
       inputSchema: {
-        segments: z
-          .array(
-            z.object({
-              text: z.string().describe('Segment text'),
-              speaker: z.number().optional().describe('Speaker ID'),
-              speedScale: z.number().optional().describe('Playback speed'),
-              intonationScale: z.number().optional().describe('Intonation scale (抑揚)'),
-              volumeScale: z.number().optional().describe('Volume scale (音量)'),
-              prePhonemeLength: z.number().optional().describe('Pre-phoneme silence in seconds'),
-              postPhonemeLength: z.number().optional().describe('Post-phoneme silence in seconds'),
-              pauseLengthScale: z.number().optional().describe('Pause length scale between phrases (間の長さ)'),
-              accentPhrases: z
-                .array(
-                  z.object({
-                    moras: z.array(
-                      z.object({
-                        text: z.string(),
-                        consonant: z.string().nullable().optional(),
-                        consonant_length: z.number().nullable().optional(),
-                        vowel: z.string(),
-                        vowel_length: z.number(),
-                        pitch: z.number(),
-                      })
-                    ),
-                    accent: z.number().int(),
-                    pause_mora: z
-                      .object({
-                        text: z.string(),
-                        consonant: z.string().nullable().optional(),
-                        consonant_length: z.number().nullable().optional(),
-                        vowel: z.string(),
-                        vowel_length: z.number(),
-                        pitch: z.number(),
-                      })
-                      .nullable()
-                      .optional(),
-                    is_interrogative: z.boolean().nullable().optional(),
-                  })
-                )
-                .optional()
-                .describe('Accent phrases'),
-            })
-          )
-          .describe(
-            'Full segment list to update. Start from get_player_state.segments, edit needed fields, and send the complete array.'
-          ),
-        autoPlay: z.boolean().optional().describe('Auto-play when loaded (default: true)'),
+        viewUUID: z.string().describe('Latest viewUUID'),
+        trackIndex: z.number().int().min(0).describe('Segment index to update'),
+        phrases: z.string().optional().describe('Inline notation (see get_player_state hint)'),
+        speaker: z.number().optional().describe('Speaker ID'),
+        speedScale: z.number().optional().describe('Speed'),
+        intonationScale: z.number().optional().describe('Intonation'),
+        volumeScale: z.number().optional().describe('Volume'),
+        prePhonemeLength: z.number().optional().describe('Pre-silence (sec)'),
+        postPhonemeLength: z.number().optional().describe('Post-silence (sec)'),
+        pauseLengthScale: z.number().optional().describe('Pause length'),
+        autoPlay: z.boolean().optional().describe('Auto-play'),
       },
       annotations: {
         readOnlyHint: false,
@@ -739,67 +431,149 @@ export function registerPlayerTools(deps: ToolDeps) {
     },
     async (
       {
-        segments,
+        viewUUID: inputViewUUID,
+        trackIndex,
+        phrases,
+        speaker,
+        speedScale,
+        intonationScale,
+        volumeScale,
+        prePhonemeLength,
+        postPhonemeLength,
+        pauseLengthScale,
         autoPlay,
       }: {
-        segments: Array<{
-          text: string
-          speaker?: number
-          speedScale?: number
-          intonationScale?: number
-          volumeScale?: number
-          prePhonemeLength?: number
-          postPhonemeLength?: number
-          pauseLengthScale?: number
-          accentPhrases?: AccentPhrase[]
-        }>
+        viewUUID: string
+        trackIndex: number
+        phrases?: string
+        speaker?: number
+        speedScale?: number
+        intonationScale?: number
+        volumeScale?: number
+        prePhonemeLength?: number
+        postPhonemeLength?: number
+        pauseLengthScale?: number
         autoPlay?: boolean
       },
       extra: ToolHandlerExtra
     ): Promise<CallToolResult> => {
       try {
-        if (!segments || segments.length === 0) {
-          throw new Error('segments is required')
+        const state = getSessionState(inputViewUUID, extra?.sessionId)
+        if (!state) {
+          throw new Error('No player state found for the given viewUUID. Use speak_player first.')
+        }
+        if (trackIndex < 0 || trackIndex >= state.segments.length) {
+          throw new Error(`trackIndex ${trackIndex} is out of range. Valid range: 0-${state.segments.length - 1}`)
         }
 
+        const existingSegment = state.segments[trackIndex]
         const effectiveDefaultSpeaker = getEffectiveSpeaker(undefined, extra.sessionId) ?? config.defaultSpeaker
-        const effectiveSpeed = config.defaultSpeedScale
         const effectiveAutoPlay = autoPlay ?? config.autoPlay
-        // 常に新しいUUIDを生成（MCPクライアント再起動時に同一UUIDのUIが重複表示されることを防ぐ）
+
+        // パラメータ優先順位: 指定値 > 既存セグメント値 > config デフォルト
+        const effectiveSpeaker = speaker ?? existingSegment.speaker ?? effectiveDefaultSpeaker
+        const effectiveSpeed = speedScale ?? existingSegment.speedScale ?? config.defaultSpeedScale
+        const effectiveIntonation = intonationScale ?? existingSegment.intonationScale
+        const effectiveVolume = volumeScale ?? existingSegment.volumeScale
+        const effectivePrePhoneme = prePhonemeLength ?? existingSegment.prePhonemeLength
+        const effectivePostPhoneme = postPhonemeLength ?? existingSegment.postPhonemeLength
+        const effectivePauseLength = pauseLengthScale ?? existingSegment.pauseLengthScale
+
+        let updatedAccentPhrases: AccentPhrase[] | undefined
+        let textChanged = false
+        let effectiveText = existingSegment.text
+
+        if (phrases !== undefined) {
+          const parsedPhrases = parseNotation(phrases)
+          const newCleanText = parsedPhrases.map((p) => p.cleanText).join('')
+
+          // 既存AccentPhrasesのテキストを連結して比較
+          const existingAccentPhrases =
+            existingSegment.accentPhrases ?? (existingSegment.audioQuery?.accent_phrases as AccentPhrase[] | undefined)
+          const existingCleanText = existingAccentPhrases
+            ? existingAccentPhrases.flatMap((ap) => ap.moras.map((m) => m.text)).join('')
+            : existingSegment.text
+
+          if (newCleanText !== existingCleanText) {
+            // テキスト変更あり → /audio_query で新規生成 → アクセント適用
+            textChanged = true
+            effectiveText = newCleanText
+            const newQuery = await playerVoicevoxApi.generateQuery(newCleanText, effectiveSpeaker)
+            updatedAccentPhrases = applyNotationAccents(parsedPhrases, newQuery.accent_phrases as AccentPhrase[])
+          } else {
+            // テキスト同一 → 既存AccentPhraseにアクセント適用、[]省略はVOICEVOXデフォルトに戻す
+            const defaultQuery = await playerVoicevoxApi.generateQuery(effectiveText, effectiveSpeaker)
+            const defaultAccentPhrases = defaultQuery.accent_phrases as AccentPhrase[]
+            const baseAccentPhrases =
+              existingAccentPhrases && existingAccentPhrases.length > 0 ? existingAccentPhrases : defaultAccentPhrases
+            updatedAccentPhrases = applyNotationAccents(parsedPhrases, baseAccentPhrases, defaultAccentPhrases)
+          }
+        } else {
+          // phrases未指定 → 既存パラメータで再合成
+          updatedAccentPhrases =
+            existingSegment.accentPhrases ?? (existingSegment.audioQuery?.accent_phrases as AccentPhrase[] | undefined)
+        }
+
+        // audioQueryの更新（テキスト変更なし + 既存audioQueryあり + AccentPhraseあり の場合）
+        let audioQueryForState: AudioQuery | undefined
+        if (!textChanged && existingSegment.audioQuery && updatedAccentPhrases) {
+          audioQueryForState = {
+            ...existingSegment.audioQuery,
+            accent_phrases: updatedAccentPhrases,
+            speedScale: effectiveSpeed,
+            ...(effectiveIntonation !== undefined && { intonationScale: effectiveIntonation }),
+            ...(effectiveVolume !== undefined && { volumeScale: effectiveVolume }),
+            ...(effectivePrePhoneme !== undefined && { prePhonemeLength: effectivePrePhoneme }),
+            ...(effectivePostPhoneme !== undefined && { postPhonemeLength: effectivePostPhoneme }),
+            ...(effectivePauseLength !== undefined && { pauseLengthScale: effectivePauseLength }),
+          }
+        }
+
+        // 新しいviewUUID生成（MCPクライアント再起動時に同一UUIDのUIが重複表示されることを防ぐ）
         const viewUUID = randomUUID()
-        const normalizedSegments = segments.map((seg) => ({
-          text: seg.text,
-          speaker: seg.speaker ?? effectiveDefaultSpeaker,
-          speedScale: seg.speedScale ?? effectiveSpeed,
-          intonationScale: seg.intonationScale,
-          volumeScale: seg.volumeScale,
-          prePhonemeLength: seg.prePhonemeLength,
-          postPhonemeLength: seg.postPhonemeLength,
-          pauseLengthScale: seg.pauseLengthScale,
-          accentPhrases: seg.accentPhrases,
+        const speakerName = await getSpeakerName(effectiveSpeaker)
+
+        // 更新されたセグメントを構築
+        const updatedSegmentState: PlayerSegmentState = {
+          text: effectiveText,
+          speaker: effectiveSpeaker,
+          speakerName,
+          kana: textChanged ? undefined : existingSegment.kana,
+          audioQuery: audioQueryForState ?? (textChanged ? undefined : existingSegment.audioQuery),
+          accentPhrases: updatedAccentPhrases,
+          speedScale: effectiveSpeed,
+          intonationScale: effectiveIntonation,
+          volumeScale: effectiveVolume,
+          prePhonemeLength: effectivePrePhoneme,
+          postPhonemeLength: effectivePostPhoneme,
+          pauseLengthScale: effectivePauseLength,
+        }
+
+        // セグメント配列をコピーして対象トラックを差し替え
+        const newSegments = state.segments.slice()
+        newSegments[trackIndex] = updatedSegmentState
+
+        // 全セグメントのスピーカー名を再解決
+        const speakerNameMap = await resolveSpeakerNames(newSegments.map((s) => s.speaker))
+        const enrichedSegments = newSegments.map((seg) => ({
+          ...seg,
+          speakerName: speakerNameMap.get(seg.speaker) ?? seg.speakerName,
         }))
-        const speakerNameMap = await resolveSpeakerNames(normalizedSegments.map((seg) => seg.speaker))
 
-        setSessionState(viewUUID, {
-          segments: normalizedSegments.map((seg) => ({
-            text: seg.text,
-            speaker: seg.speaker,
-            speakerName: speakerNameMap.get(seg.speaker),
-            speedScale: seg.speedScale,
-            intonationScale: seg.intonationScale,
-            volumeScale: seg.volumeScale,
-            prePhonemeLength: seg.prePhonemeLength,
-            postPhonemeLength: seg.postPhonemeLength,
-            pauseLengthScale: seg.pauseLengthScale,
-            accentPhrases: seg.accentPhrases,
-          })),
+        const nextState = {
+          segments: enrichedSegments,
           updatedAt: Date.now(),
-        })
+        }
+        setSessionState(viewUUID, nextState)
+        if (extra.sessionId && extra.sessionId !== viewUUID) {
+          setSessionState(extra.sessionId, nextState)
+        }
 
-        const uiSegments = normalizedSegments.map((seg) => ({
+        // UIセグメント構築（structuredContent / _meta 用）
+        const uiSegments = enrichedSegments.map((seg) => ({
           text: seg.text,
           speaker: seg.speaker,
-          speakerName: speakerNameMap.get(seg.speaker),
+          speakerName: seg.speakerName,
           speedScale: seg.speedScale,
           intonationScale: seg.intonationScale,
           volumeScale: seg.volumeScale,
@@ -808,22 +582,25 @@ export function registerPlayerTools(deps: ToolDeps) {
           pauseLengthScale: seg.pauseLengthScale,
           accentPhrases: seg.accentPhrases,
         }))
+
         return {
           content: [
             {
               type: 'text',
-              text: `Voicevox Player updated. viewUUID: ${viewUUID} (${segments.length} segment(s))`,
+              text: `Voicevox Player updated track ${trackIndex}. viewUUID: ${viewUUID}`,
             },
           ],
           structuredContent: {
             viewUUID,
             autoPlay: effectiveAutoPlay,
             segments: uiSegments,
+            resynthesizedTrackIndex: trackIndex,
           },
           _meta: {
             viewUUID,
             autoPlay: effectiveAutoPlay,
             segments: uiSegments,
+            resynthesizedTrackIndex: trackIndex,
           },
         }
       } catch (error) {
@@ -836,7 +613,7 @@ export function registerPlayerTools(deps: ToolDeps) {
     playerResourceUri,
     synthesizeWithCache,
     setSessionState,
-    getSessionState: (key) => playerSessionState.get(key),
+    getSessionState: (key) => getSessionStateByKey(key),
     getSpeakerList,
   })
   // ---------------------------------------------------------------------------
@@ -849,7 +626,7 @@ export function registerPlayerTools(deps: ToolDeps) {
     {
       title: 'Get VOICEVOX Player State',
       description:
-        'Returns paged editable player state for AI tuning. Use the latest viewUUID from speak_player/resynthesize_player. If hasMore is true, call again with nextCursor to continue.',
+        'Returns paged player state with editable segments. Use latest viewUUID. If hasMore is true, call again with nextCursor.',
       inputSchema: {
         viewUUID: z
           .string()
@@ -909,14 +686,36 @@ export function registerPlayerTools(deps: ToolDeps) {
 
         const buildPayload = () => {
           const hasMore = pageEnd < total
+          const responseSegments = pageSegments.map((seg, i) => {
+            const rawAccentPhrases = seg.accentPhrases ?? (seg.audioQuery?.accent_phrases as AccentPhrase[] | undefined)
+            return {
+              trackIndex: effectiveCursor + i,
+              text: seg.text,
+              speaker: seg.speaker,
+              speakerName: seg.speakerName,
+              phrases: rawAccentPhrases ? accentPhrasesToNotation(rawAccentPhrases) : undefined,
+              speedScale: seg.speedScale,
+              intonationScale: seg.intonationScale,
+              volumeScale: seg.volumeScale,
+              prePhonemeLength: seg.prePhonemeLength,
+              postPhonemeLength: seg.postPhonemeLength,
+              pauseLengthScale: seg.pauseLengthScale,
+            }
+          })
           return {
-            segments: pageSegments,
+            segments: responseSegments,
             updatedAt: state.updatedAt,
             total,
             cursor: effectiveCursor,
             limit: effectiveLimit,
             hasMore,
             nextCursor: hasMore ? pageEnd : null,
+            // 初回ページのみ resynthesize_player の使い方ヒントを含める（トークン節約）
+            ...(effectiveCursor === 0 && responseSegments.length > 0
+              ? {
+                  hint: 'To edit a track, call resynthesize_player with viewUUID + trackIndex. The "phrases" param uses inline notation: comma-separated phrases, [bracket] marks accent mora. Example: "コン[ニ]チワ,セ[カ]イ". Omit brackets to use VOICEVOX default accent. Omitted params keep existing values.',
+                }
+              : {}),
           }
         }
 

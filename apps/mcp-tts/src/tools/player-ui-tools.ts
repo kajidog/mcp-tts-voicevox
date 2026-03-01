@@ -291,6 +291,32 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
   } = shared
 
   const speakerIconCache = new Map<string, string>()
+  const saveStateForViewAndSession = (
+    stateKey: string,
+    sessionId: string | undefined,
+    state: {
+      segments: {
+        text: string
+        speaker: number
+        speakerName?: string
+        kana?: string
+        audioQuery?: AudioQuery
+        accentPhrases?: AccentPhrase[]
+        speedScale: number
+        intonationScale?: number
+        volumeScale?: number
+        prePhonemeLength?: number
+        postPhonemeLength?: number
+        pauseLengthScale?: number
+      }[]
+      updatedAt: number
+    }
+  ) => {
+    setSessionState(stateKey, state)
+    if (sessionId && sessionId !== stateKey) {
+      setSessionState(sessionId, state)
+    }
+  }
 
   // スピーカー一覧取得（UIからcallServerToolで呼ぶ用）
   registerAppToolIfEnabled(
@@ -427,7 +453,7 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
           speakerNameMap.set(speakerId, found ? `${found.characterName}（${found.name}）` : `Speaker ${speakerId}`)
         }
 
-        setSessionState(stateKey, {
+        const nextState = {
           segments: segments.map((seg) => {
             const speakerId = seg.speaker ?? effectiveDefaultSpeaker
             return {
@@ -446,7 +472,8 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
             }
           }),
           updatedAt: Date.now(),
-        })
+        }
+        saveStateForViewAndSession(stateKey, extra?.sessionId, nextState)
 
         return {
           content: [{ type: 'text', text: JSON.stringify({ ok: true, viewUUID: stateKey, count: segments.length }) }],
@@ -567,7 +594,7 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
             const found = list.find((entry) => entry.id === speakerId)
             speakerNameMap.set(speakerId, found ? `${found.characterName}（${found.name}）` : `Speaker ${speakerId}`)
           }
-          setSessionState(stateKey, {
+          const nextState = {
             segments: segments.map((seg) => {
               const speakerId = seg.speaker ?? effectiveDefaultSpeaker
               return {
@@ -586,7 +613,8 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
               }
             }),
             updatedAt: Date.now(),
-          })
+          }
+          saveStateForViewAndSession(stateKey, extra?.sessionId, nextState)
         }
 
         const result = await synthesizeWithCache({
@@ -603,7 +631,7 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
         })
 
         if (shouldPersistState && segmentIndex !== undefined) {
-          const prev = getSessionState(stateKey)
+          const prev = getSessionState(stateKey) ?? (extra?.sessionId ? getSessionState(extra.sessionId) : undefined)
           if (prev?.segments[segmentIndex]) {
             const nextSegments = prev.segments.slice()
             nextSegments[segmentIndex] = {
@@ -621,7 +649,7 @@ export function registerPlayerUITools(deps: ToolDeps, shared: PlayerUIShared): v
               postPhonemeLength: result.postPhonemeLength,
               pauseLengthScale: result.pauseLengthScale,
             }
-            setSessionState(stateKey, {
+            saveStateForViewAndSession(stateKey, extra?.sessionId, {
               segments: nextSegments,
               updatedAt: Date.now(),
             })
