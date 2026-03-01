@@ -18,7 +18,7 @@ const mockDictionary = {
   },
 }
 
-function mockFetchSequence(...responses: Array<{ body: any; status?: number }>): ReturnType<typeof vi.spyOn> {
+function mockFetchSequence(...responses: Array<{ body: any; status?: number }>) {
   const spy = vi.spyOn(globalThis, 'fetch')
   for (const res of responses) {
     spy.mockResolvedValueOnce(
