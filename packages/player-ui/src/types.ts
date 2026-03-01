@@ -50,6 +50,7 @@ export interface DictionaryWord {
   surface: string
   pronunciation: string
   accentType: number
+  notation: string
   priority: number
 }
 

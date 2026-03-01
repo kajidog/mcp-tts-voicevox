@@ -245,6 +245,8 @@ export interface NormalizedDictionaryWord {
   wordUuid: string
   surface: string
   pronunciation: string
+  accentType: number
+  notation: string
   priority: number
 }
 
@@ -254,7 +256,9 @@ export function normalizeUserDictionaryWords(
   return Object.entries(dictionary).map(([wordUuid, word]) => ({
     wordUuid,
     surface: word.surface,
-    pronunciation: insertAccentBrackets(word.pronunciation, word.accent_type),
+    pronunciation: word.pronunciation,
+    accentType: word.accent_type,
+    notation: insertAccentBrackets(word.pronunciation, word.accent_type),
     priority: word.priority,
   }))
 }

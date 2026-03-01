@@ -71,7 +71,12 @@ export function registerDictionaryTools(deps: ToolDeps) {
 
         if (query) {
           const q = query.toLowerCase()
-          words = words.filter((w) => w.surface.toLowerCase().includes(q) || w.pronunciation.toLowerCase().includes(q))
+          words = words.filter(
+            (w) =>
+              w.surface.toLowerCase().includes(q) ||
+              w.pronunciation.toLowerCase().includes(q) ||
+              w.notation.toLowerCase().includes(q)
+          )
         }
 
         const totalCount = words.length
