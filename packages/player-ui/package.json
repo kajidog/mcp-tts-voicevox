@@ -23,6 +23,7 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@kajidog/voicevox-client": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "@tailwindcss/vite": "^4.1.12",
     "@types/react": "^19.2.2",

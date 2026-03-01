@@ -3,9 +3,13 @@ import { mkdirSync, readFileSync } from 'node:fs'
 import type { Stats } from 'node:fs'
 import { readdir, stat, unlink, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
-import type { AccentPhrase, AudioQuery } from '@kajidog/voicevox-client'
+import {
+  type AccentPhrase,
+  type AudioQuery,
+  planAudioCacheCleanup,
+  resolveAudioCachePolicy,
+} from '@kajidog/voicevox-client'
 import type { ToolDeps } from '../types.js'
-import { planAudioCacheCleanup, resolveAudioCachePolicy } from './cache-policy.js'
 
 // ---------------------------------------------------------------------------
 // Constants
