@@ -1,4 +1,9 @@
-export { VoicevoxClient, type SpeakOptions } from './client.js'
+export {
+  VoicevoxClient,
+  type SpeakOptions,
+  type DictionaryWordInput,
+  type DictionaryWordUpdateInput,
+} from './client.js'
 export * from './types.js'
 export * from './api.js'
 export * from './utils.js'

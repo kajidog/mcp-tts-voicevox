@@ -1,38 +1,11 @@
-import {
-  type NormalizedDictionaryWord,
-  VoicevoxApi,
-  accentPhrasesToNotation,
-  estimateAccentType,
-  insertAccentBrackets,
-  isKatakana,
-  normalizeUserDictionaryWords,
-  parseAccentNotation,
-} from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
 import { registerToolIfEnabled } from './registration.js'
 import type { ToolDeps } from './types.js'
 import { createErrorResponse } from './utils.js'
 
-/**
- * Parse pronunciation input: supports both plain katakana and inline accent notation.
- * Returns { pronunciation, accentType } ready for VOICEVOX API.
- */
-function parsePronunciationInput(input: string): { pronunciation: string; accentType: number } {
-  const trimmed = input.trim()
-  if (!trimmed) throw new Error('pronunciation is required')
-  if (trimmed.includes('[')) {
-    const result = parseAccentNotation(trimmed)
-    if (!isKatakana(result.pronunciation)) throw new Error('pronunciation must be Katakana')
-    return result
-  }
-  if (!isKatakana(trimmed)) throw new Error('pronunciation must be Katakana')
-  return { pronunciation: trimmed, accentType: estimateAccentType(trimmed) }
-}
-
 export function registerDictionaryTools(deps: ToolDeps) {
   const { server, voicevoxClient, config, disabledTools } = deps
-  const api = new VoicevoxApi(config.voicevoxUrl)
 
   // get_accent_phrases
   registerToolIfEnabled(
@@ -56,16 +29,12 @@ export function registerDictionaryTools(deps: ToolDeps) {
     },
     async ({ text, speaker }: { text: string; speaker?: number }): Promise<CallToolResult> => {
       try {
-        const normalizedText = text.trim()
-        if (!normalizedText) throw new Error('text is required')
-        const effectiveSpeaker = speaker ?? config.defaultSpeaker
-        const accentPhrases = await api.getAccentPhrases(normalizedText, effectiveSpeaker)
-        const notation = accentPhrasesToNotation(accentPhrases)
+        const result = await voicevoxClient.getAccentNotation(text, speaker ?? config.defaultSpeaker)
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ notation, accentPhrases }),
+              text: JSON.stringify(result),
             },
           ],
         }
@@ -98,8 +67,7 @@ export function registerDictionaryTools(deps: ToolDeps) {
     },
     async ({ query, offset, limit }: { query?: string; offset?: number; limit?: number }): Promise<CallToolResult> => {
       try {
-        const dictionary = await api.getUserDictionary()
-        let words = normalizeUserDictionaryWords(dictionary)
+        let words = await voicevoxClient.getDictionary()
 
         if (query) {
           const q = query.toLowerCase()
@@ -163,35 +131,11 @@ export function registerDictionaryTools(deps: ToolDeps) {
       priority?: number
     }): Promise<CallToolResult> => {
       try {
+        const words = await voicevoxClient.addDictionaryWord({ surface, pronunciation, priority })
+
+        // Find the added word
         const normalizedSurface = surface.trim()
-        if (!normalizedSurface) throw new Error('surface is required')
-        const parsed = parsePronunciationInput(pronunciation)
-
-        await api.addUserDictionaryWord({
-          surface: normalizedSurface,
-          pronunciation: parsed.pronunciation,
-          accentType: parsed.accentType,
-          priority: priority ?? 5,
-        })
-
-        // Find the added word by fetching dictionary
-        const dictionary = await api.getUserDictionary()
-        const addedEntry = Object.entries(dictionary).find(
-          ([, w]) => w.surface === normalizedSurface && w.pronunciation === parsed.pronunciation
-        )
-        const word: NormalizedDictionaryWord = addedEntry
-          ? {
-              wordUuid: addedEntry[0],
-              surface: addedEntry[1].surface,
-              pronunciation: insertAccentBrackets(addedEntry[1].pronunciation, addedEntry[1].accent_type),
-              priority: addedEntry[1].priority,
-            }
-          : {
-              wordUuid: '',
-              surface: normalizedSurface,
-              pronunciation: insertAccentBrackets(parsed.pronunciation, parsed.accentType),
-              priority: priority ?? 5,
-            }
+        const word = words.find((w) => w.surface === normalizedSurface) ?? words[words.length - 1]
 
         return {
           content: [{ type: 'text', text: JSON.stringify({ word }) }],
@@ -239,42 +183,8 @@ export function registerDictionaryTools(deps: ToolDeps) {
       priority?: number
     }): Promise<CallToolResult> => {
       try {
-        const normalizedWordUuid = wordUuid.trim()
-        if (!normalizedWordUuid) throw new Error('wordUuid is required')
-
-        // Fetch existing word to merge omitted fields
-        const dictionary = await api.getUserDictionary()
-        const existing = dictionary[normalizedWordUuid]
-        if (!existing) throw new Error(`Word not found: ${normalizedWordUuid}`)
-
-        const effectiveSurface = surface?.trim() || existing.surface
-        const effectivePriority = priority ?? existing.priority
-
-        let effectivePronunciation: string
-        let effectiveAccentType: number
-        if (pronunciation?.trim()) {
-          const parsed = parsePronunciationInput(pronunciation)
-          effectivePronunciation = parsed.pronunciation
-          effectiveAccentType = parsed.accentType
-        } else {
-          effectivePronunciation = existing.pronunciation
-          effectiveAccentType = existing.accent_type
-        }
-
-        await api.updateUserDictionaryWord({
-          wordUuid: normalizedWordUuid,
-          surface: effectiveSurface,
-          pronunciation: effectivePronunciation,
-          accentType: effectiveAccentType,
-          priority: effectivePriority,
-        })
-
-        const word: NormalizedDictionaryWord = {
-          wordUuid: normalizedWordUuid,
-          surface: effectiveSurface,
-          pronunciation: insertAccentBrackets(effectivePronunciation, effectiveAccentType),
-          priority: effectivePriority,
-        }
+        const words = await voicevoxClient.updateDictionaryWord({ wordUuid, surface, pronunciation, priority })
+        const word = words.find((w) => w.wordUuid === wordUuid.trim())
 
         return {
           content: [{ type: 'text', text: JSON.stringify({ word }) }],
@@ -308,7 +218,7 @@ export function registerDictionaryTools(deps: ToolDeps) {
         const normalizedWordUuid = wordUuid.trim()
         if (!normalizedWordUuid) throw new Error('wordUuid is required')
 
-        await api.deleteUserDictionaryWord(normalizedWordUuid)
+        await voicevoxClient.deleteDictionaryWord(normalizedWordUuid)
         return {
           content: [{ type: 'text', text: JSON.stringify({ success: true, deletedWordUuid: normalizedWordUuid }) }],
         }
@@ -353,41 +263,13 @@ export function registerDictionaryTools(deps: ToolDeps) {
       words: Array<{ surface: string; pronunciation: string; priority?: number }>
     }): Promise<CallToolResult> => {
       try {
-        const addedWords: NormalizedDictionaryWord[] = []
-        for (const w of words) {
-          const normalizedSurface = w.surface.trim()
-          if (!normalizedSurface) throw new Error('surface is required')
-          const parsed = parsePronunciationInput(w.pronunciation)
-
-          await api.addUserDictionaryWord({
-            surface: normalizedSurface,
-            pronunciation: parsed.pronunciation,
-            accentType: parsed.accentType,
-            priority: w.priority ?? 5,
-          })
-
-          addedWords.push({
-            wordUuid: '',
-            surface: normalizedSurface,
-            pronunciation: insertAccentBrackets(parsed.pronunciation, parsed.accentType),
-            priority: w.priority ?? 5,
-          })
-        }
-
-        // Fetch dictionary to resolve UUIDs
-        const dictionary = await api.getUserDictionary()
-        for (const added of addedWords) {
-          const entry = Object.entries(dictionary).find(
-            ([, w]) => w.surface === added.surface && w.pronunciation === added.pronunciation.replace(/\[|\]/g, '')
-          )
-          if (entry) added.wordUuid = entry[0]
-        }
+        const result = await voicevoxClient.addDictionaryWords(words)
 
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ addedCount: addedWords.length, words: addedWords }),
+              text: JSON.stringify({ addedCount: words.length, words: result }),
             },
           ],
         }
@@ -436,52 +318,13 @@ export function registerDictionaryTools(deps: ToolDeps) {
       words: Array<{ wordUuid: string; surface?: string; pronunciation?: string; priority?: number }>
     }): Promise<CallToolResult> => {
       try {
-        // Fetch dictionary once for merging
-        const dictionary = await api.getUserDictionary()
-        const updatedWords: NormalizedDictionaryWord[] = []
-
-        for (const w of words) {
-          const normalizedWordUuid = w.wordUuid.trim()
-          if (!normalizedWordUuid) throw new Error('wordUuid is required')
-
-          const existing = dictionary[normalizedWordUuid]
-          if (!existing) throw new Error(`Word not found: ${normalizedWordUuid}`)
-
-          const effectiveSurface = w.surface?.trim() || existing.surface
-          const effectivePriority = w.priority ?? existing.priority
-
-          let effectivePronunciation: string
-          let effectiveAccentType: number
-          if (w.pronunciation?.trim()) {
-            const parsed = parsePronunciationInput(w.pronunciation)
-            effectivePronunciation = parsed.pronunciation
-            effectiveAccentType = parsed.accentType
-          } else {
-            effectivePronunciation = existing.pronunciation
-            effectiveAccentType = existing.accent_type
-          }
-
-          await api.updateUserDictionaryWord({
-            wordUuid: normalizedWordUuid,
-            surface: effectiveSurface,
-            pronunciation: effectivePronunciation,
-            accentType: effectiveAccentType,
-            priority: effectivePriority,
-          })
-
-          updatedWords.push({
-            wordUuid: normalizedWordUuid,
-            surface: effectiveSurface,
-            pronunciation: insertAccentBrackets(effectivePronunciation, effectiveAccentType),
-            priority: effectivePriority,
-          })
-        }
+        const result = await voicevoxClient.updateDictionaryWords(words)
 
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ updatedCount: updatedWords.length, words: updatedWords }),
+              text: JSON.stringify({ updatedCount: words.length, words: result }),
             },
           ],
         }

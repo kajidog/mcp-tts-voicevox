@@ -12,10 +12,20 @@ import type { ToolDeps } from '../types.js'
 
 const mockRegisterTool = vi.fn()
 
+const mockVoicevoxClient = {
+  getAccentNotation: vi.fn(),
+  getDictionary: vi.fn(),
+  addDictionaryWord: vi.fn(),
+  addDictionaryWords: vi.fn(),
+  updateDictionaryWord: vi.fn(),
+  updateDictionaryWords: vi.fn(),
+  deleteDictionaryWord: vi.fn(),
+}
+
 function createMockDeps(): ToolDeps {
   return {
     server: { registerTool: mockRegisterTool } as any,
-    voicevoxClient: {} as any,
+    voicevoxClient: mockVoicevoxClient as any,
     config: {
       voicevoxUrl: 'http://localhost:50021',
       defaultSpeaker: 1,
@@ -38,18 +48,6 @@ function createMockDeps(): ToolDeps {
       waitForEnd: false,
     },
   }
-}
-
-function mockFetchResponse(data: any, status = 200) {
-  return vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(data), { status }))
-}
-
-function mockFetchSequence(responses: Array<{ data: any; status?: number }>) {
-  const spy = vi.spyOn(globalThis, 'fetch')
-  for (const { data, status } of responses) {
-    spy.mockResolvedValueOnce(new Response(JSON.stringify(data), { status: status ?? 200 }))
-  }
-  return spy
 }
 
 function getHandler(toolName: string) {
@@ -212,7 +210,10 @@ describe('registerDictionaryTools', () => {
           accent: 3,
         },
       ]
-      mockFetchResponse(mockPhrases)
+      mockVoicevoxClient.getAccentNotation.mockResolvedValue({
+        notation: 'コン[ニ]チワ',
+        accentPhrases: mockPhrases,
+      })
 
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_get_accent_phrases')
@@ -225,6 +226,8 @@ describe('registerDictionaryTools', () => {
     })
 
     it('空テキストでエラーを返す', async () => {
+      mockVoicevoxClient.getAccentNotation.mockRejectedValue(new Error('text is required'))
+
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_get_accent_phrases')
 
@@ -235,14 +238,14 @@ describe('registerDictionaryTools', () => {
   })
 
   describe('get_user_dictionary handler', () => {
-    const mockDict = {
-      'uuid-1': { surface: 'テスト', pronunciation: 'テスト', accent_type: 1, priority: 5 },
-      'uuid-2': { surface: 'VOICEVOX', pronunciation: 'ボイスボックス', accent_type: 4, priority: 7 },
-      'uuid-3': { surface: 'サンプル', pronunciation: 'サンプル', accent_type: 1, priority: 3 },
-    }
+    const mockWords = [
+      { wordUuid: 'uuid-1', surface: 'テスト', pronunciation: '[テ]スト', priority: 5 },
+      { wordUuid: 'uuid-2', surface: 'VOICEVOX', pronunciation: 'ボイスボッ[ク]ス', priority: 7 },
+      { wordUuid: 'uuid-3', surface: 'サンプル', pronunciation: '[サ]ンプル', priority: 3 },
+    ]
 
     it('辞書一覧をインライン表記で返す', async () => {
-      mockFetchResponse(mockDict)
+      mockVoicevoxClient.getDictionary.mockResolvedValue(mockWords)
 
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_get_user_dictionary')
@@ -258,7 +261,7 @@ describe('registerDictionaryTools', () => {
     })
 
     it('queryでフィルタリングできる', async () => {
-      mockFetchResponse(mockDict)
+      mockVoicevoxClient.getDictionary.mockResolvedValue(mockWords)
 
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_get_user_dictionary')
@@ -270,7 +273,7 @@ describe('registerDictionaryTools', () => {
     })
 
     it('offset/limit でページングできる', async () => {
-      mockFetchResponse(mockDict)
+      mockVoicevoxClient.getDictionary.mockResolvedValue(mockWords)
 
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_get_user_dictionary')
@@ -286,14 +289,10 @@ describe('registerDictionaryTools', () => {
 
   describe('add_user_dictionary_word handler', () => {
     it('辞書に単語を追加して追加した単語のみ返す', async () => {
-      const fetchSpy = mockFetchSequence([
-        { data: 'uuid-new' },
-        {
-          data: {
-            'uuid-new': { surface: 'VOICEVOX', pronunciation: 'ボイスボックス', accent_type: 6, priority: 5 },
-          },
-        },
-      ])
+      const wordsAfterAdd = [
+        { wordUuid: 'uuid-new', surface: 'VOICEVOX', pronunciation: 'ボイスボッ[ク]ス', priority: 5 },
+      ]
+      mockVoicevoxClient.addDictionaryWord.mockResolvedValue(wordsAfterAdd)
 
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_add_user_dictionary_word')
@@ -306,28 +305,27 @@ describe('registerDictionaryTools', () => {
       expect(parsed.word.wordUuid).toBe('uuid-new')
       expect(parsed.word.surface).toBe('VOICEVOX')
       expect(parsed.word.pronunciation).toBe('ボイスボッ[ク]ス')
-      expect(parsed.words).toBeUndefined()
-
-      const [addUrl, addInit] = fetchSpy.mock.calls[0]
-      expect(String(addUrl)).toContain('/user_dict_word')
-      expect((addInit as RequestInit).method).toBe('POST')
     })
 
     it('インライン表記でアクセントを指定できる', async () => {
-      const fetchSpy = mockFetchSequence([
-        { data: 'uuid-new' },
-        { data: { 'uuid-new': { surface: 'テスト', pronunciation: 'テスト', accent_type: 2, priority: 5 } } },
-      ])
+      const wordsAfterAdd = [{ wordUuid: 'uuid-new', surface: 'テスト', pronunciation: 'テ[ス]ト', priority: 5 }]
+      mockVoicevoxClient.addDictionaryWord.mockResolvedValue(wordsAfterAdd)
 
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_add_user_dictionary_word')
 
-      await handler({ surface: 'テスト', pronunciation: 'テ[ス]ト' }, {})
-      const [addUrl] = fetchSpy.mock.calls[0]
-      expect(String(addUrl)).toContain('accent_type=2')
+      const result = await handler({ surface: 'テスト', pronunciation: 'テ[ス]ト' }, {})
+      expect(result.isError).toBeUndefined()
+      expect(mockVoicevoxClient.addDictionaryWord).toHaveBeenCalledWith({
+        surface: 'テスト',
+        pronunciation: 'テ[ス]ト',
+        priority: undefined,
+      })
     })
 
     it('カタカナでない読みでエラーを返す', async () => {
+      mockVoicevoxClient.addDictionaryWord.mockRejectedValue(new Error('pronunciation must be Katakana'))
+
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_add_user_dictionary_word')
 
@@ -339,14 +337,10 @@ describe('registerDictionaryTools', () => {
 
   describe('update_user_dictionary_word handler', () => {
     it('辞書の単語を更新して更新した単語のみ返す', async () => {
-      const fetchSpy = mockFetchSequence([
-        {
-          data: {
-            'uuid-1': { surface: 'old', pronunciation: 'フルイ', accent_type: 1, priority: 5 },
-          },
-        },
-        { data: '' },
-      ])
+      const wordsAfterUpdate = [
+        { wordUuid: 'uuid-1', surface: 'updated', pronunciation: 'アッ[プ]デート', priority: 5 },
+      ]
+      mockVoicevoxClient.updateDictionaryWord.mockResolvedValue(wordsAfterUpdate)
 
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_update_user_dictionary_word')
@@ -367,20 +361,11 @@ describe('registerDictionaryTools', () => {
       expect(parsed.word.surface).toBe('updated')
       expect(parsed.word.pronunciation).toBe('アッ[プ]デート')
       expect(parsed.words).toBeUndefined()
-
-      const [, updateInit] = fetchSpy.mock.calls[1]
-      expect((updateInit as RequestInit).method).toBe('PUT')
     })
 
     it('surface/pronunciation 省略時は既存値を維持する', async () => {
-      const fetchSpy = mockFetchSequence([
-        {
-          data: {
-            'uuid-1': { surface: 'existing', pronunciation: 'キゾン', accent_type: 2, priority: 5 },
-          },
-        },
-        { data: '' },
-      ])
+      const wordsAfterUpdate = [{ wordUuid: 'uuid-1', surface: 'existing', pronunciation: 'キ[ゾ]ン', priority: 8 }]
+      mockVoicevoxClient.updateDictionaryWord.mockResolvedValue(wordsAfterUpdate)
 
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_update_user_dictionary_word')
@@ -392,14 +377,10 @@ describe('registerDictionaryTools', () => {
       expect(parsed.word.surface).toBe('existing')
       expect(parsed.word.pronunciation).toBe('キ[ゾ]ン')
       expect(parsed.word.priority).toBe(8)
-
-      const [updateUrl] = fetchSpy.mock.calls[1]
-      expect(String(updateUrl)).toContain('surface=existing')
-      expect(String(updateUrl)).toContain('accent_type=2')
     })
 
     it('存在しないUUIDでエラーを返す', async () => {
-      mockFetchResponse({})
+      mockVoicevoxClient.updateDictionaryWord.mockRejectedValue(new Error('Word not found: nonexistent'))
 
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_update_user_dictionary_word')
@@ -412,7 +393,7 @@ describe('registerDictionaryTools', () => {
 
   describe('delete_user_dictionary_word handler', () => {
     it('辞書から単語を削除して軽量レスポンスを返す', async () => {
-      const fetchSpy = mockFetchSequence([{ data: '' }])
+      mockVoicevoxClient.deleteDictionaryWord.mockResolvedValue([])
 
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_delete_user_dictionary_word')
@@ -424,10 +405,6 @@ describe('registerDictionaryTools', () => {
       expect(parsed.success).toBe(true)
       expect(parsed.deletedWordUuid).toBe('uuid-del')
       expect(parsed.words).toBeUndefined()
-
-      const [deleteUrl, deleteInit] = fetchSpy.mock.calls[0]
-      expect(String(deleteUrl)).toContain('/user_dict_word/uuid-del')
-      expect((deleteInit as RequestInit).method).toBe('DELETE')
     })
 
     it('空のUUIDでエラーを返す', async () => {
@@ -442,16 +419,11 @@ describe('registerDictionaryTools', () => {
 
   describe('add_user_dictionary_words handler (bulk)', () => {
     it('複数単語を一括追加する', async () => {
-      mockFetchSequence([
-        { data: 'uuid-1' },
-        { data: 'uuid-2' },
-        {
-          data: {
-            'uuid-1': { surface: 'テスト', pronunciation: 'テスト', accent_type: 3, priority: 5 },
-            'uuid-2': { surface: 'サンプル', pronunciation: 'サンプル', accent_type: 1, priority: 7 },
-          },
-        },
-      ])
+      const wordsAfterAdd = [
+        { wordUuid: 'uuid-1', surface: 'テスト', pronunciation: 'テス[ト]', priority: 5 },
+        { wordUuid: 'uuid-2', surface: 'サンプル', pronunciation: '[サ]ンプル', priority: 7 },
+      ]
+      mockVoicevoxClient.addDictionaryWords.mockResolvedValue(wordsAfterAdd)
 
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_add_user_dictionary_words')
@@ -475,16 +447,11 @@ describe('registerDictionaryTools', () => {
 
   describe('update_user_dictionary_words handler (bulk)', () => {
     it('複数単語を一括更新する', async () => {
-      mockFetchSequence([
-        {
-          data: {
-            'uuid-1': { surface: 'old1', pronunciation: 'フルイイチ', accent_type: 1, priority: 5 },
-            'uuid-2': { surface: 'old2', pronunciation: 'フルイニ', accent_type: 1, priority: 5 },
-          },
-        },
-        { data: '' },
-        { data: '' },
-      ])
+      const wordsAfterUpdate = [
+        { wordUuid: 'uuid-1', surface: 'new1', pronunciation: '[フ]ルイイチ', priority: 5 },
+        { wordUuid: 'uuid-2', surface: 'old2', pronunciation: 'アタラシ[イ]', priority: 5 },
+      ]
+      mockVoicevoxClient.updateDictionaryWords.mockResolvedValue(wordsAfterUpdate)
 
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_update_user_dictionary_words')
@@ -509,7 +476,7 @@ describe('registerDictionaryTools', () => {
     })
 
     it('存在しないUUIDでエラーを返す', async () => {
-      mockFetchResponse({})
+      mockVoicevoxClient.updateDictionaryWords.mockRejectedValue(new Error('Word not found: nonexistent'))
 
       registerDictionaryTools(deps)
       const handler = getHandler('voicevox_update_user_dictionary_words')

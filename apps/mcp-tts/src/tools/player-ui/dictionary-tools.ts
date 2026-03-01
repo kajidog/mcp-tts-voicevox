@@ -1,9 +1,3 @@
-import {
-  accentPhrasesToNotation,
-  estimateAccentType,
-  isKatakana,
-  normalizeUserDictionaryWords,
-} from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
 import { registerAppToolIfEnabled } from '../registration.js'
@@ -12,8 +6,8 @@ import type { PlayerUIToolContext } from './context.js'
 
 export function registerPlayerDictionaryTools(context: PlayerUIToolContext): void {
   const { deps, shared } = context
-  const { server, disabledTools, config } = deps
-  const { playerVoicevoxApi, playerResourceUri, getSpeakerList, synthesizeWithCache } = shared
+  const { server, disabledTools, config, voicevoxClient } = deps
+  const { playerResourceUri, getSpeakerList, synthesizeWithCache } = shared
 
   registerAppToolIfEnabled(
     server,
@@ -31,9 +25,9 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
     },
     async (): Promise<CallToolResult> => {
       try {
-        const dictionary = await playerVoicevoxApi.getUserDictionary()
+        const words = await voicevoxClient.getDictionary()
         return {
-          content: [{ type: 'text', text: JSON.stringify({ words: normalizeUserDictionaryWords(dictionary) }) }],
+          content: [{ type: 'text', text: JSON.stringify({ words }) }],
         }
       } catch (error) {
         return createErrorResponse(error)
@@ -73,21 +67,14 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
       priority,
     }: { surface: string; pronunciation: string; accentType?: number; priority?: number }): Promise<CallToolResult> => {
       try {
-        const normalizedSurface = surface.trim()
-        const normalizedPronunciation = pronunciation.trim()
-        if (!normalizedSurface) throw new Error('surface is required')
-        if (!normalizedPronunciation) throw new Error('pronunciation is required')
-        if (!isKatakana(normalizedPronunciation)) throw new Error('pronunciation must be Katakana')
-
-        await playerVoicevoxApi.addUserDictionaryWord({
-          surface: normalizedSurface,
-          pronunciation: normalizedPronunciation,
-          accentType: accentType ?? estimateAccentType(normalizedPronunciation),
-          priority: priority ?? 5,
+        const words = await voicevoxClient.addDictionaryWord({
+          surface,
+          pronunciation,
+          accentType,
+          priority,
         })
-        const dictionary = await playerVoicevoxApi.getUserDictionary()
         return {
-          content: [{ type: 'text', text: JSON.stringify({ words: normalizeUserDictionaryWords(dictionary) }) }],
+          content: [{ type: 'text', text: JSON.stringify({ words }) }],
         }
       } catch (error) {
         return createErrorResponse(error)
@@ -135,23 +122,15 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
       priority?: number
     }): Promise<CallToolResult> => {
       try {
-        const normalizedSurface = surface.trim()
-        const normalizedPronunciation = pronunciation.trim()
-        if (!wordUuid.trim()) throw new Error('wordUuid is required')
-        if (!normalizedSurface) throw new Error('surface is required')
-        if (!normalizedPronunciation) throw new Error('pronunciation is required')
-        if (!isKatakana(normalizedPronunciation)) throw new Error('pronunciation must be Katakana')
-
-        await playerVoicevoxApi.updateUserDictionaryWord({
-          wordUuid: wordUuid.trim(),
-          surface: normalizedSurface,
-          pronunciation: normalizedPronunciation,
-          accentType: accentType ?? estimateAccentType(normalizedPronunciation),
-          priority: priority ?? 5,
+        const words = await voicevoxClient.updateDictionaryWord({
+          wordUuid,
+          surface,
+          pronunciation,
+          accentType,
+          priority,
         })
-        const dictionary = await playerVoicevoxApi.getUserDictionary()
         return {
-          content: [{ type: 'text', text: JSON.stringify({ words: normalizeUserDictionaryWords(dictionary) }) }],
+          content: [{ type: 'text', text: JSON.stringify({ words }) }],
         }
       } catch (error) {
         return createErrorResponse(error)
@@ -178,13 +157,9 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
     },
     async ({ wordUuid }: { wordUuid: string }): Promise<CallToolResult> => {
       try {
-        const normalizedWordUuid = wordUuid.trim()
-        if (!normalizedWordUuid) throw new Error('wordUuid is required')
-
-        await playerVoicevoxApi.deleteUserDictionaryWord(normalizedWordUuid)
-        const dictionary = await playerVoicevoxApi.getUserDictionary()
+        const words = await voicevoxClient.deleteDictionaryWord(wordUuid)
         return {
-          content: [{ type: 'text', text: JSON.stringify({ words: normalizeUserDictionaryWords(dictionary) }) }],
+          content: [{ type: 'text', text: JSON.stringify({ words }) }],
         }
       } catch (error) {
         return createErrorResponse(error)
@@ -223,9 +198,7 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
           speedScale: config.defaultSpeedScale,
         })
 
-        // アクセント句を取得してインライン表記に変換
-        const accentPhrases = await playerVoicevoxApi.getAccentPhrases(normalizedText, randomSpeaker.id)
-        const notation = accentPhrasesToNotation(accentPhrases)
+        const { notation, accentPhrases } = await voicevoxClient.getAccentNotation(normalizedText, randomSpeaker.id)
 
         return {
           content: [

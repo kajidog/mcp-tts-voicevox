@@ -1,9 +1,18 @@
+import {
+  accentPhrasesToNotation,
+  estimateAccentType,
+  insertAccentBrackets,
+  isKatakana,
+  normalizeUserDictionaryWords,
+  parseAccentNotation,
+} from './accent-utils.js'
+import type { NormalizedDictionaryWord } from './accent-utils.js'
 import { VoicevoxApi } from './api.js'
 import { handleError } from './error.js'
 import { QueueService } from './queue/queue-service.js'
 import type { EnqueueResult } from './queue/queue-service.js'
 import { QueueEventType, QueueItemStatus } from './queue/types.js'
-import type { AudioQuery, PlaybackOptions, SpeakResult, SpeechSegment, VoicevoxConfig } from './types.js'
+import type { AccentPhrase, AudioQuery, PlaybackOptions, SpeakResult, SpeechSegment, VoicevoxConfig } from './types.js'
 import { downloadBlob, isBrowser, splitText } from './utils.js'
 
 /**
@@ -24,6 +33,29 @@ export interface SpeakOptions extends PlaybackOptions {
   prePhonemeLength?: number
   /** 音声の後の無音時間（秒） */
   postPhonemeLength?: number
+}
+
+/**
+ * 辞書単語追加入力
+ */
+export interface DictionaryWordInput {
+  surface: string
+  pronunciation: string // "ボイス[ボッ]クス" or "ボイスボックス"
+  accentType?: number // 明示指定時は notation parsing をスキップ
+  priority?: number // default: 5
+  wordType?: string // default: 'PROPER_NOUN'
+}
+
+/**
+ * 辞書単語更新入力
+ */
+export interface DictionaryWordUpdateInput {
+  wordUuid: string
+  surface?: string // 省略で既存値維持
+  pronunciation?: string
+  accentType?: number
+  priority?: number
+  wordType?: string
 }
 
 /**
@@ -497,6 +529,225 @@ export class VoicevoxClient {
         throw new Error('prefetchSize は 1 以上の整数で指定してください')
       }
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dictionary API
+  // ---------------------------------------------------------------------------
+
+  /**
+   * ユーザー辞書を取得（notation 付き）
+   */
+  public async getDictionary(): Promise<NormalizedDictionaryWord[]> {
+    try {
+      const dictionary = await this.api.getUserDictionary()
+      return normalizeUserDictionaryWords(dictionary)
+    } catch (error) {
+      throw handleError('辞書取得中にエラーが発生しました', error)
+    }
+  }
+
+  /**
+   * 辞書単語を追加し、追加後の全辞書を返す
+   */
+  public async addDictionaryWord(input: DictionaryWordInput): Promise<NormalizedDictionaryWord[]> {
+    try {
+      const { pronunciation, accentType } = this.resolvePronunciation(input.pronunciation, input.accentType)
+      const surface = input.surface.trim()
+      if (!surface) throw new Error('surface is required')
+
+      await this.api.addUserDictionaryWord({
+        surface,
+        pronunciation,
+        accentType,
+        priority: input.priority ?? 5,
+        wordType: input.wordType,
+      })
+
+      return this.getDictionary()
+    } catch (error) {
+      throw handleError('辞書単語追加中にエラーが発生しました', error)
+    }
+  }
+
+  /**
+   * 複数の辞書単語をバルク追加し、追加後の全辞書を返す
+   */
+  public async addDictionaryWords(inputs: DictionaryWordInput[]): Promise<NormalizedDictionaryWord[]> {
+    try {
+      for (const input of inputs) {
+        const { pronunciation, accentType } = this.resolvePronunciation(input.pronunciation, input.accentType)
+        const surface = input.surface.trim()
+        if (!surface) throw new Error('surface is required')
+
+        await this.api.addUserDictionaryWord({
+          surface,
+          pronunciation,
+          accentType,
+          priority: input.priority ?? 5,
+          wordType: input.wordType,
+        })
+      }
+
+      return this.getDictionary()
+    } catch (error) {
+      throw handleError('辞書単語バルク追加中にエラーが発生しました', error)
+    }
+  }
+
+  /**
+   * 辞書単語を更新し、更新後の全辞書を返す。省略フィールドは既存値を維持。
+   */
+  public async updateDictionaryWord(input: DictionaryWordUpdateInput): Promise<NormalizedDictionaryWord[]> {
+    try {
+      const wordUuid = input.wordUuid.trim()
+      if (!wordUuid) throw new Error('wordUuid is required')
+
+      const dictionary = await this.api.getUserDictionary()
+      const existing = dictionary[wordUuid]
+      if (!existing) throw new Error(`Word not found: ${wordUuid}`)
+
+      const effectiveSurface = input.surface?.trim() || existing.surface
+      const effectivePriority = input.priority ?? existing.priority
+
+      let effectivePronunciation: string
+      let effectiveAccentType: number
+      if (input.pronunciation?.trim()) {
+        const resolved = this.resolvePronunciation(input.pronunciation, input.accentType)
+        effectivePronunciation = resolved.pronunciation
+        effectiveAccentType = resolved.accentType
+      } else if (input.accentType !== undefined) {
+        effectivePronunciation = existing.pronunciation
+        effectiveAccentType = input.accentType
+      } else {
+        effectivePronunciation = existing.pronunciation
+        effectiveAccentType = existing.accent_type
+      }
+
+      await this.api.updateUserDictionaryWord({
+        wordUuid,
+        surface: effectiveSurface,
+        pronunciation: effectivePronunciation,
+        accentType: effectiveAccentType,
+        priority: effectivePriority,
+        wordType: input.wordType,
+      })
+
+      return this.getDictionary()
+    } catch (error) {
+      throw handleError('辞書単語更新中にエラーが発生しました', error)
+    }
+  }
+
+  /**
+   * 複数の辞書単語をバルク更新し、更新後の全辞書を返す
+   */
+  public async updateDictionaryWords(inputs: DictionaryWordUpdateInput[]): Promise<NormalizedDictionaryWord[]> {
+    try {
+      // 事前に辞書を一括取得してマージに使う
+      const dictionary = await this.api.getUserDictionary()
+
+      for (const input of inputs) {
+        const wordUuid = input.wordUuid.trim()
+        if (!wordUuid) throw new Error('wordUuid is required')
+
+        const existing = dictionary[wordUuid]
+        if (!existing) throw new Error(`Word not found: ${wordUuid}`)
+
+        const effectiveSurface = input.surface?.trim() || existing.surface
+        const effectivePriority = input.priority ?? existing.priority
+
+        let effectivePronunciation: string
+        let effectiveAccentType: number
+        if (input.pronunciation?.trim()) {
+          const resolved = this.resolvePronunciation(input.pronunciation, input.accentType)
+          effectivePronunciation = resolved.pronunciation
+          effectiveAccentType = resolved.accentType
+        } else if (input.accentType !== undefined) {
+          effectivePronunciation = existing.pronunciation
+          effectiveAccentType = input.accentType
+        } else {
+          effectivePronunciation = existing.pronunciation
+          effectiveAccentType = existing.accent_type
+        }
+
+        await this.api.updateUserDictionaryWord({
+          wordUuid,
+          surface: effectiveSurface,
+          pronunciation: effectivePronunciation,
+          accentType: effectiveAccentType,
+          priority: effectivePriority,
+          wordType: input.wordType,
+        })
+      }
+
+      return this.getDictionary()
+    } catch (error) {
+      throw handleError('辞書単語バルク更新中にエラーが発生しました', error)
+    }
+  }
+
+  /**
+   * 辞書単語を削除し、削除後の全辞書を返す
+   */
+  public async deleteDictionaryWord(wordUuid: string): Promise<NormalizedDictionaryWord[]> {
+    try {
+      const normalizedUuid = wordUuid.trim()
+      if (!normalizedUuid) throw new Error('wordUuid is required')
+
+      await this.api.deleteUserDictionaryWord(normalizedUuid)
+      return this.getDictionary()
+    } catch (error) {
+      throw handleError('辞書単語削除中にエラーが発生しました', error)
+    }
+  }
+
+  /**
+   * テキストからアクセント表記を取得
+   * @returns notation ("コン[ニ]チワ,セ[カ]イ") と accentPhrases
+   */
+  public async getAccentNotation(
+    text: string,
+    speaker?: number
+  ): Promise<{ notation: string; accentPhrases: AccentPhrase[] }> {
+    try {
+      const normalizedText = text.trim()
+      if (!normalizedText) throw new Error('text is required')
+      const effectiveSpeaker = speaker ?? this.defaultSpeaker
+      const accentPhrases = await this.api.getAccentPhrases(normalizedText, effectiveSpeaker)
+      const notation = accentPhrasesToNotation(accentPhrases)
+      return { notation, accentPhrases }
+    } catch (error) {
+      throw handleError('アクセント表記取得中にエラーが発生しました', error)
+    }
+  }
+
+  /**
+   * pronunciation 入力を解決する。
+   * 1. accentType 明示 → brackets 除去 + isKatakana 検証
+   * 2. [ を含む → parseAccentNotation() でパース
+   * 3. plain → isKatakana() 検証 + estimateAccentType()
+   * @private
+   */
+  private resolvePronunciation(input: string, accentType?: number): { pronunciation: string; accentType: number } {
+    const trimmed = input.trim()
+    if (!trimmed) throw new Error('pronunciation is required')
+
+    if (accentType !== undefined) {
+      // brackets を除去して純カタカナに
+      const clean = trimmed.replace(/\[|\]/g, '')
+      if (!isKatakana(clean)) throw new Error('pronunciation must be Katakana')
+      return { pronunciation: clean, accentType }
+    }
+
+    if (trimmed.includes('[')) {
+      const result = parseAccentNotation(trimmed)
+      if (!isKatakana(result.pronunciation)) throw new Error('pronunciation must be Katakana')
+      return result
+    }
+
+    if (!isKatakana(trimmed)) throw new Error('pronunciation must be Katakana')
+    return { pronunciation: trimmed, accentType: estimateAccentType(trimmed) }
   }
 
   /**
