@@ -1,6 +1,7 @@
 import { VoicevoxClient } from '@kajidog/voicevox-client'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { getConfig } from './config.js'
+import { registerDictionaryTools } from './tools/dictionary.js'
 import { registerPlayerTools } from './tools/player.js'
 import { registerSpeakTool } from './tools/speak.js'
 import { registerSpeakerTools } from './tools/speakers.js'
@@ -17,7 +18,7 @@ const config = getConfig()
 export function createServer(): McpServer {
   const server = new McpServer({
     name: 'mcp-tts-voicevox',
-    version: '0.7.2',
+    version: '0.7.3',
     description: 'A Voicevox server that converts text to speech for playback and saving.',
   })
 
@@ -46,6 +47,7 @@ export function createServer(): McpServer {
   registerSpeakerTools(deps)
   registerSpeakTool(deps)
   registerSynthesizeTool(deps)
+  registerDictionaryTools(deps)
   registerPlayerTools(deps)
 
   return server

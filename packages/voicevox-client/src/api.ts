@@ -121,6 +121,20 @@ export class VoicevoxApi {
   }
 
   /**
+   * テキストからアクセント句を取得（audio_queryより軽量）
+   */
+  public async getAccentPhrases(text: string, speaker = 1): Promise<AccentPhrase[]> {
+    try {
+      const endpoint = `/accent_phrases?text=${encodeURIComponent(text)}&speaker=${encodeURIComponent(speaker.toString())}`
+      return await this.makeRequest<AccentPhrase[]>('post', endpoint, null, {
+        'Content-Type': 'application/json',
+      })
+    } catch (error) {
+      throw handleError('アクセント句取得中にエラーが発生しました', error)
+    }
+  }
+
+  /**
    * アクセント句のモーラデータ（音素長・ピッチ）を再計算
    * UIでアクセント位置（accent整数）を変更した後、mora.pitch値を更新するために使用
    */

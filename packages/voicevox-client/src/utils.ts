@@ -1,3 +1,46 @@
+import type { AudioQuery, SpeakResult } from './types.js'
+
+/**
+ * マルチスピーカーテキスト "1:Hello\n2:World" をパースする
+ */
+export const parseStringInput = (input: string): Array<{ text: string; speaker?: number }> => {
+  // \n と \\n の両方に対応するため、まず \\n を \n に変換してから分割
+  const normalizedInput = input.replace(/\\n/g, '\n')
+  const lines = normalizedInput.split('\n').filter((line) => line.trim())
+  return lines.map((line) => {
+    const match = line.match(/^(\d+):(.*)$/)
+    if (match) {
+      return { text: match[2].trim(), speaker: Number.parseInt(match[1], 10) }
+    }
+    return { text: line }
+  })
+}
+
+/**
+ * SpeakResult を人間が読める文字列にフォーマットする
+ */
+export const formatSpeakResponse = (result: SpeakResult): string => {
+  if (result.status === 'error') {
+    return `Error: ${result.errorMessage}`
+  }
+
+  const statusLabel = result.status === 'played' ? 'Played' : 'Queued'
+  const moreSegments = result.segmentCount > 1 ? ` +${result.segmentCount - 1} more` : ''
+
+  return `${statusLabel} (${result.mode}): "${result.textPreview}"${moreSegments}`
+}
+
+/**
+ * JSON 文字列を AudioQuery にパースする
+ */
+export const parseAudioQuery = (query: string, speedScale?: number): AudioQuery => {
+  const audioQuery = JSON.parse(query) as AudioQuery
+  if (speedScale !== undefined) {
+    audioQuery.speedScale = speedScale
+  }
+  return audioQuery
+}
+
 /**
  * テキストを自然な区切りで分割します
  * @param text 分割するテキスト

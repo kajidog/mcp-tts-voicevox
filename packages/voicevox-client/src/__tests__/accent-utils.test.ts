@@ -1,13 +1,16 @@
-import type { AccentPhrase, Mora } from '@kajidog/voicevox-client'
 import { describe, expect, it } from 'vitest'
 import {
   accentPhrasesToNotation,
   accentPhrasesToSimplifiedPhrases,
   applyAccentsToAccentPhrases,
   applyNotationAccents,
+  estimateAccentType,
+  isKatakana,
+  normalizeUserDictionaryWords,
   parseNotation,
   resolveAccentFromMoras,
-} from '../tools/player-phrase-utils'
+} from '../accent-utils'
+import type { AccentPhrase, Mora } from '../types'
 
 function makeMora(text: string, vowel = 'a', pitch = 5.0): Mora {
   return { text, vowel, vowel_length: 0.1, pitch }
@@ -19,6 +22,10 @@ function makeAccentPhrase(moraTexts: string[], accent: number): AccentPhrase {
     accent,
   }
 }
+
+// ---------------------------------------------------------------------------
+// phrase-utils テスト
+// ---------------------------------------------------------------------------
 
 describe('accentPhrasesToSimplifiedPhrases', () => {
   it('各AccentPhraseのmora.textを結合してaccent値を返す', () => {
@@ -105,10 +112,6 @@ describe('applyAccentsToAccentPhrases', () => {
     expect(result[0].accent).toBe(5)
   })
 })
-
-// ---------------------------------------------------------------------------
-// インライン表記方式のテスト
-// ---------------------------------------------------------------------------
 
 describe('accentPhrasesToNotation', () => {
   it('基本変換: accent位置のモーラを[]で囲む', () => {
@@ -198,7 +201,6 @@ describe('parseNotation', () => {
 describe('resolveAccentFromMoras', () => {
   it('通常モーラで正しいインデックスを返す(1-based)', () => {
     const moras = [makeMora('コ'), makeMora('ン'), makeMora('ニ'), makeMora('チ'), makeMora('ワ')]
-    // bracketCharIndex=2 → "ニ"(index 2) → accent 3 (1-based)
     expect(resolveAccentFromMoras(moras, 2, 1)).toBe(3)
   })
 
@@ -209,15 +211,12 @@ describe('resolveAccentFromMoras', () => {
 
   it('拗音(text.length=2)のモーラ', () => {
     const moras = [makeMora('キョ'), makeMora('ウ')]
-    // "キョ"はcharIndex=0, length=2
     expect(resolveAccentFromMoras(moras, 0, 2)).toBe(1)
-    // "ウ"はcharIndex=2, length=1
     expect(resolveAccentFromMoras(moras, 2, 1)).toBe(2)
   })
 
   it('bracketLengthがモーラのtext.lengthと不一致でエラー', () => {
     const moras = [makeMora('キョ'), makeMora('ウ')]
-    // bracketCharIndex=0 は "キョ"(length=2) だが bracketLength=1 → エラー
     expect(() => resolveAccentFromMoras(moras, 0, 1)).toThrow('does not match mora text length')
   })
 
@@ -228,7 +227,6 @@ describe('resolveAccentFromMoras', () => {
 
   it('モーラ境界でない位置でエラー', () => {
     const moras = [makeMora('キョ'), makeMora('ウ')]
-    // charIndex=1 はモーラ境界ではない（"キョ"の途中）
     expect(() => resolveAccentFromMoras(moras, 1, 1)).toThrow('does not align')
   })
 })
@@ -250,10 +248,10 @@ describe('applyNotationAccents', () => {
 
   it('[]指定なしでdefaultAccentPhrasesあり → VOICEVOXデフォルトaccentを使用', () => {
     const parsed = parseNotation('セカイ')
-    const existing = [makeAccentPhrase(['セ', 'カ', 'イ'], 2)] // 手動変更済み
-    const defaults = [makeAccentPhrase(['セ', 'カ', 'イ'], 1)] // VOICEVOX自動判定
+    const existing = [makeAccentPhrase(['セ', 'カ', 'イ'], 2)]
+    const defaults = [makeAccentPhrase(['セ', 'カ', 'イ'], 1)]
     const result = applyNotationAccents(parsed, existing, defaults)
-    expect(result[0].accent).toBe(1) // デフォルトに戻る
+    expect(result[0].accent).toBe(1)
   })
 
   it('[]あり/なし混在（defaultAccentPhrasesあり）', () => {
@@ -261,16 +259,16 @@ describe('applyNotationAccents', () => {
     const existing = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 1), makeAccentPhrase(['セ', 'カ', 'イ'], 2)]
     const defaults = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 4), makeAccentPhrase(['セ', 'カ', 'イ'], 1)]
     const result = applyNotationAccents(parsed, existing, defaults)
-    expect(result[0].accent).toBe(3) // [ニ] → 3番目のモーラ（明示指定）
-    expect(result[1].accent).toBe(1) // []省略 → VOICEVOXデフォルト
+    expect(result[0].accent).toBe(3)
+    expect(result[1].accent).toBe(1)
   })
 
   it('[]あり/なし混在（defaultAccentPhrasesなし）', () => {
     const parsed = parseNotation('コン[ニ]チワ,セカイ')
     const accentPhrases = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 1), makeAccentPhrase(['セ', 'カ', 'イ'], 2)]
     const result = applyNotationAccents(parsed, accentPhrases)
-    expect(result[0].accent).toBe(3) // [ニ] → 3番目のモーラ
-    expect(result[1].accent).toBe(2) // defaultsなし → 既存維持
+    expect(result[0].accent).toBe(3)
+    expect(result[1].accent).toBe(2)
   })
 
   it('parsedPhrasesがaccentPhrasesより少ない場合、余分なAccentPhraseはデフォルト維持', () => {
@@ -278,7 +276,7 @@ describe('applyNotationAccents', () => {
     const accentPhrases = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 3), makeAccentPhrase(['セ', 'カ', 'イ'], 2)]
     const result = applyNotationAccents(parsed, accentPhrases)
     expect(result[0].accent).toBe(1)
-    expect(result[1].accent).toBe(2) // デフォルト維持
+    expect(result[1].accent).toBe(2)
   })
 
   it('parsedPhrasesがaccentPhrasesより多い場合、余分は無視', () => {
@@ -306,7 +304,6 @@ describe('ラウンドトリップ', () => {
     ]
     const notation = accentPhrasesToNotation(original)
     const parsed = parseNotation(notation)
-    // applyNotationAccentsにはaccentがリセットされたコピーを渡す
     const resetAccent = original.map((p) => ({ ...p, accent: 0 }))
     const result = applyNotationAccents(parsed, resetAccent)
     expect(result[0].accent).toBe(3)
@@ -316,14 +313,11 @@ describe('ラウンドトリップ', () => {
   it('平板型(accent=0)はラウンドトリップでVOICEVOXデフォルトに戻る', () => {
     const original: AccentPhrase[] = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 0)]
     const notation = accentPhrasesToNotation(original)
-    expect(notation).toBe('コンニチワ') // []なし
+    expect(notation).toBe('コンニチワ')
     const parsed = parseNotation(notation)
-    // 手動変更でaccent=5になっていた既存フレーズに適用
     const existing = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 5)]
-    // VOICEVOXデフォルトはaccent=3
     const defaults = [makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 3)]
     const result = applyNotationAccents(parsed, existing, defaults)
-    // []省略 → VOICEVOXデフォルト(3)が使われる
     expect(result[0].accent).toBe(3)
   })
 
@@ -349,14 +343,63 @@ describe('I/O契約テスト', () => {
       makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 3),
       makeAccentPhrase(['セ', 'カ', 'イ'], 1),
     ]
-    // get_player_stateが返す文字列
     const phrasesOutput = accentPhrasesToNotation(accentPhrases)
-    // resynthesize_playerへの入力としてパース（エラーにならないこと）
     const parsed = parseNotation(phrasesOutput)
     expect(parsed).toHaveLength(2)
-    // 再適用してaccent値が復元されること
     const result = applyNotationAccents(parsed, accentPhrases)
     expect(result[0].accent).toBe(3)
     expect(result[1].accent).toBe(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// dictionary-utils テスト
+// ---------------------------------------------------------------------------
+
+describe('isKatakana', () => {
+  it('カタカナのみなら true', () => {
+    expect(isKatakana('コンニチハ')).toBe(true)
+    expect(isKatakana('ボイスボックスー')).toBe(true)
+  })
+
+  it('ひらがなや英数字を含むと false', () => {
+    expect(isKatakana('こんにちは')).toBe(false)
+    expect(isKatakana('VOICEVOX')).toBe(false)
+    expect(isKatakana('カタカナ1')).toBe(false)
+  })
+})
+
+describe('estimateAccentType', () => {
+  it('モーラ数を返す（拗音は1モーラ）', () => {
+    expect(estimateAccentType('キョウ')).toBe(2)
+    expect(estimateAccentType('コーヒー')).toBe(4)
+  })
+
+  it('最低値は 1', () => {
+    expect(estimateAccentType('')).toBe(1)
+  })
+})
+
+describe('normalizeUserDictionaryWords', () => {
+  it('VOICEVOX形式をインライン表記付きUI形式へ正規化する', () => {
+    const result = normalizeUserDictionaryWords({
+      'word-1': {
+        surface: '音声',
+        pronunciation: 'オンセイ',
+        accent_type: 2,
+        priority: 5,
+      },
+    })
+
+    expect(result).toEqual([
+      {
+        wordUuid: 'word-1',
+        surface: '音声',
+        pronunciation: 'オンセイ',
+        accentType: 2,
+        notation: 'オ[ン]セイ',
+        priority: 5,
+      },
+    ])
   })
 })

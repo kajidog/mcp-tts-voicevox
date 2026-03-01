@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync } from 'node:fs'
 import { rename, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { AccentPhrase, AudioQuery } from '@kajidog/voicevox-client'
-import type { ToolDeps } from './types.js'
+import type { ToolDeps } from '../types.js'
 
 // ---------------------------------------------------------------------------
 // Types

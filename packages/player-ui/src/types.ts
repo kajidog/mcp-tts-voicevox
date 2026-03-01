@@ -1,3 +1,7 @@
+import type { AccentPhrase, AudioQuery, Mora } from '@kajidog/voicevox-client'
+
+export type { Mora, AccentPhrase, AudioQuery }
+
 /** ツール結果から情報を抽出 */
 export interface PlayerData {
   audioBase64: string
@@ -15,36 +19,6 @@ export interface SpeakerInfo {
   name: string
   characterName: string
   uuid: string
-}
-
-export interface Mora {
-  text: string
-  consonant?: string
-  consonant_length?: number
-  vowel: string
-  vowel_length: number
-  pitch: number
-}
-
-export interface AccentPhrase {
-  moras: Mora[]
-  accent: number
-  pause_mora?: Mora
-  is_interrogative?: boolean
-}
-
-export interface AudioQuery {
-  accent_phrases: AccentPhrase[]
-  speedScale: number
-  pitchScale: number
-  intonationScale: number
-  volumeScale: number
-  prePhonemeLength: number
-  postPhonemeLength: number
-  outputSamplingRate: number
-  outputStereo: boolean
-  kana?: string
-  pauseLengthScale?: number
 }
 
 /** マルチスピーカー用セグメント */
@@ -76,6 +50,7 @@ export interface DictionaryWord {
   surface: string
   pronunciation: string
   accentType: number
+  notation: string
   priority: number
 }
 

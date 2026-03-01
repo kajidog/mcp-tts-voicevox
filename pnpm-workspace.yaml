@@ -4,6 +4,7 @@ packages:
   - examples
 
 ignoredBuiltDependencies:
+  - '@modelcontextprotocol/ext-apps'
   - esbuild
 
 onlyBuiltDependencies:

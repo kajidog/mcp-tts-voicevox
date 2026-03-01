@@ -68,7 +68,8 @@ export function registerSpeakerTools(deps: ToolDeps) {
     'get_speakers',
     {
       title: 'Get Speakers',
-      description: 'Get a list of available speakers',
+      description:
+        'Get a list of available speakers. The returned "speaker" field is the exact ID to pass to speak.speaker',
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -81,7 +82,6 @@ export function registerSpeakerTools(deps: ToolDeps) {
         const speakers = await voicevoxClient.getSpeakers()
         const result = speakers.flatMap((speaker: any) =>
           speaker.styles.map((style: any) => ({
-            uuid: speaker.speaker_uuid,
             speaker: style.id,
             name: `${speaker.name}:${style.name}`,
           }))

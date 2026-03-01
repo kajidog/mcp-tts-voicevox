@@ -26,7 +26,7 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
     playerAudioCacheTtlDays: 30,
     playerAudioCacheMaxMb: 512,
     ...overrides,
-  } as Parameters<typeof import('../tools/player-session-state')['initializeSessionState']>[0]
+  } as Parameters<typeof import('../session-state')['initializeSessionState']>[0]
 }
 
 function makeState(overrides: Record<string, unknown> = {}) {
@@ -34,7 +34,7 @@ function makeState(overrides: Record<string, unknown> = {}) {
     segments: [{ text: 'テスト', speaker: 1, speedScale: 1.0 }],
     updatedAt: Date.now(),
     ...overrides,
-  } as import('../tools/player-session-state').PlayerSessionState
+  } as import('../session-state').PlayerSessionState
 }
 
 beforeEach(async () => {
@@ -50,7 +50,7 @@ beforeEach(async () => {
 describe('setSessionState / getSessionStateByKey', () => {
   it('状態を保存し getSessionStateByKey で取得できる', async () => {
     vi.useFakeTimers()
-    const mod = await import('../tools/player-session-state')
+    const mod = await import('../session-state')
     const state = makeState()
 
     mod.setSessionState('view-1', state)
@@ -67,7 +67,7 @@ describe('setSessionState / getSessionStateByKey', () => {
 describe('getSessionState', () => {
   it('viewUUID 優先で検索する', async () => {
     vi.useFakeTimers()
-    const mod = await import('../tools/player-session-state')
+    const mod = await import('../session-state')
     const stateA = makeState({ segments: [{ text: 'A', speaker: 1, speedScale: 1.0 }] })
     const stateB = makeState({ segments: [{ text: 'B', speaker: 1, speedScale: 1.0 }] })
 
@@ -82,7 +82,7 @@ describe('getSessionState', () => {
 
   it('viewUUID なしで sessionId にフォールバック', async () => {
     vi.useFakeTimers()
-    const mod = await import('../tools/player-session-state')
+    const mod = await import('../session-state')
     const state = makeState()
 
     mod.setSessionState('my-session', state)
@@ -95,7 +95,7 @@ describe('getSessionState', () => {
 
   it('両方なしで "global" キーにフォールバック', async () => {
     vi.useFakeTimers()
-    const mod = await import('../tools/player-session-state')
+    const mod = await import('../session-state')
     const state = makeState()
 
     mod.setSessionState('global', state)
@@ -107,7 +107,7 @@ describe('getSessionState', () => {
   })
 
   it('存在しないキーで undefined を返す', async () => {
-    const mod = await import('../tools/player-session-state')
+    const mod = await import('../session-state')
     const result = mod.getSessionState('nonexistent', 'also-nonexistent')
     expect(result).toBeUndefined()
   })
@@ -127,7 +127,7 @@ describe('initializeSessionState', () => {
     }
     vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(savedState))
 
-    const mod = await import('../tools/player-session-state')
+    const mod = await import('../session-state')
     mod.initializeSessionState(makeConfig(), '/tmp/test-cache')
 
     expect(mod.getSessionStateByKey('restored-key')).toBeDefined()
@@ -140,7 +140,7 @@ describe('initializeSessionState', () => {
       throw new Error('ENOENT')
     })
 
-    const mod = await import('../tools/player-session-state')
+    const mod = await import('../session-state')
     mod.initializeSessionState(makeConfig(), '/tmp/test-cache')
 
     expect(mod.getSessionStateByKey('any-key')).toBeUndefined()
@@ -152,7 +152,7 @@ describe('initializeSessionState', () => {
       throw new Error('ENOENT')
     })
 
-    const mod = await import('../tools/player-session-state')
+    const mod = await import('../session-state')
     mod.initializeSessionState(makeConfig({ playerStateFile: '/custom/dir/state.json' }), '/tmp/test-cache')
 
     expect(fs.mkdirSync).toHaveBeenCalledWith('/custom/dir', { recursive: true })
@@ -165,7 +165,7 @@ describe('initializeSessionState', () => {
 
 describe('定数エクスポート', () => {
   it('定数が正しい値でエクスポートされている', async () => {
-    const mod = await import('../tools/player-session-state')
+    const mod = await import('../session-state')
     expect(mod.MAX_TOOL_CONTENT_BYTES).toBe(1024 * 1024)
     expect(mod.DEFAULT_STATE_PAGE_LIMIT).toBe(100)
     expect(mod.MAX_STATE_PAGE_LIMIT).toBe(1000)
@@ -181,7 +181,7 @@ describe('debounce 保存', () => {
     vi.useFakeTimers()
     const fsPromises = await import('node:fs/promises')
 
-    const mod = await import('../tools/player-session-state')
+    const mod = await import('../session-state')
     mod.initializeSessionState(makeConfig({ playerStateFile: '/tmp/state.json' }), '/tmp/test-cache')
     mod.setSessionState('debounce-test', makeState())
 

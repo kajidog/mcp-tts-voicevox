@@ -1,3 +1,4 @@
+export { registerDictionaryTools } from './dictionary.js'
 export { registerPlayerTools } from './player.js'
 export { registerToolIfEnabled, registerAppToolIfEnabled } from './registration.js'
 export { registerSpeakTool, buildSpeakInputSchema } from './speak.js'
