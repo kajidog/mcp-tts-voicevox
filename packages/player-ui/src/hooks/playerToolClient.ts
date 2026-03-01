@@ -314,7 +314,7 @@ export async function deleteDictionaryWord(app: App, args: { wordUuid: string })
 
 export async function previewDictionaryWord(
   app: App,
-  args: { text: string }
+  args: { text: string; accentType?: number }
 ): Promise<{
   audioBase64: string
   speakerName?: string

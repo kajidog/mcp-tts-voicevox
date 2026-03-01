@@ -1,3 +1,4 @@
+import { accentPhrasesToNotation } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
 import { registerAppToolIfEnabled } from '../registration.js'
@@ -176,6 +177,12 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
       description: 'Preview pronunciation with a random speaker.',
       inputSchema: {
         text: z.string().describe('Text to preview'),
+        accentType: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe('Optional accent nucleus position for the first phrase (1-based mora index, 0=flat).'),
       },
       _meta: {
         ui: {
@@ -184,7 +191,7 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
         },
       },
     },
-    async ({ text }: { text: string }): Promise<CallToolResult> => {
+    async ({ text, accentType }: { text: string; accentType?: number }): Promise<CallToolResult> => {
       try {
         const normalizedText = text.trim()
         if (!normalizedText) throw new Error('text is required')
@@ -192,13 +199,33 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
         if (speakers.length === 0) throw new Error('No speakers available')
 
         const randomSpeaker = speakers[Math.floor(Math.random() * speakers.length)]
+        const notationResult = await voicevoxClient.getAccentNotation(normalizedText, randomSpeaker.id)
+        let previewAccentPhrases = notationResult.accentPhrases
+
+        if (typeof accentType === 'number' && previewAccentPhrases.length > 0) {
+          const firstPhrase = previewAccentPhrases[0]
+          const maxAccent = firstPhrase.moras.length
+          if (accentType > maxAccent) {
+            throw new Error(`accentType must be between 0 and ${maxAccent}`)
+          }
+
+          previewAccentPhrases = previewAccentPhrases.map((phrase, index) =>
+            index === 0 ? { ...phrase, accent: accentType } : phrase
+          )
+
+          // accent 値の変更に合わせてピッチを再計算する。
+          previewAccentPhrases = await shared.playerVoicevoxApi.updateMoraData(
+            previewAccentPhrases as any,
+            randomSpeaker.id
+          )
+        }
+
         const result = await synthesizeWithCache({
           text: normalizedText,
           speaker: randomSpeaker.id,
           speedScale: config.defaultSpeedScale,
+          accentPhrases: previewAccentPhrases,
         })
-
-        const { notation, accentPhrases } = await voicevoxClient.getAccentNotation(normalizedText, randomSpeaker.id)
 
         return {
           content: [
@@ -209,8 +236,8 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
                 speaker: result.speaker,
                 speakerName: result.speakerName,
                 kana: result.kana,
-                accentPhrases,
-                notation,
+                accentPhrases: previewAccentPhrases,
+                notation: accentPhrasesToNotation(previewAccentPhrases),
               }),
             },
           ],

@@ -151,8 +151,8 @@ async function processPhrasesInput(
     throw new Error('phrases is empty')
   }
 
-  // クリーンテキストを結合してクエリ生成
-  const cleanText = parsedPhrases.map((p) => p.cleanText).join('')
+  // フレーズ境界が消えると accent phrase 数が崩れるため、読点で区切って結合する。
+  const cleanText = parsedPhrases.map((p) => p.cleanText).join('、')
   const audioQuery = await voicevoxClient.generateQuery(cleanText, speaker, speedScale)
 
   // デフォルトのアクセント句を取得（brackets省略時のフォールバック用）

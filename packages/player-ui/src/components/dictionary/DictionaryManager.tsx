@@ -150,7 +150,10 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
     }
 
     const run = async () => {
-      const result = await previewDictionaryWord(app, { text: textToFetch })
+      const result = await previewDictionaryWord(app, {
+        text: textToFetch,
+        accentType: initialAccentType ?? undefined,
+      })
       if (playAudio && !result?.audioBase64) {
         setErrorMsg('音声を生成できませんでした。')
         return
