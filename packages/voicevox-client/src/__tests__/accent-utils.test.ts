@@ -395,7 +395,9 @@ describe('normalizeUserDictionaryWords', () => {
       {
         wordUuid: 'word-1',
         surface: '音声',
-        pronunciation: 'オ[ン]セイ',
+        pronunciation: 'オンセイ',
+        accentType: 2,
+        notation: 'オ[ン]セイ',
         priority: 5,
       },
     ])

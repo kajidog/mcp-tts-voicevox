@@ -1,4 +1,5 @@
 import { type SpeakResult, VoicevoxApi, applyNotationAccents, parseNotation } from '@kajidog/voicevox-client'
+import type { VoicevoxClient } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
 import { registerToolIfEnabled } from './registration.js'
@@ -8,10 +9,8 @@ import {
   createSuccessResponse,
   formatSpeakResponse,
   getEffectiveSpeaker,
-  parseAudioQuery,
   processTextInput,
 } from './utils.js'
-
 /**
  * speak ツールの動的スキーマを構築
  */
@@ -26,7 +25,6 @@ export function buildSpeakInputSchema(restrictions: {
       .describe(
         'Text split by line breaks (\\n). IMPORTANT: Each line = one speech unit (processed and played separately). Keep the FIRST LINE SHORT for quick playback start - audio begins as soon as the first line is synthesized. Example: "Hi!\\nThis is a longer explanation that follows." Optional speaker prefix per line: "1:Hello\\n2:World"'
       ),
-    query: z.string().optional().describe('Voice synthesis query'),
     phrases: z
       .string()
       .optional()
@@ -81,7 +79,6 @@ export function registerSpeakTool(deps: ToolDeps) {
       {
         text,
         speaker,
-        query,
         phrases,
         speedScale,
         immediate,
@@ -90,7 +87,6 @@ export function registerSpeakTool(deps: ToolDeps) {
       }: {
         text: string
         speaker?: number
-        query?: string
         phrases?: string
         speedScale?: number
         immediate?: boolean
@@ -122,13 +118,6 @@ export function registerSpeakTool(deps: ToolDeps) {
             speedScale,
             playbackOptions
           )
-        } else if (query) {
-          const audioQuery = parseAudioQuery(query, speedScale)
-          result = await voicevoxClient.enqueueAudioGeneration(audioQuery, {
-            speaker: effectiveSpeaker,
-            speedScale,
-            ...playbackOptions,
-          })
         } else {
           result = await processTextInput(voicevoxClient, text, effectiveSpeaker, speedScale, playbackOptions)
         }
@@ -145,7 +134,7 @@ export function registerSpeakTool(deps: ToolDeps) {
  * インライン表記(phrases)からアクセント付き音声を生成して再生
  */
 async function processPhrasesInput(
-  voicevoxClient: import('@kajidog/voicevox-client').VoicevoxClient,
+  voicevoxClient: VoicevoxClient,
   voicevoxUrl: string,
   phrases: string,
   speaker: number,

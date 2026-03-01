@@ -157,8 +157,9 @@ describe('normalizeUserDictionaryWords', () => {
     })
     expect(result).toHaveLength(1)
     expect(result[0].wordUuid).toBe('uuid-1')
-    expect(result[0].pronunciation).toBe('[テ]スト')
-    expect(result[0]).not.toHaveProperty('accentType')
+    expect(result[0].pronunciation).toBe('テスト')
+    expect(result[0].accentType).toBe(1)
+    expect(result[0].notation).toBe('[テ]スト')
   })
 
   it('平板型 (accent_type=0) ではブラケットなし', () => {
@@ -166,6 +167,7 @@ describe('normalizeUserDictionaryWords', () => {
       'uuid-1': { surface: 'テスト', pronunciation: 'テスト', accent_type: 0, priority: 5 },
     })
     expect(result[0].pronunciation).toBe('テスト')
+    expect(result[0].notation).toBe('テスト')
   })
 })
 
@@ -239,9 +241,30 @@ describe('registerDictionaryTools', () => {
 
   describe('get_user_dictionary handler', () => {
     const mockWords = [
-      { wordUuid: 'uuid-1', surface: 'テスト', pronunciation: '[テ]スト', priority: 5 },
-      { wordUuid: 'uuid-2', surface: 'VOICEVOX', pronunciation: 'ボイスボッ[ク]ス', priority: 7 },
-      { wordUuid: 'uuid-3', surface: 'サンプル', pronunciation: '[サ]ンプル', priority: 3 },
+      {
+        wordUuid: 'uuid-1',
+        surface: 'テスト',
+        pronunciation: 'テスト',
+        accentType: 1,
+        notation: '[テ]スト',
+        priority: 5,
+      },
+      {
+        wordUuid: 'uuid-2',
+        surface: 'VOICEVOX',
+        pronunciation: 'ボイスボックス',
+        accentType: 4,
+        notation: 'ボイスボッ[ク]ス',
+        priority: 7,
+      },
+      {
+        wordUuid: 'uuid-3',
+        surface: 'サンプル',
+        pronunciation: 'サンプル',
+        accentType: 1,
+        notation: '[サ]ンプル',
+        priority: 3,
+      },
     ]
 
     it('辞書一覧をインライン表記で返す', async () => {
@@ -256,8 +279,8 @@ describe('registerDictionaryTools', () => {
       expect(parsed.offset).toBe(0)
       expect(parsed.limit).toBe(50)
       expect(parsed.words).toHaveLength(3)
-      expect(parsed.words[0].pronunciation).toBe('[テ]スト')
-      expect(parsed.words).not.toHaveProperty('accentType')
+      expect(parsed.words[0].notation).toBe('[テ]スト')
+      expect(parsed.words[0]).toHaveProperty('accentType')
     })
 
     it('queryでフィルタリングできる', async () => {
@@ -290,7 +313,14 @@ describe('registerDictionaryTools', () => {
   describe('add_user_dictionary_word handler', () => {
     it('辞書に単語を追加して追加した単語のみ返す', async () => {
       const wordsAfterAdd = [
-        { wordUuid: 'uuid-new', surface: 'VOICEVOX', pronunciation: 'ボイスボッ[ク]ス', priority: 5 },
+        {
+          wordUuid: 'uuid-new',
+          surface: 'VOICEVOX',
+          pronunciation: 'ボイスボックス',
+          accentType: 4,
+          notation: 'ボイスボッ[ク]ス',
+          priority: 5,
+        },
       ]
       mockVoicevoxClient.addDictionaryWord.mockResolvedValue(wordsAfterAdd)
 
@@ -304,7 +334,7 @@ describe('registerDictionaryTools', () => {
       expect(parsed.word).toBeDefined()
       expect(parsed.word.wordUuid).toBe('uuid-new')
       expect(parsed.word.surface).toBe('VOICEVOX')
-      expect(parsed.word.pronunciation).toBe('ボイスボッ[ク]ス')
+      expect(parsed.word.notation).toBe('ボイスボッ[ク]ス')
     })
 
     it('インライン表記でアクセントを指定できる', async () => {
@@ -338,7 +368,14 @@ describe('registerDictionaryTools', () => {
   describe('update_user_dictionary_word handler', () => {
     it('辞書の単語を更新して更新した単語のみ返す', async () => {
       const wordsAfterUpdate = [
-        { wordUuid: 'uuid-1', surface: 'updated', pronunciation: 'アッ[プ]デート', priority: 5 },
+        {
+          wordUuid: 'uuid-1',
+          surface: 'updated',
+          pronunciation: 'アップデート',
+          accentType: 3,
+          notation: 'アッ[プ]デート',
+          priority: 5,
+        },
       ]
       mockVoicevoxClient.updateDictionaryWord.mockResolvedValue(wordsAfterUpdate)
 
@@ -359,12 +396,21 @@ describe('registerDictionaryTools', () => {
       expect(parsed.word).toBeDefined()
       expect(parsed.word.wordUuid).toBe('uuid-1')
       expect(parsed.word.surface).toBe('updated')
-      expect(parsed.word.pronunciation).toBe('アッ[プ]デート')
+      expect(parsed.word.notation).toBe('アッ[プ]デート')
       expect(parsed.words).toBeUndefined()
     })
 
     it('surface/pronunciation 省略時は既存値を維持する', async () => {
-      const wordsAfterUpdate = [{ wordUuid: 'uuid-1', surface: 'existing', pronunciation: 'キ[ゾ]ン', priority: 8 }]
+      const wordsAfterUpdate = [
+        {
+          wordUuid: 'uuid-1',
+          surface: 'existing',
+          pronunciation: 'キゾン',
+          accentType: 2,
+          notation: 'キ[ゾ]ン',
+          priority: 8,
+        },
+      ]
       mockVoicevoxClient.updateDictionaryWord.mockResolvedValue(wordsAfterUpdate)
 
       registerDictionaryTools(deps)
@@ -375,7 +421,7 @@ describe('registerDictionaryTools', () => {
 
       const parsed = JSON.parse(result.content[0].text)
       expect(parsed.word.surface).toBe('existing')
-      expect(parsed.word.pronunciation).toBe('キ[ゾ]ン')
+      expect(parsed.word.notation).toBe('キ[ゾ]ン')
       expect(parsed.word.priority).toBe(8)
     })
 

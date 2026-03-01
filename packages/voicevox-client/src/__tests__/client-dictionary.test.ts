@@ -52,13 +52,17 @@ describe('VoicevoxClient - dictionary methods', () => {
       expect(result[0]).toEqual({
         wordUuid: 'uuid-1',
         surface: 'テスト',
-        pronunciation: '[テ]スト',
+        pronunciation: 'テスト',
+        accentType: 1,
+        notation: '[テ]スト',
         priority: 5,
       })
       expect(result[1]).toEqual({
         wordUuid: 'uuid-2',
         surface: 'VOICEVOX',
-        pronunciation: 'ボイス[ボ]ックス',
+        pronunciation: 'ボイスボックス',
+        accentType: 4,
+        notation: 'ボイス[ボ]ックス',
         priority: 7,
       })
     })
