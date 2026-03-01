@@ -4,8 +4,8 @@ import type { Stats } from 'node:fs'
 import { readdir, stat, unlink, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import type { AccentPhrase, AudioQuery } from '@kajidog/voicevox-client'
-import { planAudioCacheCleanup, resolveAudioCachePolicy } from './player-cache-utils.js'
-import type { ToolDeps } from './types.js'
+import type { ToolDeps } from '../types.js'
+import { planAudioCacheCleanup, resolveAudioCachePolicy } from './cache-policy.js'
 
 // ---------------------------------------------------------------------------
 // Constants

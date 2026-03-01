@@ -7,7 +7,7 @@ import {
   applyNotationAccents,
   parseNotation,
   resolveAccentFromMoras,
-} from '../tools/player-phrase-utils'
+} from '../phrase-utils'
 
 function makeMora(text: string, vowel = 'a', pitch = 5.0): Mora {
   return { text, vowel, vowel_length: 0.1, pitch }

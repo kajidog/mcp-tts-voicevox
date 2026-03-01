@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { planAudioCacheCleanup, resolveAudioCachePolicy } from '../tools/player-cache-utils'
+import { planAudioCacheCleanup, resolveAudioCachePolicy } from '../cache-policy'
 
 // createAudioCacheKey のロジックをインラインで再現（実関数はモジュール非公開のため）
 // 実装と一致していることを確認するホワイトボックステスト
