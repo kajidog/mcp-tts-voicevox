@@ -407,31 +407,19 @@ export function registerPlayerTools(deps: ToolDeps) {
     'resynthesize_player',
     {
       title: 'Resynthesize Player',
-      description:
-        'Update a single player track by index. Pass viewUUID + trackIndex to identify the segment. Provide phrases in inline notation to change text and/or accents (e.g. "コン[ニ]チワ,セカイ" — comma-separated phrases, [bracket] marks accent mora, omit brackets to keep VOICEVOX default). Omitted parameters keep existing values. Returns new viewUUID for subsequent operations. Audio synthesis is performed by the player UI.',
+      description: 'Update a single player track. Returns new viewUUID. See get_player_state for notation details.',
       inputSchema: {
-        viewUUID: z
-          .string()
-          .describe('Player instance ID from speak_player/resynthesize_player. Required to identify the session.'),
-        trackIndex: z
-          .number()
-          .int()
-          .min(0)
-          .describe('Index of the segment to update (from get_player_state trackIndex).'),
-        phrases: z
-          .string()
-          .optional()
-          .describe(
-            'Inline notation for text and accents. Comma-separated phrases, [bracket] marks accent mora. Example: "コン[ニ]チワ,セカイ". If text differs from existing, triggers full re-generation.'
-          ),
-        speaker: z.number().optional().describe('Speaker ID (omit to keep existing)'),
-        speedScale: z.number().optional().describe('Playback speed (omit to keep existing)'),
-        intonationScale: z.number().optional().describe('Intonation scale (omit to keep existing)'),
-        volumeScale: z.number().optional().describe('Volume scale (omit to keep existing)'),
-        prePhonemeLength: z.number().optional().describe('Pre-phoneme silence in seconds (omit to keep existing)'),
-        postPhonemeLength: z.number().optional().describe('Post-phoneme silence in seconds (omit to keep existing)'),
-        pauseLengthScale: z.number().optional().describe('Pause length scale (omit to keep existing)'),
-        autoPlay: z.boolean().optional().describe('Auto-play when loaded (default from config)'),
+        viewUUID: z.string().describe('Latest viewUUID'),
+        trackIndex: z.number().int().min(0).describe('Segment index to update'),
+        phrases: z.string().optional().describe('Inline notation (see get_player_state hint)'),
+        speaker: z.number().optional().describe('Speaker ID'),
+        speedScale: z.number().optional().describe('Speed'),
+        intonationScale: z.number().optional().describe('Intonation'),
+        volumeScale: z.number().optional().describe('Volume'),
+        prePhonemeLength: z.number().optional().describe('Pre-silence (sec)'),
+        postPhonemeLength: z.number().optional().describe('Post-silence (sec)'),
+        pauseLengthScale: z.number().optional().describe('Pause length'),
+        autoPlay: z.boolean().optional().describe('Auto-play'),
       },
       annotations: {
         readOnlyHint: false,
@@ -638,7 +626,7 @@ export function registerPlayerTools(deps: ToolDeps) {
     {
       title: 'Get VOICEVOX Player State',
       description:
-        'Returns paged player state for AI tuning. Each segment includes trackIndex and phrases in inline notation (e.g. "コン[ニ]チワ,セ[カ]イ"). Use the latest viewUUID from speak_player/resynthesize_player. If hasMore is true, call again with nextCursor to continue.',
+        'Returns paged player state with editable segments. Use latest viewUUID. If hasMore is true, call again with nextCursor.',
       inputSchema: {
         viewUUID: z
           .string()
@@ -705,7 +693,7 @@ export function registerPlayerTools(deps: ToolDeps) {
               text: seg.text,
               speaker: seg.speaker,
               speakerName: seg.speakerName,
-              phrases: rawAccentPhrases ? accentPhrasesToNotation(rawAccentPhrases) : null,
+              phrases: rawAccentPhrases ? accentPhrasesToNotation(rawAccentPhrases) : undefined,
               speedScale: seg.speedScale,
               intonationScale: seg.intonationScale,
               volumeScale: seg.volumeScale,
@@ -722,6 +710,12 @@ export function registerPlayerTools(deps: ToolDeps) {
             limit: effectiveLimit,
             hasMore,
             nextCursor: hasMore ? pageEnd : null,
+            // 初回ページのみ resynthesize_player の使い方ヒントを含める（トークン節約）
+            ...(effectiveCursor === 0 && responseSegments.length > 0
+              ? {
+                  hint: 'To edit a track, call resynthesize_player with viewUUID + trackIndex. The "phrases" param uses inline notation: comma-separated phrases, [bracket] marks accent mora. Example: "コン[ニ]チワ,セ[カ]イ". Omit brackets to use VOICEVOX default accent. Omitted params keep existing values.',
+                }
+              : {}),
           }
         }
 
