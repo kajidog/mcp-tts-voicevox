@@ -281,7 +281,7 @@ export async function fetchDictionaryWords(app: App): Promise<DictionaryWord[]> 
 
 export async function addDictionaryWord(
   app: App,
-  args: { surface: string; pronunciation: string; priority: number }
+  args: { surface: string; pronunciation: string; priority: number; accentType?: number }
 ): Promise<DictionaryWord[]> {
   const result = await app.callServerTool({
     name: '_add_user_dictionary_word_for_player',
@@ -293,7 +293,7 @@ export async function addDictionaryWord(
 
 export async function updateDictionaryWord(
   app: App,
-  args: { wordUuid: string; surface: string; pronunciation: string; priority: number }
+  args: { wordUuid: string; surface: string; pronunciation: string; priority: number; accentType?: number }
 ): Promise<DictionaryWord[]> {
   const result = await app.callServerTool({
     name: '_update_user_dictionary_word_for_player',
@@ -315,7 +315,13 @@ export async function deleteDictionaryWord(app: App, args: { wordUuid: string })
 export async function previewDictionaryWord(
   app: App,
   args: { text: string }
-): Promise<{ audioBase64: string; speakerName?: string; kana?: string } | null> {
+): Promise<{
+  audioBase64: string
+  speakerName?: string
+  kana?: string
+  accentPhrases?: AccentPhrase[]
+  notation?: string
+} | null> {
   const result = await app.callServerTool({
     name: '_preview_dictionary_word_for_player',
     arguments: args,
@@ -323,11 +329,19 @@ export async function previewDictionaryWord(
   assertNoToolError(result)
   const payload = getTextPayload(result.content)
   if (!payload) return null
-  const parsed = JSON.parse(payload) as { audioBase64?: string; speakerName?: string; kana?: string }
+  const parsed = JSON.parse(payload) as {
+    audioBase64?: string
+    speakerName?: string
+    kana?: string
+    accentPhrases?: AccentPhrase[]
+    notation?: string
+  }
   if (!parsed.audioBase64) return null
   return {
     audioBase64: parsed.audioBase64,
     speakerName: parsed.speakerName,
     kana: parsed.kana,
+    accentPhrases: parsed.accentPhrases,
+    notation: parsed.notation,
   }
 }

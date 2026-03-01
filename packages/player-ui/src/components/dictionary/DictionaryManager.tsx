@@ -18,10 +18,16 @@ interface DictionaryFormState {
   surface: string
   pronunciation: string
   priority: number
+  accentType: number | null // null = auto-estimate on save
+}
+
+interface AccentInfo {
+  moraTexts: string[] // mora text array for notation generation
+  notation: string // current notation string
 }
 
 const inputBox =
-  'w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-2 text-sm text-[var(--ui-text)] outline-none transition-colors focus-visible:border-[var(--ui-accent)] focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklab,var(--ui-accent)_20%,transparent)]'
+  'w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-bg)] px-3 py-2 text-sm text-[var(--ui-text)] outline-none transition-colors focus-visible:border-[var(--ui-accent)] focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklab,var(--ui-accent)_20%,transparent)]'
 
 const PRIORITY_LABELS = ['最低', '低', '標準', '高', '最高'] as const
 
@@ -37,7 +43,20 @@ function sortWords(words: DictionaryWord[]): DictionaryWord[] {
 }
 
 function createEmptyForm(): DictionaryFormState {
-  return { surface: '', pronunciation: '', priority: 5 }
+  return { surface: '', pronunciation: '', priority: 5, accentType: null }
+}
+
+/** Generate notation string from mora texts and accent position */
+function generateNotation(moraTexts: string[], accent: number): string {
+  if (accent === 0 || accent > moraTexts.length) {
+    return moraTexts.join('')
+  }
+  return moraTexts
+    .map((t, i) => {
+      const moraIndex = i + 1
+      return moraIndex === accent ? `[${t}]` : t
+    })
+    .join('')
 }
 
 function priorityLabel(priority: number): string {
@@ -57,7 +76,7 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
   const [form, setForm] = useState<DictionaryFormState>(createEmptyForm())
   const [isBusy, setIsBusy] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const [previewInfo, setPreviewInfo] = useState<string | null>(null)
+  const [accentInfo, setAccentInfo] = useState<AccentInfo | null>(null)
   const previewAudioRef = useRef<HTMLAudioElement | null>(null)
 
   const filteredWords = useMemo(() => {
@@ -97,7 +116,12 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
       setIsFormOpen(false)
       return
     }
-    setForm({ surface: selected.surface, pronunciation: selected.pronunciation, priority: selected.priority })
+    setForm({
+      surface: selected.surface,
+      pronunciation: selected.pronunciation,
+      priority: selected.priority,
+      accentType: selected.accentType,
+    })
   }
 
   const refreshWords = async () => {
@@ -115,22 +139,80 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
     setIsFormOpen(false)
     setSelectedWordUuid(null)
     setForm(createEmptyForm())
-    setPreviewInfo(null)
+    setAccentInfo(null)
     setErrorMsg(null)
+  }
+
+  const loadAccentData = async (textToFetch: string, initialAccentType: number | null, playAudio: boolean) => {
+    if (!textToFetch) {
+      if (playAudio) setErrorMsg('読みまたは単語を入力してください。')
+      return
+    }
+
+    const run = async () => {
+      const result = await previewDictionaryWord(app, { text: textToFetch })
+      if (playAudio && !result?.audioBase64) {
+        setErrorMsg('音声を生成できませんでした。')
+        return
+      }
+
+      if (playAudio && result?.audioBase64) {
+        const audio = previewAudioRef.current ?? new Audio()
+        previewAudioRef.current = audio
+        audio.src = `data:audio/wav;base64,${result.audioBase64}`
+        await audio.play()
+      }
+
+      if (result?.accentPhrases && result.accentPhrases.length > 0) {
+        const phrase = result.accentPhrases[0]
+        const moraTexts = phrase.moras.map((m) => m.text)
+        const accent = initialAccentType ?? phrase.accent
+        setAccentInfo({
+          moraTexts,
+          notation: generateNotation(moraTexts, accent),
+        })
+        if (initialAccentType === null) {
+          setForm((prev) => ({ ...prev, accentType: phrase.accent }))
+        }
+      } else if (result?.notation) {
+        setAccentInfo({
+          moraTexts: [],
+          notation: result.notation,
+        })
+      }
+    }
+
+    if (playAudio) {
+      await runAction(run)
+    } else {
+      try {
+        await run()
+      } catch (e) {
+        console.error('Failed to load accent quietly', e)
+      }
+    }
   }
 
   const selectWord = (word: DictionaryWord) => {
     setSelectedWordUuid(word.wordUuid)
-    setForm({ surface: word.surface, pronunciation: word.pronunciation, priority: word.priority })
-    setPreviewInfo(null)
+    setForm({
+      surface: word.surface,
+      pronunciation: word.pronunciation,
+      priority: word.priority,
+      accentType: word.accentType,
+    })
+    setAccentInfo(null)
     setErrorMsg(null)
     setIsFormOpen(true)
+
+    // Auto load accent info
+    void loadAccentData(word.pronunciation.trim() || word.surface.trim(), word.accentType, false)
   }
 
   const setNewMode = () => {
     setSelectedWordUuid(null)
     setForm(createEmptyForm())
-    setPreviewInfo(null)
+    setAccentInfo(null)
     setErrorMsg(null)
     setIsFormOpen(true)
   }
@@ -158,10 +240,18 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
     if (!validateForm()) return
 
     await runAction(async () => {
-      const payload = {
+      const payload: {
+        surface: string
+        pronunciation: string
+        priority: number
+        accentType?: number
+      } = {
         surface: form.surface.trim(),
         pronunciation: form.pronunciation.trim(),
         priority: form.priority,
+      }
+      if (form.accentType !== null) {
+        payload.accentType = form.accentType
       }
 
       if (selectedWordUuid) {
@@ -185,35 +275,23 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
       const nextWords = await deleteDictionaryWord(app, { wordUuid: selectedWordUuid })
       setSelectedWordUuid(null)
       setForm(createEmptyForm())
-      setPreviewInfo(null)
+      setAccentInfo(null)
       setIsFormOpen(false)
       syncWords(nextWords)
     })
   }
 
-  const previewCurrent = async () => {
-    // 登録前の読みを確認できるよう、プレビュー時は入力中の「読み（カタカナ）」を優先して音声を合成する
-    const text = form.pronunciation.trim() || form.surface.trim()
-    if (!text) {
-      setErrorMsg('視聴するテキストがありません。')
-      return
+  const checkAccent = (playAudio = true) => {
+    void loadAccentData(form.pronunciation.trim() || form.surface.trim(), form.accentType, playAudio)
+  }
+
+  const handleAccentChange = (newAccent: number) => {
+    setForm((prev) => ({ ...prev, accentType: newAccent }))
+    if (accentInfo && accentInfo.moraTexts.length > 0) {
+      setAccentInfo((prev) =>
+        prev ? { ...prev, notation: generateNotation(prev.moraTexts, newAccent) } : prev,
+      )
     }
-
-    await runAction(async () => {
-      const result = await previewDictionaryWord(app, { text })
-      if (!result?.audioBase64) {
-        setErrorMsg('視聴音声を生成できませんでした。')
-        return
-      }
-      const audio = previewAudioRef.current ?? new Audio()
-      previewAudioRef.current = audio
-      audio.src = `data:audio/wav;base64,${result.audioBase64}`
-      await audio.play()
-
-      const speaker = result.speakerName ? `話者: ${result.speakerName}` : '話者: ランダム'
-      const kana = result.kana ? ` / 読み: ${result.kana}` : ''
-      setPreviewInfo(`${speaker}${kana}`)
-    })
   }
 
   const currentLabel = priorityLabel(form.priority)
@@ -389,10 +467,180 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
                     className={inputBox}
                     placeholder="例: アップス"
                     value={form.pronunciation}
-                    onChange={(e) => setForm((prev) => ({ ...prev, pronunciation: e.target.value }))}
+                    onChange={(e) => {
+                      setForm((prev) => ({ ...prev, pronunciation: e.target.value, accentType: null }))
+                      setAccentInfo(null)
+                    }}
                     disabled={isBusy}
                   />
                 </div>
+              </div>
+
+              {/* アクセント */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-[var(--ui-text)]">アクセント</label>
+                  {accentInfo && (
+                    <span className="font-mono text-[11px] text-[var(--ui-text-secondary)]">
+                      {accentInfo.notation}
+                    </span>
+                  )}
+                  {!accentInfo && form.pronunciation && (
+                    <span className="font-mono text-[11px] text-[var(--ui-text-secondary)]">
+                      {generateNotation(form.pronunciation.split(''), form.accentType ?? 0)}
+                    </span>
+                  )}
+                </div>
+
+                {accentInfo && accentInfo.moraTexts.length > 0 ? (
+                  <div className="relative w-full overflow-x-auto rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] p-2">
+                    <div className="flex items-center w-max">
+                      <button
+                        type="button"
+                        className="shrink-0 rounded-full p-2.5 mr-2 text-[var(--ui-text-secondary)] transition-colors hover:bg-[color-mix(in_oklab,var(--ui-accent)_15%,var(--ui-bg))] hover:text-[var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={() => checkAccent(true)}
+                        disabled={isBusy}
+                        title="視聴"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current ml-0.5">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </button>
+
+                      <div className="flex items-stretch gap-1">
+                        <div className="flex flex-col rounded-md border border-[var(--ui-border)] bg-[var(--ui-bg)] p-2">
+                          <div className="mb-2 flex w-full items-center gap-1">
+                            {/* 平板 (Heiban) button */}
+                            <div className="flex shrink-0 items-center justify-center gap-1">
+                              <span
+                                className={`inline-flex shrink-0 items-center justify-center rounded-md border px-1 text-[11px] leading-none py-1.5 transition-colors ${form.accentType === 0
+                                  ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_18%,var(--ui-bg))] text-[var(--ui-accent)] font-semibold'
+                                  : 'border-[var(--ui-border)] text-[var(--ui-text-secondary)] hover:border-[var(--ui-accent)] hover:bg-[color-mix(in_oklab,var(--ui-accent)_10%,var(--ui-bg))]'
+                                  } cursor-pointer`}
+                                style={{ width: '32px' }}
+                                onClick={() => handleAccentChange(0)}
+                              >
+                                平板
+                              </span>
+                              <div className="mx-1 h-3.5 w-[1px] bg-[var(--ui-border)]" />
+                            </div>
+
+                            {/* Mora blocks */}
+                            {accentInfo.moraTexts.map((t, i) => {
+                              const pos = i + 1
+                              const isAccentMora = form.accentType === pos
+                              const moraWidth = t.length >= 2 ? 48 : 32
+                              return (
+                                <div
+                                  key={pos}
+                                  className="flex shrink-0 items-center justify-center gap-1"
+                                >
+                                  <span
+                                    className={`inline-flex shrink-0 items-center justify-center rounded-md border px-1 text-xs leading-none py-1.5 transition-colors ${isAccentMora
+                                      ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_18%,var(--ui-bg))] text-[var(--ui-accent)] font-semibold'
+                                      : 'border-[var(--ui-border)] text-[var(--ui-text)] hover:border-[var(--ui-accent)] hover:bg-[color-mix(in_oklab,var(--ui-accent)_10%,var(--ui-bg))]'
+                                      } cursor-pointer`}
+                                    style={{ width: `${moraWidth}px` }}
+                                    onClick={() => handleAccentChange(pos)}
+                                  >
+                                    {t}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div className="w-full">
+                            <input
+                              type="range"
+                              className="vv-slider w-full"
+                              min={0}
+                              max={accentInfo.moraTexts.length}
+                              step={1}
+                              value={form.accentType ?? 0}
+                              onChange={(e) => handleAccentChange(Number(e.target.value))}
+                              disabled={isBusy}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative w-full overflow-x-auto rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] p-2">
+                    <div className="flex items-center w-max opacity-25 pointer-events-none">
+                      <button
+                        type="button"
+                        className="shrink-0 rounded-full p-2.5 mr-2 text-[var(--ui-text-secondary)] transition-colors hover:bg-[color-mix(in_oklab,var(--ui-accent)_15%,var(--ui-bg))] hover:text-[var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={true}
+                        title="視聴"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current ml-0.5">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </button>
+
+                      <div className="flex items-stretch gap-1">
+                        <div className="flex flex-col rounded-md border border-[var(--ui-border)] bg-[var(--ui-bg)] p-2">
+                          <div className="mb-2 flex w-full items-center gap-1">
+                            <div className="flex shrink-0 items-center justify-center gap-1">
+                              <span
+                                className="inline-flex shrink-0 items-center justify-center rounded-md border border-[var(--ui-border)] text-[var(--ui-text-secondary)] px-1 text-[11px] leading-none py-1.5"
+                                style={{ width: '32px' }}
+                              >
+                                平板
+                              </span>
+                              <div className="mx-1 h-3.5 w-[1px] bg-[var(--ui-border)]" />
+                            </div>
+
+                            {/* Dummy mora blocks */}
+                            {(form.pronunciation ? form.pronunciation.split('') : ['ア', 'ッ', 'プ', 'ス']).map((t, i) => {
+                              const pos = i + 1
+                              const moraWidth = t.length >= 2 ? 48 : 32
+                              return (
+                                <div
+                                  key={pos}
+                                  className="flex shrink-0 items-center justify-center gap-1"
+                                >
+                                  <span
+                                    className="inline-flex shrink-0 items-center justify-center rounded-md border border-[var(--ui-border)] text-[var(--ui-text)] px-1 text-xs leading-none py-1.5"
+                                    style={{ width: `${moraWidth}px` }}
+                                  >
+                                    {t}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div className="w-full">
+                            <input
+                              type="range"
+                              className="vv-slider w-full pointer-events-none"
+                              min={0}
+                              max={form.pronunciation ? form.pronunciation.length : 4}
+                              step={1}
+                              value={form.accentType ?? 0}
+                              disabled={true}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-md border border-[var(--ui-border)] bg-[var(--ui-bg)] px-2.5 py-1 text-[11px] text-[var(--ui-text-secondary)] shadow-sm transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={() => checkAccent(true)}
+                        disabled={isBusy}
+                      >
+                        <svg viewBox="0 0 24 24" className="h-3 w-3 fill-current">
+                          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                        </svg>
+                        アクセントを確認
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 優先度スライダー */}
@@ -403,27 +651,28 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
                     {currentLabel} ({form.priority})
                   </span>
                 </div>
-                <input
-                  type="range"
-                  className="vv-slider"
-                  min={1}
-                  max={10}
-                  step={1}
-                  value={form.priority}
-                  onChange={(e) => setForm((prev) => ({ ...prev, priority: Number(e.target.value) }))}
-                  disabled={isBusy}
-                />
-                {/* px-[7px]: スライダーのつまみ端位置に合わせた補正 */}
-                <div className="flex justify-between px-[7px]">
-                  {PRIORITY_LABELS.map((label) => (
-                    <span
-                      key={label}
-                      className={`text-[10px] transition-colors ${currentLabel === label ? 'font-semibold text-[var(--ui-accent)]' : 'text-[var(--ui-text-secondary)]'
-                        }`}
-                    >
-                      {label}
-                    </span>
-                  ))}
+                <div className="w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-bg)] px-3 pt-3 pb-2.5 mb-2 mt-1">
+                  <input
+                    type="range"
+                    className="vv-slider w-full"
+                    min={1}
+                    max={10}
+                    step={1}
+                    value={form.priority}
+                    onChange={(e) => setForm((prev) => ({ ...prev, priority: Number(e.target.value) }))}
+                    disabled={isBusy}
+                  />
+                  {/* px-[7px]: スライダーのつまみ端位置に合わせた補正 */}
+                  <div className="flex justify-between px-[7px] mt-1.5">
+                    {PRIORITY_LABELS.map((label) => (
+                      <span
+                        key={label}
+                        className={`text-[10px] transition-colors ${currentLabel === label ? 'font-semibold text-[var(--ui-accent)]' : 'text-[var(--ui-text-secondary)]'}`}
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -442,14 +691,6 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
                 >
                   {selectedWord ? '更新する' : '追加する'}
                 </button>
-                <button
-                  type="button"
-                  className="rounded-md border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-2 text-xs font-medium text-[var(--ui-text-secondary)] transition-colors hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-                  onClick={previewCurrent}
-                  disabled={isBusy}
-                >
-                  視聴確認
-                </button>
                 {/* 削除ボタン — 常時赤系で危険操作と明示 */}
                 {selectedWord && (
                   <button
@@ -463,15 +704,6 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
                 )}
               </div>
 
-              {/* 視聴情報 */}
-              {previewInfo && (
-                <div className="flex items-center gap-1.5 text-xs text-[var(--ui-text-secondary)]">
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 fill-current text-[var(--ui-accent)]">
-                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-                  </svg>
-                  {previewInfo}
-                </div>
-              )}
             </div>
           </div>
         )}

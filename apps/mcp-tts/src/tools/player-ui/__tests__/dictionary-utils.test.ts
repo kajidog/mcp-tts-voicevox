@@ -15,18 +15,18 @@ describe('isKatakana', () => {
 })
 
 describe('estimateAccentType', () => {
-  it('長音と小書き文字を除外してモーラ数を返す', () => {
+  it('モーラ数を返す（拗音は1モーラ）', () => {
     expect(estimateAccentType('キョウ')).toBe(2) // キョ + ウ
-    expect(estimateAccentType('コーヒー')).toBe(2) // コ + ヒ
+    expect(estimateAccentType('コーヒー')).toBe(4) // コ + ー + ヒ + ー
   })
 
   it('最低値は 1', () => {
-    expect(estimateAccentType('ー')).toBe(1)
+    expect(estimateAccentType('')).toBe(1)
   })
 })
 
 describe('normalizeUserDictionaryWords', () => {
-  it('VOICEVOX形式をUI形式へ正規化する', () => {
+  it('VOICEVOX形式をインライン表記付きUI形式へ正規化する', () => {
     const result = normalizeUserDictionaryWords({
       'word-1': {
         surface: '音声',
@@ -40,8 +40,7 @@ describe('normalizeUserDictionaryWords', () => {
       {
         wordUuid: 'word-1',
         surface: '音声',
-        pronunciation: 'オンセイ',
-        accentType: 2,
+        pronunciation: 'オ[ン]セイ',
         priority: 5,
       },
     ])

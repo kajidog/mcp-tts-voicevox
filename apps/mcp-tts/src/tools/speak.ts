@@ -1,6 +1,7 @@
-import type { SpeakResult } from '@kajidog/voicevox-client'
+import { type SpeakResult, VoicevoxApi } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
+import { applyNotationAccents, parseNotation } from './player/phrase-utils.js'
 import { registerToolIfEnabled } from './registration.js'
 import type { ToolDeps, ToolHandlerExtra } from './types.js'
 import {
@@ -27,6 +28,12 @@ export function buildSpeakInputSchema(restrictions: {
         'Text split by line breaks (\\n). IMPORTANT: Each line = one speech unit (processed and played separately). Keep the FIRST LINE SHORT for quick playback start - audio begins as soon as the first line is synthesized. Example: "Hi!\\nThis is a longer explanation that follows." Optional speaker prefix per line: "1:Hello\\n2:World"'
       ),
     query: z.string().optional().describe('Voice synthesis query'),
+    phrases: z
+      .string()
+      .optional()
+      .describe(
+        'Inline accent notation (e.g. "コン[ニ]チワ,セ[カ]イ"). Brackets mark accent position. Takes priority over query and text.'
+      ),
     speaker: z.number().optional().describe('Default speaker ID (optional)'),
     speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
   }
@@ -76,6 +83,7 @@ export function registerSpeakTool(deps: ToolDeps) {
         text,
         speaker,
         query,
+        phrases,
         speedScale,
         immediate,
         waitForStart,
@@ -84,6 +92,7 @@ export function registerSpeakTool(deps: ToolDeps) {
         text: string
         speaker?: number
         query?: string
+        phrases?: string
         speedScale?: number
         immediate?: boolean
         waitForStart?: boolean
@@ -103,7 +112,18 @@ export function registerSpeakTool(deps: ToolDeps) {
         }
 
         let result: SpeakResult
-        if (query) {
+
+        if (phrases) {
+          // phrases モード: インライン表記からアクセント指定付きで再生
+          result = await processPhrasesInput(
+            voicevoxClient,
+            config.voicevoxUrl,
+            phrases,
+            effectiveSpeaker ?? config.defaultSpeaker,
+            speedScale,
+            playbackOptions
+          )
+        } else if (query) {
           const audioQuery = parseAudioQuery(query, speedScale)
           result = await voicevoxClient.enqueueAudioGeneration(audioQuery, {
             speaker: effectiveSpeaker,
@@ -120,4 +140,45 @@ export function registerSpeakTool(deps: ToolDeps) {
       }
     }
   )
+}
+
+/**
+ * インライン表記(phrases)からアクセント付き音声を生成して再生
+ */
+async function processPhrasesInput(
+  voicevoxClient: import('@kajidog/voicevox-client').VoicevoxClient,
+  voicevoxUrl: string,
+  phrases: string,
+  speaker: number,
+  speedScale?: number,
+  playbackOptions?: {
+    immediate?: boolean
+    waitForStart?: boolean
+    waitForEnd?: boolean
+  }
+): Promise<SpeakResult> {
+  const api = new VoicevoxApi(voicevoxUrl)
+  const parsedPhrases = parseNotation(phrases)
+  if (parsedPhrases.length === 0) {
+    throw new Error('phrases is empty')
+  }
+
+  // クリーンテキストを結合してクエリ生成
+  const cleanText = parsedPhrases.map((p) => p.cleanText).join('')
+  const audioQuery = await voicevoxClient.generateQuery(cleanText, speaker, speedScale)
+
+  // デフォルトのアクセント句を取得（brackets省略時のフォールバック用）
+  const defaultAccentPhrases = audioQuery.accent_phrases
+
+  // アクセントを適用
+  audioQuery.accent_phrases = applyNotationAccents(parsedPhrases, audioQuery.accent_phrases, defaultAccentPhrases)
+
+  // モーラデータを再計算（ピッチ値をアクセント変更に合わせて更新）
+  audioQuery.accent_phrases = await api.updateMoraData(audioQuery.accent_phrases, speaker)
+
+  return await voicevoxClient.enqueueAudioGeneration(audioQuery, {
+    speaker,
+    speedScale,
+    ...playbackOptions,
+  })
 }

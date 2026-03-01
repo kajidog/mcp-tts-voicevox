@@ -82,6 +82,34 @@ describe('VoicevoxApi - user dictionary methods', () => {
     })
   })
 
+  describe('getAccentPhrases', () => {
+    it('POST /accent_phrases を呼び出してアクセント句を返す', async () => {
+      const mockPhrases = [
+        {
+          moras: [
+            { text: 'コ', vowel: 'o', vowel_length: 0.1, pitch: 5.0 },
+            { text: 'ン', vowel: 'N', vowel_length: 0.1, pitch: 5.0 },
+            { text: 'ニ', vowel: 'i', vowel_length: 0.1, pitch: 5.5 },
+            { text: 'チ', vowel: 'i', vowel_length: 0.1, pitch: 5.0 },
+            { text: 'ワ', vowel: 'a', vowel_length: 0.1, pitch: 4.5 },
+          ],
+          accent: 3,
+        },
+      ]
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response(JSON.stringify(mockPhrases), { status: 200 }))
+
+      const result = await api.getAccentPhrases('こんにちは', 1)
+
+      const [url, init] = fetchSpy.mock.calls[0]
+      expect(String(url)).toContain('/accent_phrases')
+      expect(String(url)).toContain('speaker=1')
+      expect((init as RequestInit).method).toBe('POST')
+      expect(result).toEqual(mockPhrases)
+    })
+  })
+
   describe('updateMoraData', () => {
     it('POST /mora_data を呼び出してアクセント句を返す', async () => {
       const inputPhrases = [{ moras: [{ text: 'テ', vowel: 'e', vowel_length: 0.1, pitch: 5.0 }], accent: 1 }]

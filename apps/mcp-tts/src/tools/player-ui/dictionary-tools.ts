@@ -1,5 +1,6 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod/v4'
+import { accentPhrasesToNotation } from '../player/phrase-utils.js'
 import { registerAppToolIfEnabled } from '../registration.js'
 import { createErrorResponse } from '../utils.js'
 import type { PlayerUIToolContext } from './context.js'
@@ -46,6 +47,12 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
       inputSchema: {
         surface: z.string().describe('Word surface form'),
         pronunciation: z.string().describe('Katakana reading'),
+        accentType: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe('Accent nucleus position (1-based mora index, 0=flat). Auto-estimated if omitted.'),
         priority: z.number().int().min(0).max(10).optional().describe('Priority 0-10'),
       },
       _meta: {
@@ -58,8 +65,9 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
     async ({
       surface,
       pronunciation,
+      accentType,
       priority,
-    }: { surface: string; pronunciation: string; priority?: number }): Promise<CallToolResult> => {
+    }: { surface: string; pronunciation: string; accentType?: number; priority?: number }): Promise<CallToolResult> => {
       try {
         const normalizedSurface = surface.trim()
         const normalizedPronunciation = pronunciation.trim()
@@ -70,7 +78,7 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
         await playerVoicevoxApi.addUserDictionaryWord({
           surface: normalizedSurface,
           pronunciation: normalizedPronunciation,
-          accentType: estimateAccentType(normalizedPronunciation),
+          accentType: accentType ?? estimateAccentType(normalizedPronunciation),
           priority: priority ?? 5,
         })
         const dictionary = await playerVoicevoxApi.getUserDictionary()
@@ -94,6 +102,12 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
         wordUuid: z.string().describe('Dictionary word UUID'),
         surface: z.string().describe('Word surface form'),
         pronunciation: z.string().describe('Katakana reading'),
+        accentType: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe('Accent nucleus position (1-based mora index, 0=flat). Auto-estimated if omitted.'),
         priority: z.number().int().min(0).max(10).optional().describe('Priority 0-10'),
       },
       _meta: {
@@ -107,8 +121,15 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
       wordUuid,
       surface,
       pronunciation,
+      accentType,
       priority,
-    }: { wordUuid: string; surface: string; pronunciation: string; priority?: number }): Promise<CallToolResult> => {
+    }: {
+      wordUuid: string
+      surface: string
+      pronunciation: string
+      accentType?: number
+      priority?: number
+    }): Promise<CallToolResult> => {
       try {
         const normalizedSurface = surface.trim()
         const normalizedPronunciation = pronunciation.trim()
@@ -121,7 +142,7 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
           wordUuid: wordUuid.trim(),
           surface: normalizedSurface,
           pronunciation: normalizedPronunciation,
-          accentType: estimateAccentType(normalizedPronunciation),
+          accentType: accentType ?? estimateAccentType(normalizedPronunciation),
           priority: priority ?? 5,
         })
         const dictionary = await playerVoicevoxApi.getUserDictionary()
@@ -197,6 +218,11 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
           speaker: randomSpeaker.id,
           speedScale: config.defaultSpeedScale,
         })
+
+        // アクセント句を取得してインライン表記に変換
+        const accentPhrases = await playerVoicevoxApi.getAccentPhrases(normalizedText, randomSpeaker.id)
+        const notation = accentPhrasesToNotation(accentPhrases)
+
         return {
           content: [
             {
@@ -206,6 +232,8 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
                 speaker: result.speaker,
                 speakerName: result.speakerName,
                 kana: result.kana,
+                accentPhrases,
+                notation,
               }),
             },
           ],

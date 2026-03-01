@@ -1,6 +1,7 @@
 import { VoicevoxClient } from '@kajidog/voicevox-client'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { getConfig } from './config.js'
+import { registerDictionaryTools } from './tools/dictionary.js'
 import { registerPlayerTools } from './tools/player.js'
 import { registerSpeakTool } from './tools/speak.js'
 import { registerSpeakerTools } from './tools/speakers.js'
@@ -46,6 +47,7 @@ export function createServer(): McpServer {
   registerSpeakerTools(deps)
   registerSpeakTool(deps)
   registerSynthesizeTool(deps)
+  registerDictionaryTools(deps)
   registerPlayerTools(deps)
 
   return server
