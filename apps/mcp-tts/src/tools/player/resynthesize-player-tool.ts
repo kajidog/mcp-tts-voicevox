@@ -1,13 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { type AccentPhrase, type AudioQuery, applyNotationAccents, parseNotation } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import * as z from 'zod/v4'
+import * as z from 'zod'
 import { registerAppToolIfEnabled } from '../registration.js'
 import type { ToolDeps, ToolHandlerExtra } from '../types.js'
 import { createErrorResponse, getEffectiveSpeaker } from '../utils.js'
 import { playerResourceUri } from './runtime.js'
 import type { PlayerRuntime } from './runtime.js'
-import { getSessionState, setSessionState } from './session-state.js'
 import type { PlayerSegmentState } from './session-state.js'
 
 export function registerResynthesizePlayerTool(deps: ToolDeps, runtime: PlayerRuntime): void {
@@ -70,7 +69,7 @@ export function registerResynthesizePlayerTool(deps: ToolDeps, runtime: PlayerRu
       extra: ToolHandlerExtra
     ): Promise<CallToolResult> => {
       try {
-        const state = getSessionState(inputViewUUID, extra?.sessionId)
+        const state = runtime.getSessionState(inputViewUUID, extra?.sessionId)
         if (!state) {
           throw new Error('No player state found for the given viewUUID. Use speak_player first.')
         }
@@ -171,9 +170,9 @@ export function registerResynthesizePlayerTool(deps: ToolDeps, runtime: PlayerRu
           updatedAt: Date.now(),
         }
         // 新しい viewUUID を払い出し、古いUI状態との衝突を避ける。
-        setSessionState(viewUUID, nextState)
+        runtime.setSessionState(viewUUID, nextState)
         if (extra.sessionId && extra.sessionId !== viewUUID) {
-          setSessionState(extra.sessionId, nextState)
+          runtime.setSessionState(extra.sessionId, nextState)
         }
 
         const uiSegments = enrichedSegments.map((seg) => ({

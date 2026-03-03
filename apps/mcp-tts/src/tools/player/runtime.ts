@@ -1,14 +1,9 @@
 import { VoicevoxApi } from '@kajidog/voicevox-client'
 import type { AccentPhrase, AudioQuery } from '@kajidog/voicevox-client'
 import type { ToolDeps } from '../types.js'
-import {
-  createAudioCacheKey,
-  getAudioCacheDir,
-  initializeAudioCache,
-  readCachedAudioBase64,
-  writeCachedAudioBase64,
-} from './audio-cache.js'
-import { initializeSessionState } from './session-state.js'
+import { AudioCacheStore, createAudioCacheKey } from './audio-cache.js'
+import type { PlayerSessionState } from './session-state.js'
+import { SessionStateStore } from './session-state.js'
 
 export const playerResourceUri = 'ui://speak-player/player.html'
 
@@ -52,22 +47,32 @@ export interface PlayerRuntime {
     Array<{ wordUuid: string; surface: string; pronunciation: string; accentType: number; priority: number }>
   >
   synthesizeWithCache: (input: SynthesizeInput) => Promise<SynthesizeResult>
+  setSessionState: (key: string, state: PlayerSessionState) => void
+  getSessionState: (viewUUID: string | undefined, sessionId: string | undefined) => PlayerSessionState | undefined
+  getSessionStateByKey: (key: string) => PlayerSessionState | undefined
 }
 
+// ---------------------------------------------------------------------------
+// Module-scope singletons (one-time init guard for HTTP mode)
+// ---------------------------------------------------------------------------
+
+let audioCacheStore: AudioCacheStore | null = null
+let sessionStateStore: SessionStateStore | null = null
 let speakerCache: SpeakerEntry[] | null = null
-let playerStorageInitialized = false
-
-function initializePlayerStorage(config: ToolDeps['config']): void {
-  // セッションごとの再登録で初期化が多重実行されないようにする。
-  if (playerStorageInitialized) return
-  playerStorageInitialized = true
-  initializeAudioCache(config)
-  initializeSessionState(config, getAudioCacheDir())
-}
 
 export function createPlayerRuntime(deps: ToolDeps): PlayerRuntime {
   const { config } = deps
-  initializePlayerStorage(config)
+
+  // セッションごとの再登録で初期化が多重実行されないようにする。
+  if (!audioCacheStore) {
+    audioCacheStore = new AudioCacheStore(config)
+  }
+  if (!sessionStateStore) {
+    sessionStateStore = new SessionStateStore(config, audioCacheStore.getDir())
+  }
+
+  const cache = audioCacheStore
+  const sessionState = sessionStateStore
   const playerVoicevoxApi = new VoicevoxApi(config.voicevoxUrl)
 
   const getSpeakerList = async () => {
@@ -150,7 +155,7 @@ export function createPlayerRuntime(deps: ToolDeps): PlayerRuntime {
       pauseLengthScale,
       accentPhrases,
     })
-    const cachedBase64 = readCachedAudioBase64(cacheKey)
+    const cachedBase64 = cache.readCachedBase64(cacheKey)
 
     if (cachedBase64) {
       // キャッシュヒット時でも、UI復元に必要な query メタデータは返す。
@@ -199,7 +204,7 @@ export function createPlayerRuntime(deps: ToolDeps): PlayerRuntime {
 
     const audioData = await playerVoicevoxApi.synthesize(resolvedQuery, speaker)
     const base64Audio = Buffer.from(audioData).toString('base64')
-    await writeCachedAudioBase64(cacheKey, base64Audio)
+    await cache.writeCachedBase64(cacheKey, base64Audio)
 
     return {
       audioBase64: base64Audio,
@@ -225,5 +230,8 @@ export function createPlayerRuntime(deps: ToolDeps): PlayerRuntime {
     resolveSpeakerNames,
     getUserDictionaryWords,
     synthesizeWithCache,
+    setSessionState: (key, state) => sessionState.set(key, state),
+    getSessionState: (viewUUID, sessionId) => sessionState.get(viewUUID, sessionId),
+    getSessionStateByKey: (key) => sessionState.getByKey(key),
   }
 }

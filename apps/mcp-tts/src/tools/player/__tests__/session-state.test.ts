@@ -15,10 +15,24 @@ vi.mock('node:fs/promises', () => ({
 }))
 
 // ---------------------------------------------------------------------------
+// Imports (after mocks)
+// ---------------------------------------------------------------------------
+
+import {
+  DEFAULT_STATE_PAGE_LIMIT,
+  MAX_STATE_PAGE_LIMIT,
+  MAX_TOOL_CONTENT_BYTES,
+  type PlayerSessionState,
+  SessionStateStore,
+} from '../session-state.js'
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeConfig(overrides: Record<string, unknown> = {}) {
+type SessionStateConfig = ConstructorParameters<typeof SessionStateStore>[0]
+
+function makeConfig(overrides: Record<string, unknown> = {}): SessionStateConfig {
   return {
     playerCacheDir: '/tmp/test-cache',
     playerStateFile: '',
@@ -26,98 +40,97 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
     playerAudioCacheTtlDays: 30,
     playerAudioCacheMaxMb: 512,
     ...overrides,
-  } as Parameters<typeof import('../session-state')['initializeSessionState']>[0]
+  } as SessionStateConfig
 }
 
-function makeState(overrides: Record<string, unknown> = {}) {
+function makeState(overrides: Record<string, unknown> = {}): PlayerSessionState {
   return {
     segments: [{ text: 'テスト', speaker: 1, speedScale: 1.0 }],
     updatedAt: Date.now(),
     ...overrides,
-  } as import('../session-state').PlayerSessionState
+  } as PlayerSessionState
 }
 
-beforeEach(async () => {
-  vi.resetModules()
+beforeEach(() => {
   vi.restoreAllMocks()
   vi.useRealTimers()
 })
 
 // ---------------------------------------------------------------------------
-// setSessionState / getSessionStateByKey
+// set / getByKey
 // ---------------------------------------------------------------------------
 
-describe('setSessionState / getSessionStateByKey', () => {
-  it('状態を保存し getSessionStateByKey で取得できる', async () => {
+describe('set / getByKey', () => {
+  it('状態を保存し getByKey で取得できる', () => {
     vi.useFakeTimers()
-    const mod = await import('../session-state')
+    const store = new SessionStateStore(makeConfig(), '/tmp/test-cache')
     const state = makeState()
 
-    mod.setSessionState('view-1', state)
-    expect(mod.getSessionStateByKey('view-1')).toBe(state)
+    store.set('view-1', state)
+    expect(store.getByKey('view-1')).toBe(state)
 
     vi.useRealTimers()
   })
 })
 
 // ---------------------------------------------------------------------------
-// getSessionState
+// get
 // ---------------------------------------------------------------------------
 
-describe('getSessionState', () => {
-  it('viewUUID 優先で検索する', async () => {
+describe('get', () => {
+  it('viewUUID 優先で検索する', () => {
     vi.useFakeTimers()
-    const mod = await import('../session-state')
+    const store = new SessionStateStore(makeConfig(), '/tmp/test-cache')
     const stateA = makeState({ segments: [{ text: 'A', speaker: 1, speedScale: 1.0 }] })
     const stateB = makeState({ segments: [{ text: 'B', speaker: 1, speedScale: 1.0 }] })
 
-    mod.setSessionState('view-uuid', stateA)
-    mod.setSessionState('session-id', stateB)
+    store.set('view-uuid', stateA)
+    store.set('session-id', stateB)
 
-    const result = mod.getSessionState('view-uuid', 'session-id')
+    const result = store.get('view-uuid', 'session-id')
     expect(result).toBe(stateA)
 
     vi.useRealTimers()
   })
 
-  it('viewUUID なしで sessionId にフォールバック', async () => {
+  it('viewUUID なしで sessionId にフォールバック', () => {
     vi.useFakeTimers()
-    const mod = await import('../session-state')
+    const store = new SessionStateStore(makeConfig(), '/tmp/test-cache')
     const state = makeState()
 
-    mod.setSessionState('my-session', state)
+    store.set('my-session', state)
 
-    const result = mod.getSessionState(undefined, 'my-session')
+    const result = store.get(undefined, 'my-session')
     expect(result).toBe(state)
 
     vi.useRealTimers()
   })
 
-  it('両方なしで "global" キーにフォールバック', async () => {
+  it('両方なしで "global" キーにフォールバック', () => {
     vi.useFakeTimers()
-    const mod = await import('../session-state')
+    const store = new SessionStateStore(makeConfig(), '/tmp/test-cache')
     const state = makeState()
 
-    mod.setSessionState('global', state)
+    store.set('global', state)
 
-    const result = mod.getSessionState(undefined, undefined)
+    const result = store.get(undefined, undefined)
     expect(result).toBe(state)
 
     vi.useRealTimers()
   })
 
-  it('存在しないキーで undefined を返す', async () => {
-    const mod = await import('../session-state')
-    const result = mod.getSessionState('nonexistent', 'also-nonexistent')
+  it('存在しないキーで undefined を返す', () => {
+    const store = new SessionStateStore(makeConfig(), '/tmp/test-cache')
+    const result = store.get('nonexistent', 'also-nonexistent')
     expect(result).toBeUndefined()
   })
 })
 
 // ---------------------------------------------------------------------------
-// initializeSessionState
+// constructor (disk restore)
 // ---------------------------------------------------------------------------
 
-describe('initializeSessionState', () => {
+describe('SessionStateStore constructor', () => {
   it('ディスクから状態を復元する', async () => {
     const fs = await import('node:fs')
     const savedState = {
@@ -127,11 +140,10 @@ describe('initializeSessionState', () => {
     }
     vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(savedState))
 
-    const mod = await import('../session-state')
-    mod.initializeSessionState(makeConfig(), '/tmp/test-cache')
+    const store = new SessionStateStore(makeConfig(), '/tmp/test-cache')
 
-    expect(mod.getSessionStateByKey('restored-key')).toBeDefined()
-    expect(mod.getSessionStateByKey('restored-key')?.segments[0].text).toBe('復元')
+    expect(store.getByKey('restored-key')).toBeDefined()
+    expect(store.getByKey('restored-key')?.segments[0].text).toBe('復元')
   })
 
   it('ファイルが無い場合は空状態で起動する', async () => {
@@ -140,10 +152,9 @@ describe('initializeSessionState', () => {
       throw new Error('ENOENT')
     })
 
-    const mod = await import('../session-state')
-    mod.initializeSessionState(makeConfig(), '/tmp/test-cache')
+    const store = new SessionStateStore(makeConfig(), '/tmp/test-cache')
 
-    expect(mod.getSessionStateByKey('any-key')).toBeUndefined()
+    expect(store.getByKey('any-key')).toBeUndefined()
   })
 
   it('ディレクトリを作成する', async () => {
@@ -152,8 +163,7 @@ describe('initializeSessionState', () => {
       throw new Error('ENOENT')
     })
 
-    const mod = await import('../session-state')
-    mod.initializeSessionState(makeConfig({ playerStateFile: '/custom/dir/state.json' }), '/tmp/test-cache')
+    new SessionStateStore(makeConfig({ playerStateFile: '/custom/dir/state.json' }), '/tmp/test-cache')
 
     expect(fs.mkdirSync).toHaveBeenCalledWith('/custom/dir', { recursive: true })
   })
@@ -164,11 +174,10 @@ describe('initializeSessionState', () => {
 // ---------------------------------------------------------------------------
 
 describe('定数エクスポート', () => {
-  it('定数が正しい値でエクスポートされている', async () => {
-    const mod = await import('../session-state')
-    expect(mod.MAX_TOOL_CONTENT_BYTES).toBe(1024 * 1024)
-    expect(mod.DEFAULT_STATE_PAGE_LIMIT).toBe(100)
-    expect(mod.MAX_STATE_PAGE_LIMIT).toBe(1000)
+  it('定数が正しい値でエクスポートされている', () => {
+    expect(MAX_TOOL_CONTENT_BYTES).toBe(1024 * 1024)
+    expect(DEFAULT_STATE_PAGE_LIMIT).toBe(100)
+    expect(MAX_STATE_PAGE_LIMIT).toBe(1000)
   })
 })
 
@@ -177,13 +186,12 @@ describe('定数エクスポート', () => {
 // ---------------------------------------------------------------------------
 
 describe('debounce 保存', () => {
-  it('setSessionState 後に debounce でディスク保存がスケジュールされる', async () => {
+  it('set 後に debounce でディスク保存がスケジュールされる', async () => {
     vi.useFakeTimers()
     const fsPromises = await import('node:fs/promises')
 
-    const mod = await import('../session-state')
-    mod.initializeSessionState(makeConfig({ playerStateFile: '/tmp/state.json' }), '/tmp/test-cache')
-    mod.setSessionState('debounce-test', makeState())
+    const store = new SessionStateStore(makeConfig({ playerStateFile: '/tmp/state.json' }), '/tmp/test-cache')
+    store.set('debounce-test', makeState())
 
     // まだ保存されていない
     expect(fsPromises.writeFile).not.toHaveBeenCalled()
