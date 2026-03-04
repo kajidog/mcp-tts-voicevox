@@ -21,98 +21,156 @@ const DEFAULT_AUDIO_CACHE_MAX_MB = 512
 const AUDIO_CACHE_CLEANUP_EVERY_WRITES = 20
 
 // ---------------------------------------------------------------------------
-// Module state
+// AudioCacheStore
 // ---------------------------------------------------------------------------
 
-let audioCacheDir = join(process.cwd(), '.voicevox-player-cache')
-const audioCacheMem = new Map<string, string>()
+export class AudioCacheStore {
+  private dir: string
+  private readonly mem = new Map<string, string>()
 
-let audioCacheEnabledFlag = true
-let audioCacheTtlDays = DEFAULT_AUDIO_CACHE_TTL_DAYS
-let audioCacheMaxMb = DEFAULT_AUDIO_CACHE_MAX_MB
+  private isDiskEnabled: boolean
+  private ttlMs: number | null
+  private maxBytes: number | null
 
-let isAudioDiskCacheEnabled = audioCacheEnabledFlag && audioCacheTtlDays !== 0 && audioCacheMaxMb !== 0
-let audioCacheTtlMs: number | null = audioCacheTtlDays < 0 ? null : audioCacheTtlDays * 24 * 60 * 60 * 1000
-let audioCacheMaxBytes: number | null = audioCacheMaxMb < 0 ? null : audioCacheMaxMb * 1024 * 1024
+  private cleanupRunning = false
+  private pendingCleanup = false
+  private writesSinceCleanup = 0
 
-let isAudioCacheCleanupRunning = false
-let pendingAudioCacheCleanup = false
-let writesSinceLastAudioCleanup = 0
+  constructor(config: ToolDeps['config']) {
+    this.dir = config.playerCacheDir || join(process.cwd(), '.voicevox-player-cache')
 
-// ---------------------------------------------------------------------------
-// Cache cleanup
-// ---------------------------------------------------------------------------
+    const enabledFlag = config.playerAudioCacheEnabled !== false
+    const ttlDays = Number.isFinite(config.playerAudioCacheTtlDays)
+      ? config.playerAudioCacheTtlDays
+      : DEFAULT_AUDIO_CACHE_TTL_DAYS
+    const maxMb = Number.isFinite(config.playerAudioCacheMaxMb)
+      ? config.playerAudioCacheMaxMb
+      : DEFAULT_AUDIO_CACHE_MAX_MB
 
-async function cleanupAudioCacheFiles(): Promise<void> {
-  if (!isAudioDiskCacheEnabled) return
+    const cachePolicy = resolveAudioCachePolicy({ enabledFlag, ttlDays, maxMb })
+    this.isDiskEnabled = cachePolicy.isDiskCacheEnabled
+    this.ttlMs = cachePolicy.ttlMs
+    this.maxBytes = cachePolicy.maxBytes
 
-  try {
-    const entries = await readdir(audioCacheDir, { withFileTypes: true })
-    const now = Date.now()
-    const files: Array<{ name: string; path: string; size: number; mtimeMs: number }> = []
-
-    for (const entry of entries) {
-      if (!entry.isFile() || !AUDIO_CACHE_FILE_PATTERN.test(entry.name)) continue
-      const filePath = join(audioCacheDir, entry.name)
-      let fileStat: Stats
-      try {
-        fileStat = await stat(filePath)
-      } catch {
-        continue
+    try {
+      mkdirSync(this.dir, { recursive: true })
+      if (this.isDiskEnabled) {
+        this.scheduleCleanup(true)
       }
-      files.push({ name: entry.name, path: filePath, size: fileStat.size, mtimeMs: fileStat.mtimeMs })
+    } catch (error) {
+      console.warn('Warning: failed to create VOICEVOX player cache directory:', error)
     }
+  }
 
-    const toDelete = planAudioCacheCleanup({
-      entries: files,
-      now,
-      ttlMs: audioCacheTtlMs,
-      maxBytes: audioCacheMaxBytes,
-    })
+  getDir(): string {
+    return this.dir
+  }
 
-    if (toDelete.size === 0) return
+  readCachedBase64(cacheKey: string): string | null {
+    const inMemory = this.mem.get(cacheKey)
+    if (inMemory) return inMemory
+    if (!this.isDiskEnabled) return null
 
-    for (const path of toDelete) {
-      try {
-        await unlink(path)
-      } catch {
-        // ignore cleanup races
+    const filePath = join(this.dir, `${cacheKey}.txt`)
+    try {
+      const base64 = readFileSync(filePath, 'utf-8').trim()
+      if (base64.length > 0) {
+        this.mem.set(cacheKey, base64)
+        return base64
       }
-      const fileName = basename(path)
-      if (fileName.endsWith('.txt')) {
-        audioCacheMem.delete(fileName.slice(0, -4))
-      }
+    } catch {
+      // cache miss
     }
-  } catch (error) {
-    console.warn('Warning: failed to cleanup VOICEVOX player audio cache:', error)
+    return null
+  }
+
+  async writeCachedBase64(cacheKey: string, base64: string): Promise<void> {
+    this.mem.set(cacheKey, base64)
+    if (!this.isDiskEnabled) return
+    const filePath = join(this.dir, `${cacheKey}.txt`)
+    try {
+      await writeFile(filePath, base64, 'utf-8')
+      this.scheduleCleanup()
+    } catch (error) {
+      console.warn('Warning: failed to write VOICEVOX player cache:', error)
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Cleanup
+  // -------------------------------------------------------------------------
+
+  private async cleanupFiles(): Promise<void> {
+    if (!this.isDiskEnabled) return
+
+    try {
+      const entries = await readdir(this.dir, { withFileTypes: true })
+      const now = Date.now()
+      const files: Array<{ name: string; path: string; size: number; mtimeMs: number }> = []
+
+      for (const entry of entries) {
+        if (!entry.isFile() || !AUDIO_CACHE_FILE_PATTERN.test(entry.name)) continue
+        const filePath = join(this.dir, entry.name)
+        let fileStat: Stats
+        try {
+          fileStat = await stat(filePath)
+        } catch {
+          continue
+        }
+        files.push({ name: entry.name, path: filePath, size: fileStat.size, mtimeMs: fileStat.mtimeMs })
+      }
+
+      const toDelete = planAudioCacheCleanup({
+        entries: files,
+        now,
+        ttlMs: this.ttlMs,
+        maxBytes: this.maxBytes,
+      })
+
+      if (toDelete.size === 0) return
+
+      for (const path of toDelete) {
+        try {
+          await unlink(path)
+        } catch {
+          // ignore cleanup races
+        }
+        const fileName = basename(path)
+        if (fileName.endsWith('.txt')) {
+          this.mem.delete(fileName.slice(0, -4))
+        }
+      }
+    } catch (error) {
+      console.warn('Warning: failed to cleanup VOICEVOX player audio cache:', error)
+    }
+  }
+
+  private scheduleCleanup(force = false): void {
+    if (!this.isDiskEnabled) return
+    if (!force) {
+      this.writesSinceCleanup += 1
+      if (this.writesSinceCleanup < AUDIO_CACHE_CLEANUP_EVERY_WRITES) return
+    }
+    this.writesSinceCleanup = 0
+    if (this.cleanupRunning) {
+      this.pendingCleanup = true
+      return
+    }
+    this.cleanupRunning = true
+    void this.cleanupFiles()
+      .catch((error) => console.warn('Warning: failed to cleanup VOICEVOX player audio cache:', error))
+      .finally(() => {
+        this.cleanupRunning = false
+        if (this.pendingCleanup) {
+          this.pendingCleanup = false
+          this.scheduleCleanup(true)
+        }
+      })
   }
 }
 
-function scheduleAudioCacheCleanup(force = false): void {
-  if (!isAudioDiskCacheEnabled) return
-  if (!force) {
-    writesSinceLastAudioCleanup += 1
-    if (writesSinceLastAudioCleanup < AUDIO_CACHE_CLEANUP_EVERY_WRITES) return
-  }
-  writesSinceLastAudioCleanup = 0
-  if (isAudioCacheCleanupRunning) {
-    pendingAudioCacheCleanup = true
-    return
-  }
-  isAudioCacheCleanupRunning = true
-  void cleanupAudioCacheFiles()
-    .catch((error) => console.warn('Warning: failed to cleanup VOICEVOX player audio cache:', error))
-    .finally(() => {
-      isAudioCacheCleanupRunning = false
-      if (pendingAudioCacheCleanup) {
-        pendingAudioCacheCleanup = false
-        scheduleAudioCacheCleanup(true)
-      }
-    })
-}
-
 // ---------------------------------------------------------------------------
-// Cache key generation
+// Pure utility (no state dependency)
 // ---------------------------------------------------------------------------
 
 export function createAudioCacheKey(input: {
@@ -145,76 +203,4 @@ export function createAudioCacheKey(input: {
         accentPhrases: input.accentPhrases ?? null,
       })
   return createHash('sha256').update(keyInput).digest('hex')
-}
-
-// ---------------------------------------------------------------------------
-// Cache read / write
-// ---------------------------------------------------------------------------
-
-export function readCachedAudioBase64(cacheKey: string): string | null {
-  const inMemory = audioCacheMem.get(cacheKey)
-  if (inMemory) return inMemory
-  if (!isAudioDiskCacheEnabled) return null
-
-  const filePath = join(audioCacheDir, `${cacheKey}.txt`)
-  try {
-    const base64 = readFileSync(filePath, 'utf-8').trim()
-    if (base64.length > 0) {
-      audioCacheMem.set(cacheKey, base64)
-      return base64
-    }
-  } catch {
-    // cache miss
-  }
-  return null
-}
-
-export async function writeCachedAudioBase64(cacheKey: string, base64: string): Promise<void> {
-  audioCacheMem.set(cacheKey, base64)
-  if (!isAudioDiskCacheEnabled) return
-  const filePath = join(audioCacheDir, `${cacheKey}.txt`)
-  try {
-    await writeFile(filePath, base64, 'utf-8')
-    scheduleAudioCacheCleanup()
-  } catch (error) {
-    console.warn('Warning: failed to write VOICEVOX player cache:', error)
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Initialization
-// ---------------------------------------------------------------------------
-
-export function getAudioCacheDir(): string {
-  return audioCacheDir
-}
-
-export function initializeAudioCache(config: ToolDeps['config']): void {
-  audioCacheDir = config.playerCacheDir || audioCacheDir
-
-  audioCacheEnabledFlag = config.playerAudioCacheEnabled !== false
-  audioCacheTtlDays = Number.isFinite(config.playerAudioCacheTtlDays)
-    ? config.playerAudioCacheTtlDays
-    : DEFAULT_AUDIO_CACHE_TTL_DAYS
-  audioCacheMaxMb = Number.isFinite(config.playerAudioCacheMaxMb)
-    ? config.playerAudioCacheMaxMb
-    : DEFAULT_AUDIO_CACHE_MAX_MB
-
-  const cachePolicy = resolveAudioCachePolicy({
-    enabledFlag: audioCacheEnabledFlag,
-    ttlDays: audioCacheTtlDays,
-    maxMb: audioCacheMaxMb,
-  })
-  isAudioDiskCacheEnabled = cachePolicy.isDiskCacheEnabled
-  audioCacheTtlMs = cachePolicy.ttlMs
-  audioCacheMaxBytes = cachePolicy.maxBytes
-
-  try {
-    mkdirSync(audioCacheDir, { recursive: true })
-    if (isAudioDiskCacheEnabled) {
-      scheduleAudioCacheCleanup(true)
-    }
-  } catch (error) {
-    console.warn('Warning: failed to create VOICEVOX player cache directory:', error)
-  }
 }

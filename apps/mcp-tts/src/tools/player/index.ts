@@ -5,7 +5,6 @@ import { registerOpenDictionaryUITool } from './open-dictionary-ui-tool.js'
 import { registerPlayerResource } from './resource.js'
 import { registerResynthesizePlayerTool } from './resynthesize-player-tool.js'
 import { createPlayerRuntime, playerResourceUri } from './runtime.js'
-import { getSessionStateByKey, setSessionState } from './session-state.js'
 import { registerSpeakPlayerTool } from './speak-player-tool.js'
 
 export function registerPlayerTools(deps: ToolDeps): void {
@@ -23,11 +22,11 @@ export function registerPlayerTools(deps: ToolDeps): void {
     playerVoicevoxApi: runtime.playerVoicevoxApi,
     playerResourceUri,
     synthesizeWithCache: runtime.synthesizeWithCache,
-    setSessionState,
-    getSessionState: (key) => getSessionStateByKey(key),
+    setSessionState: runtime.setSessionState,
+    getSessionState: runtime.getSessionStateByKey,
     getSpeakerList: runtime.getSpeakerList,
   })
 
   // AIから参照する読み取り専用状態取得ツール。
-  registerGetPlayerStateTool(deps)
+  registerGetPlayerStateTool(deps, runtime)
 }

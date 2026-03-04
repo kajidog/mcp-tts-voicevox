@@ -39,115 +39,107 @@ const MAX_PERSISTED_STATES = 500
 const MAX_STATE_AGE_MS = 30 * 24 * 60 * 60 * 1000
 
 // ---------------------------------------------------------------------------
-// Module state
+// SessionStateStore
 // ---------------------------------------------------------------------------
 
-const playerSessionState = new Map<string, PlayerSessionState>()
-let stateFilePath = ''
+export class SessionStateStore {
+  private readonly state = new Map<string, PlayerSessionState>()
+  private filePath: string
+  private debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-// ---------------------------------------------------------------------------
-// Disk persistence
-// ---------------------------------------------------------------------------
+  constructor(config: ToolDeps['config'], audioCacheDir: string) {
+    this.filePath = config.playerStateFile || join(audioCacheDir, 'player-state.json')
 
-async function saveSessionStateToDisk(): Promise<void> {
-  try {
-    const now = Date.now()
-    const validEntries = [...playerSessionState.entries()]
-      .filter(([, state]) => now - state.updatedAt <= MAX_STATE_AGE_MS)
-      .sort((a, b) => b[1].updatedAt - a[1].updatedAt)
-      .slice(0, MAX_PERSISTED_STATES)
-
-    playerSessionState.clear()
-    for (const [key, state] of validEntries) {
-      playerSessionState.set(key, state)
+    try {
+      mkdirSync(dirname(this.filePath), { recursive: true })
+    } catch (error) {
+      console.warn('Warning: failed to prepare player state directory:', error)
     }
 
-    const payload = JSON.stringify({
-      version: 1,
-      savedAt: now,
-      entries: validEntries,
-    })
-    const tempPath = `${stateFilePath}.tmp`
-    await writeFile(tempPath, payload, 'utf-8')
-    await rename(tempPath, stateFilePath)
-  } catch (error) {
-    console.warn('Warning: failed to persist player state:', error)
+    this.loadFromDisk()
   }
-}
 
-let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null
+  // -------------------------------------------------------------------------
+  // Public API
+  // -------------------------------------------------------------------------
 
-function scheduleStateSave(): void {
-  if (saveDebounceTimer !== null) clearTimeout(saveDebounceTimer)
-  saveDebounceTimer = setTimeout(() => {
-    saveDebounceTimer = null
-    saveSessionStateToDisk().catch((e) => console.warn('Warning: failed to persist player state:', e))
-  }, 300)
-}
-
-function loadSessionStateFromDisk(): void {
-  try {
-    const raw = readFileSync(stateFilePath, 'utf-8')
-    const parsed = JSON.parse(raw) as {
-      entries?: Array<[string, PlayerSessionState]>
-    }
-    if (!Array.isArray(parsed.entries)) return
-
-    const now = Date.now()
-    for (const entry of parsed.entries) {
-      if (!Array.isArray(entry) || entry.length !== 2) continue
-      const [key, state] = entry
-      if (!key || typeof key !== 'string') continue
-      if (!state || typeof state.updatedAt !== 'number' || !Array.isArray(state.segments)) continue
-      if (now - state.updatedAt > MAX_STATE_AGE_MS) continue
-      playerSessionState.set(key, state)
-    }
-  } catch {
-    // 初回起動や破損時は空状態で継続
+  set(key: string, sessionState: PlayerSessionState): void {
+    this.state.set(key, sessionState)
+    this.scheduleSave()
   }
-}
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
-export function setSessionState(key: string, state: PlayerSessionState): void {
-  playerSessionState.set(key, state)
-  scheduleStateSave()
-}
-
-export function getSessionState(
-  viewUUID: string | undefined,
-  sessionId: string | undefined
-): PlayerSessionState | undefined {
-  // viewUUID が指定されていれば最優先で検索
-  if (viewUUID) {
-    const s = playerSessionState.get(viewUUID)
+  get(viewUUID: string | undefined, sessionId: string | undefined): PlayerSessionState | undefined {
+    if (viewUUID) {
+      const s = this.state.get(viewUUID)
+      if (s) return s
+    }
+    const key = sessionId ?? 'global'
+    const s = this.state.get(key)
     if (s) return s
-  }
-  // sessionId でフォールバック
-  const key = sessionId ?? 'global'
-  const s = playerSessionState.get(key)
-  if (s) return s
-  return undefined
-}
-
-export function getSessionStateByKey(key: string): PlayerSessionState | undefined {
-  return playerSessionState.get(key)
-}
-
-// ---------------------------------------------------------------------------
-// Initialization
-// ---------------------------------------------------------------------------
-
-export function initializeSessionState(config: ToolDeps['config'], audioCacheDir: string): void {
-  stateFilePath = config.playerStateFile || join(audioCacheDir, 'player-state.json')
-
-  try {
-    mkdirSync(dirname(stateFilePath), { recursive: true })
-  } catch (error) {
-    console.warn('Warning: failed to prepare player state directory:', error)
+    return undefined
   }
 
-  loadSessionStateFromDisk()
+  getByKey(key: string): PlayerSessionState | undefined {
+    return this.state.get(key)
+  }
+
+  // -------------------------------------------------------------------------
+  // Disk persistence
+  // -------------------------------------------------------------------------
+
+  private async saveToDisk(): Promise<void> {
+    try {
+      const now = Date.now()
+      const validEntries = [...this.state.entries()]
+        .filter(([, s]) => now - s.updatedAt <= MAX_STATE_AGE_MS)
+        .sort((a, b) => b[1].updatedAt - a[1].updatedAt)
+        .slice(0, MAX_PERSISTED_STATES)
+
+      this.state.clear()
+      for (const [key, s] of validEntries) {
+        this.state.set(key, s)
+      }
+
+      const payload = JSON.stringify({
+        version: 1,
+        savedAt: now,
+        entries: validEntries,
+      })
+      const tempPath = `${this.filePath}.tmp`
+      await writeFile(tempPath, payload, 'utf-8')
+      await rename(tempPath, this.filePath)
+    } catch (error) {
+      console.warn('Warning: failed to persist player state:', error)
+    }
+  }
+
+  private scheduleSave(): void {
+    if (this.debounceTimer !== null) clearTimeout(this.debounceTimer)
+    this.debounceTimer = setTimeout(() => {
+      this.debounceTimer = null
+      this.saveToDisk().catch((e) => console.warn('Warning: failed to persist player state:', e))
+    }, 300)
+  }
+
+  private loadFromDisk(): void {
+    try {
+      const raw = readFileSync(this.filePath, 'utf-8')
+      const parsed = JSON.parse(raw) as {
+        entries?: Array<[string, PlayerSessionState]>
+      }
+      if (!Array.isArray(parsed.entries)) return
+
+      const now = Date.now()
+      for (const entry of parsed.entries) {
+        if (!Array.isArray(entry) || entry.length !== 2) continue
+        const [key, s] = entry
+        if (!key || typeof key !== 'string') continue
+        if (!s || typeof s.updatedAt !== 'number' || !Array.isArray(s.segments)) continue
+        if (now - s.updatedAt > MAX_STATE_AGE_MS) continue
+        this.state.set(key, s)
+      }
+    } catch {
+      // 初回起動や破損時は空状態で継続
+    }
+  }
 }

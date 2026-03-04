@@ -59,7 +59,7 @@
     "@kajidog/voicevox-client": "workspace:*",
     "@modelcontextprotocol/ext-apps": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.26.0",
-    "zod": "^3.25.0"
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@kajidog/mcp-core": "workspace:*",

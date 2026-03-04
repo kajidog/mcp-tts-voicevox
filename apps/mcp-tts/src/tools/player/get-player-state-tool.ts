@@ -1,17 +1,13 @@
 import { type AccentPhrase, accentPhrasesToNotation } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import * as z from 'zod/v4'
+import * as z from 'zod'
 import { registerToolIfEnabled } from '../registration.js'
 import type { ToolDeps, ToolHandlerExtra } from '../types.js'
 import { createErrorResponse } from '../utils.js'
-import {
-  DEFAULT_STATE_PAGE_LIMIT,
-  MAX_STATE_PAGE_LIMIT,
-  MAX_TOOL_CONTENT_BYTES,
-  getSessionState,
-} from './session-state.js'
+import type { PlayerRuntime } from './runtime.js'
+import { DEFAULT_STATE_PAGE_LIMIT, MAX_STATE_PAGE_LIMIT, MAX_TOOL_CONTENT_BYTES } from './session-state.js'
 
-export function registerGetPlayerStateTool(deps: ToolDeps): void {
+export function registerGetPlayerStateTool(deps: ToolDeps, runtime: PlayerRuntime): void {
   const { server, disabledTools } = deps
 
   registerToolIfEnabled(
@@ -50,7 +46,7 @@ export function registerGetPlayerStateTool(deps: ToolDeps): void {
       extra: ToolHandlerExtra
     ): Promise<CallToolResult> => {
       try {
-        const state = getSessionState(viewUUID, extra?.sessionId)
+        const state = runtime.getSessionState(viewUUID, extra?.sessionId)
         if (!state) {
           return {
             content: [

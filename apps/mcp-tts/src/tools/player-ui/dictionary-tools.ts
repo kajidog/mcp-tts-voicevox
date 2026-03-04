@@ -1,6 +1,6 @@
 import { accentPhrasesToNotation } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import * as z from 'zod/v4'
+import * as z from 'zod'
 import { registerAppToolIfEnabled } from '../registration.js'
 import { createErrorResponse } from '../utils.js'
 import type { PlayerUIToolContext } from './context.js'

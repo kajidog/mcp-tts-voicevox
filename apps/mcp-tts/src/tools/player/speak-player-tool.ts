@@ -1,12 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import * as z from 'zod/v4'
+import * as z from 'zod'
 import { registerAppToolIfEnabled } from '../registration.js'
 import type { ToolDeps, ToolHandlerExtra } from '../types.js'
 import { createErrorResponse, getEffectiveSpeaker, parseStringInput } from '../utils.js'
 import { playerResourceUri } from './runtime.js'
 import type { PlayerRuntime } from './runtime.js'
-import { setSessionState } from './session-state.js'
 
 export function registerSpeakPlayerTool(deps: ToolDeps, runtime: PlayerRuntime): void {
   const { server, config, disabledTools } = deps
@@ -76,9 +75,9 @@ export function registerSpeakPlayerTool(deps: ToolDeps, runtime: PlayerRuntime):
           })),
           updatedAt: Date.now(),
         }
-        setSessionState(viewUUID, nextState)
+        runtime.setSessionState(viewUUID, nextState)
         if (extra.sessionId && extra.sessionId !== viewUUID) {
-          setSessionState(extra.sessionId, nextState)
+          runtime.setSessionState(extra.sessionId, nextState)
         }
 
         const fullText = parsedSegments.map((s) => s.text).join(' ')
