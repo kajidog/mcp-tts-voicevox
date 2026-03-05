@@ -74,7 +74,9 @@ export interface QueueItemData {
   options?: PlaybackOptions
   playbackPromiseResolvers?: {
     startResolve?: () => void
+    startReject?: (error: Error) => void
     endResolve?: () => void
+    endReject?: (error: Error) => void
   }
 }
 

@@ -75,9 +75,9 @@ export class AudioFileManager {
 
     try {
       await fsPromises.unlink(filePath)
-    } catch (error: any) {
+    } catch (error: unknown) {
       // ファイルが存在しないエラー(ENOENT)は無視して良い
-      if (error.code !== 'ENOENT') {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         console.error(`一時ファイルの削除中にエラーが発生しました: ${filePath}`, error)
       }
     }

@@ -235,7 +235,7 @@ export class VoicevoxApi {
   private async makeRequest<T>(
     method: 'get' | 'post' | 'put' | 'delete',
     endpoint: string,
-    data: any = null,
+    data: unknown = null,
     headers: Record<string, string> = {},
     responseType: 'json' | 'arraybuffer' | 'text' = 'json'
   ): Promise<T> {

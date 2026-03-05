@@ -80,8 +80,8 @@ export function registerSpeakerTools(deps: ToolDeps) {
     async (): Promise<CallToolResult> => {
       try {
         const speakers = await voicevoxClient.getSpeakers()
-        const result = speakers.flatMap((speaker: any) =>
-          speaker.styles.map((style: any) => ({
+        const result = speakers.flatMap((speaker) =>
+          speaker.styles.map((style) => ({
             speaker: style.id,
             name: `${speaker.name}:${style.name}`,
           }))

@@ -28,33 +28,36 @@ function isToolDisabled(disabledTools: Set<string>, name: string): boolean {
 
 /**
  * Register a tool with auto-prefixed name (disabled tools are skipped).
+ *
+ * Uses rest args to forward all overload variants of `McpServer.registerTool`
+ * without needing to duplicate each generic signature.
  */
 export function registerToolIfEnabled(
   server: McpServer,
   disabledTools: Set<string>,
   name: string,
-  definition: any,
-  handler: any
+  // biome-ignore lint/suspicious/noExplicitAny: forwarding to McpServer.registerTool which has complex overloaded generic signatures
+  ...args: [config: any, cb: any]
 ) {
   const fullName = addToolPrefix(name)
   if (isToolDisabled(disabledTools, name)) {
     console.error(`Tool "${fullName}" is disabled via configuration`)
     return
   }
-  server.registerTool(fullName, definition, handler)
+  server.registerTool(fullName, ...args)
 }
 
 export function registerAppToolIfEnabled(
   server: McpServer,
   disabledTools: Set<string>,
   name: string,
-  definition: any,
-  handler: any
+  // biome-ignore lint/suspicious/noExplicitAny: forwarding to registerAppTool which has complex overloaded generic signatures
+  ...args: [config: any, cb: any]
 ) {
   const fullName = addToolPrefix(name)
   if (isToolDisabled(disabledTools, name)) {
     console.error(`Tool "${fullName}" is disabled via configuration`)
     return
   }
-  registerAppTool(server, fullName, definition, handler)
+  registerAppTool(server, fullName, ...args)
 }
