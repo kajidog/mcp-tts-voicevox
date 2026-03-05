@@ -1,4 +1,4 @@
-import { type ChildProcess, execSync, spawn } from 'node:child_process'
+import { type ChildProcess, type SpawnOptions, execSync, spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import type { PlaybackStrategy } from './types.js'
@@ -66,12 +66,9 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
 
       const platform = os.platform()
       const args = ['-nodisp', '-autoexit', '-i', 'pipe:0']
-      const spawnOptions: any = {
+      const spawnOptions: SpawnOptions = {
         stdio: ['pipe', 'ignore', 'ignore'],
-      }
-
-      if (platform === 'win32') {
-        spawnOptions.windowsHide = true
+        ...(platform === 'win32' && { windowsHide: true }),
       }
 
       const ffplayProcess = spawn('ffplay', args, spawnOptions)
@@ -187,12 +184,9 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
           return
       }
 
-      const spawnOptions: any = {
+      const spawnOptions: SpawnOptions = {
         stdio: 'ignore',
-      }
-
-      if (platform === 'win32') {
-        spawnOptions.windowsHide = true
+        ...(platform === 'win32' && { windowsHide: true }),
       }
 
       const audioProcess = spawn(command, args, spawnOptions)

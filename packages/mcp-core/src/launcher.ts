@@ -4,6 +4,13 @@ import type { BaseServerConfig } from './config.js'
 import { type CreateHttpAppOptions, createHttpApp } from './http.js'
 import { connectStdio } from './stdio.js'
 
+declare const Bun: {
+  serve(options: { fetch: (req: Request) => Response | Promise<Response>; port: number; hostname: string }): {
+    hostname: string
+    port: number
+  }
+}
+
 /**
  * 実行環境を判定するユーティリティ
  */
@@ -51,7 +58,7 @@ export async function startHttpServer(options: LaunchOptions): Promise<void> {
 
     if (isBun()) {
       // Bun native server
-      const bunServer = (globalThis as any).Bun.serve({
+      const bunServer = Bun.serve({
         fetch: app.fetch,
         port: config.httpPort,
         hostname: config.httpHost,

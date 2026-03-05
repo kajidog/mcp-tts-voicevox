@@ -214,10 +214,7 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
           )
 
           // accent 値の変更に合わせてピッチを再計算する。
-          previewAccentPhrases = await shared.playerVoicevoxApi.updateMoraData(
-            previewAccentPhrases as any,
-            randomSpeaker.id
-          )
+          previewAccentPhrases = await shared.playerVoicevoxApi.updateMoraData(previewAccentPhrases, randomSpeaker.id)
         }
 
         const result = await synthesizeWithCache({

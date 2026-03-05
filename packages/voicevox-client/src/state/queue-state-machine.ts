@@ -238,6 +238,14 @@ export class QueueStateMachine {
 
     this.callbacks.onError?.(item!, error)
 
+    // 待機中のPromiseをrejectする
+    if (item?.playbackPromiseResolvers?.startReject) {
+      item.playbackPromiseResolvers.startReject(error)
+    }
+    if (item?.playbackPromiseResolvers?.endReject) {
+      item.playbackPromiseResolvers.endReject(error)
+    }
+
     // キューから削除
     this.removeFromQueue(itemId)
 
@@ -251,6 +259,12 @@ export class QueueStateMachine {
   }
 
   private handleClear(): void {
+    // 待機中のPromiseをrejectする
+    const clearError = new Error('Queue cleared')
+    for (const item of this.items.values()) {
+      item.playbackPromiseResolvers?.startReject?.(clearError)
+      item.playbackPromiseResolvers?.endReject?.(clearError)
+    }
     this.items.clear()
     this.itemStateMachines.clear()
     this.queue = []

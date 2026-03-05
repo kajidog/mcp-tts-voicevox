@@ -80,8 +80,8 @@ export function createPlayerRuntime(deps: ToolDeps): PlayerRuntime {
     if (speakerCache) return speakerCache
     try {
       const speakers = await playerVoicevoxApi.getSpeakers()
-      speakerCache = speakers.flatMap((speaker: any) =>
-        speaker.styles.map((style: any) => ({
+      speakerCache = speakers.flatMap((speaker) =>
+        speaker.styles.map((style) => ({
           id: style.id,
           name: style.name,
           characterName: speaker.name,
@@ -136,7 +136,7 @@ export function createPlayerRuntime(deps: ToolDeps): PlayerRuntime {
     let effectiveAudioQuery = audioQuery
     if (audioQuery && accentPhrases && accentPhrases.length > 0 && audioQuery.accent_phrases?.length > 0) {
       try {
-        const updated = await playerVoicevoxApi.updateMoraData(audioQuery.accent_phrases as any, speaker)
+        const updated = await playerVoicevoxApi.updateMoraData(audioQuery.accent_phrases, speaker)
         effectiveAudioQuery = { ...audioQuery, accent_phrases: updated }
       } catch (e) {
         console.warn('[synthesizeWithCache] /mora_data 再計算失敗、元のピッチ値を使用:', e)
@@ -162,7 +162,7 @@ export function createPlayerRuntime(deps: ToolDeps): PlayerRuntime {
       let cachedQuery = effectiveAudioQuery
       if (!cachedQuery) {
         const generated = await playerVoicevoxApi.generateQuery(text, speaker)
-        if (accentPhrases) generated.accent_phrases = accentPhrases as any
+        if (accentPhrases) generated.accent_phrases = accentPhrases
         generated.speedScale = speedScale
         if (intonationScale !== undefined) generated.intonationScale = intonationScale
         if (volumeScale !== undefined) generated.volumeScale = volumeScale
@@ -192,7 +192,7 @@ export function createPlayerRuntime(deps: ToolDeps): PlayerRuntime {
       ? { ...effectiveAudioQuery }
       : await playerVoicevoxApi.generateQuery(text, speaker)
     // query 未指定時のみ、ツール引数の各パラメータを上書き適用する。
-    if (!effectiveAudioQuery && accentPhrases) resolvedQuery.accent_phrases = accentPhrases as any
+    if (!effectiveAudioQuery && accentPhrases) resolvedQuery.accent_phrases = accentPhrases
     if (!effectiveAudioQuery) {
       resolvedQuery.speedScale = speedScale
       if (intonationScale !== undefined) resolvedQuery.intonationScale = intonationScale

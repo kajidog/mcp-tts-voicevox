@@ -29,7 +29,9 @@ export interface QueueItem {
   options?: PlaybackOptions // 再生オプション
   playbackPromiseResolvers?: {
     startResolve?: () => void
+    startReject?: (error: Error) => void
     endResolve?: () => void
+    endReject?: (error: Error) => void
   } // 待機処理用Promise resolver
 }
 
@@ -66,7 +68,7 @@ export interface QueueManager {
   /**
    * キューに音声合成用クエリを追加
    */
-  enqueueQuery(query: AudioQuery, speaker: number, options?: any, text?: string): Promise<QueueItem>
+  enqueueQuery(query: AudioQuery, speaker: number, options?: PlaybackOptions, text?: string): Promise<QueueItem>
 
   /**
    * キューからアイテムを削除

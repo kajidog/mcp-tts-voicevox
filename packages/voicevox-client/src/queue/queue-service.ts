@@ -353,17 +353,19 @@ export class QueueService {
     options: EnqueueOptions,
     query?: AudioQuery
   ): { item: QueueItemData; promises: { start?: Promise<void>; end?: Promise<void> } } {
-    const playbackPromiseResolvers: any = {}
+    const playbackPromiseResolvers: NonNullable<QueueItemData['playbackPromiseResolvers']> = {}
     const promises: { start?: Promise<void>; end?: Promise<void> } = {}
 
     if (options.waitForStart) {
-      promises.start = new Promise<void>((resolve) => {
+      promises.start = new Promise<void>((resolve, reject) => {
         playbackPromiseResolvers.startResolve = resolve
+        playbackPromiseResolvers.startReject = reject
       })
     }
     if (options.waitForEnd) {
-      promises.end = new Promise<void>((resolve) => {
+      promises.end = new Promise<void>((resolve, reject) => {
         playbackPromiseResolvers.endResolve = resolve
+        playbackPromiseResolvers.endReject = reject
       })
     }
 
