@@ -259,6 +259,12 @@ export class QueueStateMachine {
   }
 
   private handleClear(): void {
+    // 待機中のPromiseをrejectする
+    const clearError = new Error('Queue cleared')
+    for (const item of this.items.values()) {
+      item.playbackPromiseResolvers?.startReject?.(clearError)
+      item.playbackPromiseResolvers?.endReject?.(clearError)
+    }
     this.items.clear()
     this.itemStateMachines.clear()
     this.queue = []
