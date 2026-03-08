@@ -3,6 +3,7 @@ import * as z from 'zod'
 import { registerToolIfEnabled } from './registration.js'
 import type { ToolDeps } from './types.js'
 import { createErrorResponse } from './utils.js'
+import { bumpPlayerDictionaryRevision } from './player/dictionary-revision.js'
 
 export function registerDictionaryTools(deps: ToolDeps) {
   const { server, voicevoxClient, config, disabledTools } = deps
@@ -137,6 +138,7 @@ export function registerDictionaryTools(deps: ToolDeps) {
     }): Promise<CallToolResult> => {
       try {
         const words = await voicevoxClient.addDictionaryWord({ surface, pronunciation, priority })
+        bumpPlayerDictionaryRevision()
 
         // Find the added word
         const normalizedSurface = surface.trim()
@@ -189,6 +191,7 @@ export function registerDictionaryTools(deps: ToolDeps) {
     }): Promise<CallToolResult> => {
       try {
         const words = await voicevoxClient.updateDictionaryWord({ wordUuid, surface, pronunciation, priority })
+        bumpPlayerDictionaryRevision()
         const word = words.find((w) => w.wordUuid === wordUuid.trim())
 
         return {
@@ -224,6 +227,7 @@ export function registerDictionaryTools(deps: ToolDeps) {
         if (!normalizedWordUuid) throw new Error('wordUuid is required')
 
         await voicevoxClient.deleteDictionaryWord(normalizedWordUuid)
+        bumpPlayerDictionaryRevision()
         return {
           content: [{ type: 'text', text: JSON.stringify({ success: true, deletedWordUuid: normalizedWordUuid }) }],
         }
@@ -269,6 +273,7 @@ export function registerDictionaryTools(deps: ToolDeps) {
     }): Promise<CallToolResult> => {
       try {
         const result = await voicevoxClient.addDictionaryWords(words)
+        bumpPlayerDictionaryRevision()
 
         return {
           content: [
@@ -324,6 +329,7 @@ export function registerDictionaryTools(deps: ToolDeps) {
     }): Promise<CallToolResult> => {
       try {
         const result = await voicevoxClient.updateDictionaryWords(words)
+        bumpPlayerDictionaryRevision()
 
         return {
           content: [

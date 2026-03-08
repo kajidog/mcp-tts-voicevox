@@ -2,6 +2,7 @@ import { VoicevoxApi } from '@kajidog/voicevox-client'
 import type { AccentPhrase, AudioQuery } from '@kajidog/voicevox-client'
 import type { ToolDeps } from '../types.js'
 import { AudioCacheStore, createAudioCacheKey } from './audio-cache.js'
+import { getPlayerDictionaryRevision } from './dictionary-revision.js'
 import type { PlayerSessionState } from './session-state.js'
 import { SessionStateStore } from './session-state.js'
 
@@ -148,6 +149,7 @@ export function createPlayerRuntime(deps: ToolDeps): PlayerRuntime {
       speaker,
       audioQuery: effectiveAudioQuery,
       speedScale,
+      dictionaryRevision: getPlayerDictionaryRevision(),
       intonationScale,
       volumeScale,
       prePhonemeLength,

@@ -178,6 +178,7 @@ export function createAudioCacheKey(input: {
   speaker: number
   audioQuery?: AudioQuery
   speedScale: number
+  dictionaryRevision?: number
   intonationScale?: number
   volumeScale?: number
   prePhonemeLength?: number
@@ -189,11 +190,13 @@ export function createAudioCacheKey(input: {
     ? JSON.stringify({
         speaker: input.speaker,
         text: input.text,
+        dictionaryRevision: input.dictionaryRevision ?? 0,
         audioQuery: input.audioQuery,
       })
     : JSON.stringify({
         speaker: input.speaker,
         text: input.text,
+        dictionaryRevision: input.dictionaryRevision ?? 0,
         speedScale: Number(input.speedScale.toFixed(4)),
         intonationScale: input.intonationScale === undefined ? null : Number(input.intonationScale.toFixed(4)),
         volumeScale: input.volumeScale === undefined ? null : Number(input.volumeScale.toFixed(4)),

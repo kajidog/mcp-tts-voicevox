@@ -3,6 +3,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod'
 import { registerAppToolIfEnabled } from '../registration.js'
 import { createErrorResponse } from '../utils.js'
+import { bumpPlayerDictionaryRevision } from '../player/dictionary-revision.js'
 import type { PlayerUIToolContext } from './context.js'
 
 export function registerPlayerDictionaryTools(context: PlayerUIToolContext): void {
@@ -74,6 +75,7 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
           accentType,
           priority,
         })
+        bumpPlayerDictionaryRevision()
         return {
           content: [{ type: 'text', text: JSON.stringify({ words }) }],
         }
@@ -130,6 +132,7 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
           accentType,
           priority,
         })
+        bumpPlayerDictionaryRevision()
         return {
           content: [{ type: 'text', text: JSON.stringify({ words }) }],
         }
@@ -159,6 +162,7 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
     async ({ wordUuid }: { wordUuid: string }): Promise<CallToolResult> => {
       try {
         const words = await voicevoxClient.deleteDictionaryWord(wordUuid)
+        bumpPlayerDictionaryRevision()
         return {
           content: [{ type: 'text', text: JSON.stringify({ words }) }],
         }
