@@ -320,7 +320,7 @@ export function getConfig(argv?: string[], env?: NodeJS.ProcessEnv): ServerConfi
     merged.playerStateFile = join(merged.playerCacheDir, 'player-state.json')
   }
   // configFile は内部用なので削除
-  ;(merged as Record<string, unknown>).configFile = undefined
+  ;(merged as unknown as Record<string, unknown>).configFile = undefined
 
   return merged
 }
