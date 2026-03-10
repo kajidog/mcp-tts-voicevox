@@ -1,5 +1,15 @@
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { getConfig, parseCliArgs, parseEnvVars, resetConfigCache } from '../config'
+import {
+  getConfig,
+  getConfigTemplate,
+  getHelpText,
+  parseCliArgs,
+  parseConfigFile,
+  parseEnvVars,
+  resetConfigCache,
+} from '../config'
 
 describe('config module', () => {
   describe('parseCliArgs', () => {
@@ -240,6 +250,26 @@ describe('config module', () => {
       const result = parseEnvVars({ MCP_API_KEY: 'env-key' })
       expect(result.apiKey).toBe('env-key')
     })
+
+    it('空の数値環境変数はスキップする（0にならない）', () => {
+      const result = parseEnvVars({
+        MCP_HTTP_PORT: '',
+        VOICEVOX_DEFAULT_SPEAKER: '',
+        VOICEVOX_DEFAULT_SPEED_SCALE: '',
+      })
+      expect(result.httpPort).toBeUndefined()
+      expect(result.defaultSpeaker).toBeUndefined()
+      expect(result.defaultSpeedScale).toBeUndefined()
+    })
+
+    it('空の文字列環境変数はスキップする', () => {
+      const result = parseEnvVars({
+        VOICEVOX_URL: '',
+        VOICEVOX_PLAYER_EXPORT_DIR: '',
+      })
+      expect(result.voicevoxUrl).toBeUndefined()
+      expect(result.playerExportDir).toBeUndefined()
+    })
   })
 
   describe('getConfig', () => {
@@ -339,6 +369,158 @@ describe('config module', () => {
     it('無効化ツールが正しく設定される', () => {
       const result = getConfig(['--disable-tools', 'speak,stop_speaker'], {})
       expect(result.disabledTools).toEqual(['speak', 'stop_speaker'])
+    })
+  })
+
+  describe('parseConfigFile', () => {
+    const tmpDir = join(process.cwd(), '__test_config_tmp__')
+
+    beforeEach(() => {
+      mkdirSync(tmpDir, { recursive: true })
+    })
+
+    afterEach(() => {
+      rmSync(tmpDir, { recursive: true, force: true })
+    })
+
+    it('存在しないファイルパスで空オブジェクトを返す', () => {
+      const result = parseConfigFile('/tmp/non-existent-config.json')
+      expect(result).toEqual({})
+    })
+
+    it('JSON設定ファイルを正しくパースする', () => {
+      const configPath = join(tmpDir, 'test-config.json')
+      writeFileSync(configPath, JSON.stringify({ url: 'http://test:50021', speaker: 5 }))
+      const result = parseConfigFile(configPath)
+      expect(result.voicevoxUrl).toBe('http://test:50021')
+      expect(result.defaultSpeaker).toBe(5)
+    })
+
+    it('boolean値を正しくパースする', () => {
+      const configPath = join(tmpDir, 'bool-config.json')
+      writeFileSync(configPath, JSON.stringify({ immediate: false, 'wait-for-end': true }))
+      const result = parseConfigFile(configPath)
+      expect(result.defaultImmediate).toBe(false)
+      expect(result.defaultWaitForEnd).toBe(true)
+    })
+
+    it('camelCaseキーを受け入れる', () => {
+      const configPath = join(tmpDir, 'camel-config.json')
+      writeFileSync(configPath, JSON.stringify({ useStreaming: true, autoPlay: false }))
+      const result = parseConfigFile(configPath)
+      expect(result.useStreaming).toBe(true)
+      expect(result.autoPlay).toBe(false)
+    })
+
+    it('string[]型を正しくパースする', () => {
+      const configPath = join(tmpDir, 'array-config.json')
+      writeFileSync(configPath, JSON.stringify({ 'disable-tools': ['speak', 'stop_speaker'] }))
+      const result = parseConfigFile(configPath)
+      expect(result.disabledTools).toEqual(['speak', 'stop_speaker'])
+    })
+
+    it('不正なJSONファイルで空オブジェクトを返す', () => {
+      const configPath = join(tmpDir, 'invalid-config.json')
+      writeFileSync(configPath, 'not valid json{')
+      const result = parseConfigFile(configPath)
+      expect(result).toEqual({})
+    })
+
+    it('サーバー設定も正しくパースする', () => {
+      const configPath = join(tmpDir, 'server-config.json')
+      writeFileSync(configPath, JSON.stringify({ http: true, port: 8080 }))
+      const result = parseConfigFile(configPath)
+      expect(result.httpMode).toBe(true)
+      expect(result.httpPort).toBe(8080)
+    })
+
+    it('空文字列のパスオプションはスキップする（ランタイムデフォルトを上書きしない）', () => {
+      const configPath = join(tmpDir, 'empty-path-config.json')
+      writeFileSync(
+        configPath,
+        JSON.stringify({
+          'player-export-dir': '',
+          'player-cache-dir': '',
+          'player-state-file': '',
+        })
+      )
+      const result = parseConfigFile(configPath)
+      expect(result.playerExportDir).toBeUndefined()
+      expect(result.playerCacheDir).toBeUndefined()
+      expect(result.playerStateFile).toBeUndefined()
+    })
+  })
+
+  describe('getConfig with config file', () => {
+    const tmpDir = join(process.cwd(), '__test_config_tmp2__')
+
+    beforeEach(() => {
+      resetConfigCache()
+      mkdirSync(tmpDir, { recursive: true })
+    })
+
+    afterEach(() => {
+      rmSync(tmpDir, { recursive: true, force: true })
+    })
+
+    it('CLI > ENV > config file > デフォルト の優先順位', () => {
+      const configPath = join(tmpDir, 'priority-config.json')
+      writeFileSync(configPath, JSON.stringify({ url: 'http://file:50021', speaker: 10, speed: 2.0 }))
+      const result = getConfig(['--config', configPath, '--speaker', '99'], {
+        VOICEVOX_DEFAULT_SPEED_SCALE: '3.0',
+      })
+      // CLI引数が最優先
+      expect(result.defaultSpeaker).toBe(99)
+      // 環境変数が次
+      expect(result.defaultSpeedScale).toBe(3.0)
+      // 設定ファイルが次
+      expect(result.voicevoxUrl).toBe('http://file:50021')
+    })
+  })
+
+  describe('getHelpText', () => {
+    it('help文が生成される', () => {
+      const help = getHelpText()
+      expect(help).toContain('Usage:')
+      expect(help).toContain('--help')
+      expect(help).toContain('--url')
+      expect(help).toContain('--speaker')
+      expect(help).toContain('--http')
+      expect(help).toContain('--port')
+      expect(help).toContain('--config')
+    })
+
+    it('グループごとに整理されている', () => {
+      const help = getHelpText()
+      expect(help).toContain('Voicevox Configuration:')
+      expect(help).toContain('Playback Options:')
+      expect(help).toContain('Server Options:')
+    })
+
+    it('Examplesが含まれる', () => {
+      const help = getHelpText()
+      expect(help).toContain('Examples:')
+      expect(help).toContain('npx @kajidog/mcp-tts-voicevox')
+    })
+  })
+
+  describe('getConfigTemplate', () => {
+    it('デフォルトが未定義のオプションはテンプレートに含まれない', () => {
+      const template = getConfigTemplate()
+      // ランタイムデフォルトを持つパスオプションは含まれない
+      expect(template).not.toHaveProperty('player-export-dir')
+      expect(template).not.toHaveProperty('player-cache-dir')
+      expect(template).not.toHaveProperty('player-state-file')
+      // configFile は除外済み
+      expect(template).not.toHaveProperty('config')
+    })
+
+    it('明示的なデフォルトを持つオプションは含まれる', () => {
+      const template = getConfigTemplate()
+      expect(template).toHaveProperty('url', 'http://localhost:50021')
+      expect(template).toHaveProperty('speaker', 1)
+      expect(template).toHaveProperty('speed', 1.0)
+      expect(template).toHaveProperty('immediate', true)
     })
   })
 })

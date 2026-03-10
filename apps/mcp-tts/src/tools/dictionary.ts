@@ -1,9 +1,9 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod'
+import { bumpPlayerDictionaryRevision } from './player/dictionary-revision.js'
 import { registerToolIfEnabled } from './registration.js'
 import type { ToolDeps } from './types.js'
 import { createErrorResponse } from './utils.js'
-import { bumpPlayerDictionaryRevision } from './player/dictionary-revision.js'
 
 export function registerDictionaryTools(deps: ToolDeps) {
   const { server, voicevoxClient, config, disabledTools } = deps

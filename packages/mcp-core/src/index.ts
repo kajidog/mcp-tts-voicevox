@@ -1,11 +1,25 @@
 // Config
 export {
   type BaseServerConfig,
+  baseConfigDefs,
   defaultBaseConfig,
   parseBaseCliArgs,
   parseBaseEnvVars,
   filterUndefined,
 } from './config.js'
+
+// Config Schema
+export {
+  type ConfigDefs,
+  type OptionDef,
+  parseCliFromDefs,
+  parseEnvFromDefs,
+  parseConfigFileFromDefs,
+  getDefaultsFromDefs,
+  generateHelp,
+  generateConfigTemplate,
+  validateConfig,
+} from './config-schema.js'
 
 // Session
 export { type SessionConfig, setSessionConfig, getSessionConfig, deleteSessionConfig } from './session.js'

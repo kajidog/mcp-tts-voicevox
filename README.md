@@ -313,6 +313,8 @@ npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 |----------|-------------|
 | `--help`, `-h` | Show help |
 | `--version`, `-v` | Show version |
+| `--init` | Generate `.voicevoxrc.json` with default settings |
+| `--config <path>` | Path to config file |
 | `--url <value>` | VOICEVOX Engine URL |
 | `--speaker <value>` | Default speaker ID |
 | `--speed <value>` | Playback speed |
@@ -338,6 +340,50 @@ npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 | `--allowed-hosts <hosts>` | Allowed hosts (comma-separated) |
 | `--allowed-origins <origins>` | Allowed origins (comma-separated) |
 | `--api-key <key>` | Required API key for `/mcp` |
+
+</details>
+
+<details>
+<summary><b>Config File (.voicevoxrc.json)</b></summary>
+
+You can use a JSON config file instead of (or in addition to) environment variables and CLI arguments. This is useful when you have many settings to configure.
+
+**Priority order:** CLI args > Environment variables > Config file > Defaults
+
+### Generate a config file
+
+```bash
+npx @kajidog/mcp-tts-voicevox --init
+```
+
+This creates `.voicevoxrc.json` in the current directory with all default settings. Edit it as needed.
+
+### Use a custom config file path
+
+```bash
+npx @kajidog/mcp-tts-voicevox --config ./my-config.json
+```
+
+Or via environment variable:
+
+```bash
+VOICEVOX_CONFIG=./my-config.json npx @kajidog/mcp-tts-voicevox
+```
+
+### Example `.voicevoxrc.json`
+
+```json
+{
+  "url": "http://192.168.1.50:50021",
+  "speaker": 3,
+  "speed": 1.2,
+  "http": true,
+  "port": 8080,
+  "disable-tools": ["synthesize_file"]
+}
+```
+
+Keys can be written in kebab-case (`use-streaming`), camelCase (`useStreaming`), or internal key names (`defaultSpeaker`). If `.voicevoxrc.json` exists in the current directory, it is loaded automatically.
 
 </details>
 

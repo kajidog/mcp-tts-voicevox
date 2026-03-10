@@ -313,6 +313,8 @@ npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 |------|------|
 | `--help`, `-h` | ヘルプを表示 |
 | `--version`, `-v` | バージョンを表示 |
+| `--init` | デフォルト設定の `.voicevoxrc.json` を生成 |
+| `--config <path>` | 設定ファイルのパス |
 | `--url <value>` | VOICEVOX Engine URL |
 | `--speaker <value>` | デフォルト話者 ID |
 | `--speed <value>` | 再生速度 |
@@ -338,6 +340,50 @@ npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 | `--allowed-hosts <hosts>` | 許可するホスト（カンマ区切り） |
 | `--allowed-origins <origins>` | 許可するオリジン（カンマ区切り） |
 | `--api-key <key>` | `/mcp` に必須の API キー |
+
+</details>
+
+<details>
+<summary><b>設定ファイル (.voicevoxrc.json)</b></summary>
+
+環境変数やコマンドライン引数の代わりに（または併用して）JSON 設定ファイルを使用できます。多くの設定がある場合に便利です。
+
+**優先順位:** CLI引数 > 環境変数 > 設定ファイル > デフォルト値
+
+### 設定ファイルを生成
+
+```bash
+npx @kajidog/mcp-tts-voicevox --init
+```
+
+カレントディレクトリにデフォルト設定の `.voicevoxrc.json` を生成します。必要に応じて編集してください。
+
+### カスタムパスの設定ファイルを使用
+
+```bash
+npx @kajidog/mcp-tts-voicevox --config ./my-config.json
+```
+
+環境変数でも指定可能:
+
+```bash
+VOICEVOX_CONFIG=./my-config.json npx @kajidog/mcp-tts-voicevox
+```
+
+### `.voicevoxrc.json` の例
+
+```json
+{
+  "url": "http://192.168.1.50:50021",
+  "speaker": 3,
+  "speed": 1.2,
+  "http": true,
+  "port": 8080,
+  "disable-tools": ["synthesize_file"]
+}
+```
+
+キー名は kebab-case（`use-streaming`）、camelCase（`useStreaming`）、内部キー名（`defaultSpeaker`）のいずれでも記述できます。カレントディレクトリに `.voicevoxrc.json` が存在する場合、自動的に読み込まれます。
 
 </details>
 
