@@ -36,7 +36,6 @@ export function registerToolIfEnabled(
   server: McpServer,
   disabledTools: Set<string>,
   name: string,
-  // biome-ignore lint/suspicious/noExplicitAny: forwarding to McpServer.registerTool which has complex overloaded generic signatures
   ...args: [config: any, cb: any]
 ) {
   const fullName = addToolPrefix(name)
@@ -51,7 +50,6 @@ export function registerAppToolIfEnabled(
   server: McpServer,
   disabledTools: Set<string>,
   name: string,
-  // biome-ignore lint/suspicious/noExplicitAny: forwarding to registerAppTool which has complex overloaded generic signatures
   ...args: [config: any, cb: any]
 ) {
   const fullName = addToolPrefix(name)

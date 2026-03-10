@@ -1,9 +1,9 @@
 import { accentPhrasesToNotation } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod'
+import { bumpPlayerDictionaryRevision } from '../player/dictionary-revision.js'
 import { registerAppToolIfEnabled } from '../registration.js'
 import { createErrorResponse } from '../utils.js'
-import { bumpPlayerDictionaryRevision } from '../player/dictionary-revision.js'
 import type { PlayerUIToolContext } from './context.js'
 
 export function registerPlayerDictionaryTools(context: PlayerUIToolContext): void {

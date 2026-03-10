@@ -126,6 +126,7 @@ export function parseEnvFromDefs(
         break
 
       case 'number': {
+        if (val === '') break
         const num = Number(val)
         if (Number.isFinite(num)) config[key] = num
         break
@@ -184,7 +185,7 @@ export function parseConfigFileFromDefs(
         if (typeof val === 'number' && Number.isFinite(val)) config[key] = val
         break
       case 'string':
-        if (typeof val === 'string') config[key] = val
+        if (typeof val === 'string' && val !== '') config[key] = val
         break
       case 'string[]':
         if (Array.isArray(val)) config[key] = val.filter((v): v is string => typeof v === 'string')
@@ -296,19 +297,12 @@ export function generateConfigTemplate(
 
   for (const [key, def] of Object.entries(defs)) {
     if (excludeSet.has(key)) continue
+    // default が未定義のオプションはテンプレートに含めない
+    // （ランタイムデフォルトを持つパスオプション等を空値で上書きしないため）
+    if (def.default === undefined) continue
 
     const cliName = def.cli.replace(/^--/, '')
-    if (def.default !== undefined) {
-      template[cliName] = def.default
-    } else if (def.type === 'boolean') {
-      template[cliName] = false
-    } else if (def.type === 'number') {
-      template[cliName] = 0
-    } else if (def.type === 'string') {
-      template[cliName] = ''
-    } else if (def.type === 'string[]') {
-      template[cliName] = []
-    }
+    template[cliName] = def.default
   }
 
   return template
