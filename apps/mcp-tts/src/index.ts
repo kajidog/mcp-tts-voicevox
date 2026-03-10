@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // MCP TTS Voicevox エントリーポイント
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isNodejs, launchServer, setSessionConfig } from '@kajidog/mcp-core'
-import { getConfig, getHelpText } from './config.js'
+import { getConfig, getConfigTemplate, getHelpText } from './config.js'
 import { createServer, server } from './server.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -91,6 +91,20 @@ async function startMCPServer(): Promise<void> {
   if (process.argv.includes('--version') || process.argv.includes('-v')) {
     const pkg = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'))
     console.log(`@kajidog/mcp-tts-voicevox v${pkg.version}`)
+    process.exit(0)
+  }
+
+  // --init: 設定ファイルのテンプレートを生成
+  if (process.argv.includes('--init')) {
+    const outputPath = join(process.cwd(), '.voicevoxrc.json')
+    if (existsSync(outputPath)) {
+      console.error('.voicevoxrc.json already exists. Remove it first or edit it directly.')
+      process.exit(1)
+    }
+    const template = getConfigTemplate()
+    writeFileSync(outputPath, `${JSON.stringify(template, null, 2)}\n`)
+    console.log('Created .voicevoxrc.json with default settings.')
+    console.log('Edit the file to customize your configuration.')
     process.exit(0)
   }
 

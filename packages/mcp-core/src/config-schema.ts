@@ -226,6 +226,7 @@ export function generateHelp(
   lines.push('Options:')
   lines.push('  --help, -h                  Show this help message')
   lines.push('  --version, -v               Show version number')
+  lines.push('  --init                      Generate .voicevoxrc.json with default settings')
   lines.push('')
 
   // グループごとに整理
@@ -278,6 +279,39 @@ export function generateHelp(
  */
 export function validateConfig<T>(schema: z.ZodType<T>, config: Record<string, unknown>): T {
   return schema.parse(config)
+}
+
+/**
+ * 設定定義から設定ファイルのテンプレートJSONを生成する
+ *
+ * CLIフラグ名（-- なし）をキーとして、デフォルト値と説明コメントを含む。
+ * 内部用のオプション（configFile等）は除外する。
+ */
+export function generateConfigTemplate(
+  defs: ConfigDefs,
+  opts?: { exclude?: string[] },
+): Record<string, unknown> {
+  const template: Record<string, unknown> = {}
+  const excludeSet = new Set(opts?.exclude ?? [])
+
+  for (const [key, def] of Object.entries(defs)) {
+    if (excludeSet.has(key)) continue
+
+    const cliName = def.cli.replace(/^--/, '')
+    if (def.default !== undefined) {
+      template[cliName] = def.default
+    } else if (def.type === 'boolean') {
+      template[cliName] = false
+    } else if (def.type === 'number') {
+      template[cliName] = 0
+    } else if (def.type === 'string') {
+      template[cliName] = ''
+    } else if (def.type === 'string[]') {
+      template[cliName] = []
+    }
+  }
+
+  return template
 }
 
 /**

@@ -49,7 +49,7 @@ Both packages use `"type": "module"` with `module: NodeNext` in tsconfig. Key co
 ### MCP Server (`src/`)
 
 - **`index.ts`** - Entry point with runtime detection (Node.js/Bun), CLI arg parsing, auto-starts stdio or HTTP server. Reads `package.json` via `readFileSync` (no `require` for JSON).
-- **`config.ts`** - Unified config: CLI args > env vars > defaults. All VOICEVOX and server settings.
+- **`config.ts`** - Unified config: CLI args > env vars > config file (`.voicevoxrc.json`) > defaults. All VOICEVOX and server settings defined declaratively via `allConfigDefs` (schema-driven). To add a new config option, add it to `voicevoxConfigDefs` — CLI parsing, env parsing, help text, and config file support are all auto-generated.
 - **`server.ts`** - MCP tool registration via `server.registerTool()`. Tools: `ping_voicevox`, `speak`, `generate_query`, `synthesize_file`, `stop_speaker`, `get_speakers`. Uses `registerToolIfEnabled()` for conditional registration. Dynamic schema via `buildSpeakInputSchema()`.
 - **`http.ts`** - Hono app with CORS, Origin/Host validation (MCP 2025-11-25 spec), session management via `WebStandardStreamableHTTPServerTransport`.
 - **`stdio.ts`** - Minimal stdio transport wrapper.
@@ -82,4 +82,5 @@ Tests use **Vitest**. All API calls are mocked — no VOICEVOX engine needed.
 
 - **PlaybackService lazy init**: Constructor starts async strategy creation. `isStreamingEnabled()` returns `false` until resolved. By the time `play()` is called, the promise is resolved.
 - **Top-level await in file-manager.ts**: Node.js modules are loaded at module evaluation time, not inside an IIFE. This is safe because the package is ESM-only.
-- **Config priority**: CLI args (`--speaker 3`) override env vars (`VOICEVOX_DEFAULT_SPEAKER=1`) override hardcoded defaults.
+- **Config priority**: CLI args (`--speaker 3`) override env vars (`VOICEVOX_DEFAULT_SPEAKER=1`) override config file (`.voicevoxrc.json`) override hardcoded defaults.
+- **Declarative config schema**: Config options in `config.ts` are defined as `ConfigDefs` objects with CLI flag, env var, type, default, and description metadata. The `config-schema.ts` helper in `mcp-core` auto-generates CLI parser, env parser, config file parser, and help text from these definitions. Adding a new option requires editing only the definition object.

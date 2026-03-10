@@ -17,6 +17,7 @@ export {
   parseConfigFileFromDefs,
   getDefaultsFromDefs,
   generateHelp,
+  generateConfigTemplate,
   validateConfig,
 } from './config-schema.js'
 

@@ -11,6 +11,7 @@ import {
   type ConfigDefs,
   baseConfigDefs,
   filterUndefined,
+  generateConfigTemplate,
   generateHelp,
   getDefaultsFromDefs,
   parseCliFromDefs,
@@ -335,8 +336,16 @@ export function getHelpText(): string {
       'npx @kajidog/mcp-tts-voicevox --http --port 8080',
       'npx @kajidog/mcp-tts-voicevox --disable-tools synthesize_file',
       'npx @kajidog/mcp-tts-voicevox --config ./my-config.json',
+      'npx @kajidog/mcp-tts-voicevox --init',
     ],
   })
+}
+
+/**
+ * 設定ファイルのテンプレートJSONを生成する
+ */
+export function getConfigTemplate(): Record<string, unknown> {
+  return generateConfigTemplate(allConfigDefs, { exclude: ['configFile'] })
 }
 
 // シングルトンとしてエクスポート（キャッシュ）
