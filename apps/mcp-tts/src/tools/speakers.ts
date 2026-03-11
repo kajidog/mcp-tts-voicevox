@@ -13,7 +13,7 @@ export function registerSpeakerTools(deps: ToolDeps) {
     'ping',
     {
       title: 'Ping VOICEVOX',
-      description: 'Check if VOICEVOX Engine is running and reachable',
+      description: 'Check if the TTS engine is running and reachable.',
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -43,7 +43,7 @@ export function registerSpeakerTools(deps: ToolDeps) {
     'stop_speaker',
     {
       title: 'Stop Speaker',
-      description: 'Stop current audio playback',
+      description: 'Stop current audio playback and clear the speech queue.',
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -69,7 +69,7 @@ export function registerSpeakerTools(deps: ToolDeps) {
     {
       title: 'Get Speakers',
       description:
-        'Get a list of available speakers. The returned "speaker" field is the exact ID to pass to speak.speaker',
+        'List available voice speakers and their IDs. Pass a returned ID as the speaker param to speak or synthesize_file.',
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,

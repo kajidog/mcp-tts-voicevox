@@ -13,7 +13,7 @@ export function registerSynthesizeTool(deps: ToolDeps) {
     'synthesize_file',
     {
       title: 'Synthesize File',
-      description: 'Generate an audio file and return its absolute path',
+      description: 'Synthesize speech to a WAV file and return its absolute path. Does not play audio.',
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -21,10 +21,10 @@ export function registerSynthesizeTool(deps: ToolDeps) {
         openWorldHint: true,
       },
       inputSchema: {
-        text: z.string().describe('Text for voice synthesis'),
-        output: z.string().describe('Output path for the audio file'),
-        speaker: z.number().optional().describe('Default speaker ID (optional)'),
-        speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
+        text: z.string().describe('Text to synthesize.'),
+        output: z.string().describe('Absolute file path for the output WAV.'),
+        speaker: z.number().optional().describe('Speaker ID. Use get_speakers to list available IDs.'),
+        speedScale: z.number().optional().describe('Playback speed multiplier (default: server config).'),
       },
     },
     async (

@@ -14,7 +14,7 @@ export function registerOpenDictionaryUITool(deps: ToolDeps, runtime: PlayerRunt
     'open_dictionary_ui',
     {
       title: 'Open Dictionary UI',
-      description: 'Open the user dictionary manager UI for VOICEVOX.',
+      description: 'Open the pronunciation dictionary editor UI.',
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,

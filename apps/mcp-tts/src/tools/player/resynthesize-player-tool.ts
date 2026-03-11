@@ -18,7 +18,8 @@ export function registerResynthesizePlayerTool(deps: ToolDeps, runtime: PlayerRu
     'resynthesize_player',
     {
       title: 'Resynthesize Player',
-      description: 'Update a single player track. Returns new viewUUID. See get_player_state for notation details.',
+      description:
+        'Update a single track in the player UI. Requires viewUUID from speak_player or a previous resynthesize call. Returns a new viewUUID.',
       inputSchema: {
         viewUUID: z.string().describe('Latest viewUUID'),
         trackIndex: z.number().int().min(0).describe('Segment index to update'),

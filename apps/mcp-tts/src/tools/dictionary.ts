@@ -16,10 +16,10 @@ export function registerDictionaryTools(deps: ToolDeps) {
     {
       title: 'Get Accent Phrases',
       description:
-        'Get accent phrases (reading and accent positions) from text. Returns inline notation like "コン[ニ]チワ,セ[カ]イ" where brackets indicate accent position.',
+        'Analyze text and return its reading with accent positions in inline notation (e.g. "コン[ニ]チワ,セ[カ]イ"). Use to preview or prepare phrases for speak.',
       inputSchema: {
         text: z.string().describe('Text to analyze'),
-        speaker: z.number().optional().describe('Speaker ID (optional, affects pronunciation)'),
+        speaker: z.number().optional().describe('Speaker ID (affects pronunciation estimation).'),
       },
       annotations: {
         readOnlyHint: true,
@@ -52,8 +52,7 @@ export function registerDictionaryTools(deps: ToolDeps) {
     'get_user_dictionary',
     {
       title: 'Get User Dictionary',
-      description:
-        'Get words in the VOICEVOX user dictionary. Supports filtering by query and pagination. Pronunciation uses inline accent notation (e.g. "ボイス[ボッ]クス").',
+      description: 'List words in the user pronunciation dictionary. Supports filtering and pagination.',
       inputSchema: {
         query: z.string().optional().describe('Filter by surface or pronunciation (partial match, case-insensitive)'),
         offset: z.number().int().min(0).optional().describe('Pagination offset (default: 0)'),
@@ -111,13 +110,12 @@ export function registerDictionaryTools(deps: ToolDeps) {
     'add_user_dictionary_word',
     {
       title: 'Add User Dictionary Word',
-      description:
-        'Add a word to the VOICEVOX user dictionary. Pronunciation supports inline accent notation (e.g. "ボイス[ボッ]クス"). If brackets are omitted, accent is auto-estimated.',
+      description: 'Add a word to the pronunciation dictionary. Affects future speech synthesis.',
       inputSchema: {
-        surface: z.string().describe('Word surface form (the text to match)'),
+        surface: z.string().describe('Word surface form (text that triggers this dictionary entry).'),
         pronunciation: z
           .string()
-          .describe('Katakana reading with optional inline accent notation (e.g. "ボイス[ボッ]クス")'),
+          .describe('Katakana reading. Optional accent brackets: "ボイス[ボッ]クス". Omit brackets for auto accent.'),
         priority: z.number().int().min(0).max(10).optional().describe('Priority 0-10 (default: 5)'),
       },
       annotations: {
@@ -160,8 +158,7 @@ export function registerDictionaryTools(deps: ToolDeps) {
     'update_user_dictionary_word',
     {
       title: 'Update User Dictionary Word',
-      description:
-        'Update a word in the VOICEVOX user dictionary. surface and pronunciation are optional — omitted fields keep their existing values. Pronunciation supports inline accent notation.',
+      description: 'Update a word in the pronunciation dictionary. Omitted fields keep existing values.',
       inputSchema: {
         wordUuid: z.string().describe('Dictionary word UUID'),
         surface: z.string().optional().describe('Word surface form (omit to keep existing)'),
@@ -210,7 +207,7 @@ export function registerDictionaryTools(deps: ToolDeps) {
     'delete_user_dictionary_word',
     {
       title: 'Delete User Dictionary Word',
-      description: 'Delete a word from the VOICEVOX user dictionary.',
+      description: 'Delete a word from the pronunciation dictionary.',
       inputSchema: {
         wordUuid: z.string().describe('Dictionary word UUID'),
       },
@@ -244,8 +241,7 @@ export function registerDictionaryTools(deps: ToolDeps) {
     'add_user_dictionary_words',
     {
       title: 'Bulk Add User Dictionary Words',
-      description:
-        'Add multiple words to the VOICEVOX user dictionary at once. Pronunciation supports inline accent notation.',
+      description: 'Add multiple words to the pronunciation dictionary in one call.',
       inputSchema: {
         words: z
           .array(
@@ -297,7 +293,7 @@ export function registerDictionaryTools(deps: ToolDeps) {
     {
       title: 'Bulk Update User Dictionary Words',
       description:
-        'Update multiple words in the VOICEVOX user dictionary at once. surface and pronunciation are optional per word — omitted fields keep existing values.',
+        'Update multiple words in the pronunciation dictionary in one call. Omitted fields keep existing values.',
       inputSchema: {
         words: z
           .array(

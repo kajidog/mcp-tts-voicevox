@@ -17,13 +17,11 @@ export function registerSpeakPlayerTool(deps: ToolDeps, runtime: PlayerRuntime):
     {
       title: 'Speak Player',
       description:
-        'Create a VOICEVOX player session and display the UI. Returns viewUUID — save it and pass to resynthesize_player / get_player_state for subsequent operations. Multi-speaker format: "1:Hello\\n2:World". Audio synthesis is performed by the player UI when needed.',
+        'Open an interactive player UI for text-to-speech. Returns a viewUUID required by resynthesize_player and get_player_state. Audio is synthesized and played within the UI.',
       inputSchema: {
-        text: z
-          .string()
-          .describe('Text to synthesize. Multi-speaker format: "1:Hello\\n2:World" (speaker ID prefix per line).'),
-        speaker: z.number().optional().describe('Default speaker ID (optional)'),
-        speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
+        text: z.string().describe('Text to speak. Per-line speaker prefix: "1:Hello\\n2:World".'),
+        speaker: z.number().optional().describe('Default speaker ID.'),
+        speedScale: z.number().optional().describe('Playback speed multiplier.'),
       },
       annotations: {
         readOnlyHint: false,

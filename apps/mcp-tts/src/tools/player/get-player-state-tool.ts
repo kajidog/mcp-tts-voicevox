@@ -15,9 +15,9 @@ export function registerGetPlayerStateTool(deps: ToolDeps, runtime: PlayerRuntim
     disabledTools,
     'get_player_state',
     {
-      title: 'Get VOICEVOX Player State',
+      title: 'Get Player State',
       description:
-        'Returns paged player state with editable segments. Use latest viewUUID. If hasMore is true, call again with nextCursor.',
+        'Read the current player session state. Returns paged segments with accent notation. Pass the latest viewUUID; paginate with nextCursor when hasMore is true.',
       inputSchema: {
         viewUUID: z
           .string()

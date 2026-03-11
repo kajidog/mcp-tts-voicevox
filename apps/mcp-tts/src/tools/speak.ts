@@ -23,16 +23,14 @@ export function buildSpeakInputSchema(restrictions: {
     text: z
       .string()
       .describe(
-        'Text split by line breaks (\\n). IMPORTANT: Each line = one speech unit (processed and played separately). Keep the FIRST LINE SHORT for quick playback start - audio begins as soon as the first line is synthesized. Example: "Hi!\\nThis is a longer explanation that follows." Optional speaker prefix per line: "1:Hello\\n2:World"'
+        'Text to speak. Lines (\\n) are queued separately -- keep the first line short for faster playback start. Per-line speaker prefix: "1:Hello\\n2:World".'
       ),
     phrases: z
       .string()
       .optional()
-      .describe(
-        'Inline accent notation (e.g. "コン[ニ]チワ,セ[カ]イ"). Brackets mark accent position. Takes priority over query and text.'
-      ),
-    speaker: z.number().optional().describe('Default speaker ID (optional)'),
-    speedScale: z.number().optional().describe('Playback speed (optional, default from environment)'),
+      .describe('Accent notation (e.g. "コン[ニ]チワ,セ[カ]イ"). Brackets mark accent nucleus. Overrides text.'),
+    speaker: z.number().optional().describe('Speaker ID. Use get_speakers to list available IDs.'),
+    speedScale: z.number().optional().describe('Playback speed multiplier (default: server config).'),
   }
 
   // 制限されていない場合のみスキーマに追加
@@ -40,17 +38,15 @@ export function buildSpeakInputSchema(restrictions: {
     schema.immediate = z
       .boolean()
       .optional()
-      .describe(
-        'If true, stops current playback and plays new audio immediately. If false, waits for current playback to finish. Default depends on environment variable.'
-      )
+      .describe('If true, interrupt current playback. If false, queue after current audio.')
   }
 
   if (!restrictions.waitForStart) {
-    schema.waitForStart = z.boolean().optional().describe('Wait for playback to start (optional, default: false)')
+    schema.waitForStart = z.boolean().optional().describe('Block until audio playback begins.')
   }
 
   if (!restrictions.waitForEnd) {
-    schema.waitForEnd = z.boolean().optional().describe('Wait for playback to end (optional, default: false)')
+    schema.waitForEnd = z.boolean().optional().describe('Block until audio playback finishes.')
   }
 
   return schema
@@ -66,7 +62,7 @@ export function registerSpeakTool(deps: ToolDeps) {
     {
       title: 'Speak',
       description:
-        'Convert text to speech and play it. Text is split by line breaks (\\n) into separate speech units. Each line is processed as an independent audio segment.',
+        'Play text as speech through the system audio output. Each line is queued and played as a separate audio segment.',
       inputSchema: buildSpeakInputSchema(restrictions),
       annotations: {
         readOnlyHint: false,
