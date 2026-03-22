@@ -112,6 +112,16 @@ const voicevoxConfigDefs: ConfigDefs = {
     default: [],
     valueName: '<tools>',
   },
+  disabledGroups: {
+    cli: '--disable-groups',
+    env: 'VOICEVOX_DISABLED_GROUPS',
+    description:
+      'Comma-separated list of tool groups to disable. Built-in groups: player (speak_player, resynthesize_player, get_player_state), dictionary (get_accent_phrases, get_user_dictionary), file (synthesize_file), apps (speak_player, resynthesize_player)',
+    group: 'Tool Options',
+    type: 'string[]',
+    default: [],
+    valueName: '<groups>',
+  },
   autoPlay: {
     cli: '--auto-play',
     env: 'VOICEVOX_AUTO_PLAY',
@@ -234,6 +244,7 @@ export interface ServerConfig extends BaseServerConfig {
 
   // 無効化ツール
   disabledTools: string[]
+  disabledGroups: string[]
 }
 
 // パスのデフォルト値（process.cwd()依存のため関数で生成）

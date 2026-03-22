@@ -17,7 +17,7 @@ export function registerSpeakPlayerTool(deps: ToolDeps, runtime: PlayerRuntime):
     {
       title: 'Speak Player',
       description:
-        'Create a VOICEVOX player session and display the UI. Returns viewUUID — save it and pass to resynthesize_player / get_player_state for subsequent operations. Multi-speaker format: "1:Hello\\n2:World". Audio synthesis is performed by the player UI when needed.',
+        'Use when you need a player UI (display, edit, or replay audio). Creates a VOICEVOX player session, returns viewUUID. Multi-speaker format: "1:Hello\\n2:World". For simple playback without UI, use voicevox_speak instead.',
       inputSchema: {
         text: z
           .string()
@@ -92,7 +92,7 @@ export function registerSpeakPlayerTool(deps: ToolDeps, runtime: PlayerRuntime):
           content: [
             {
               type: 'text',
-              text: `Voicevox Player started. viewUUID: ${viewUUID} 「${textPreview}」`,
+              text: `Voicevox Player started. viewUUID: ${viewUUID} 「${textPreview}」\nNext: voicevox_resynthesize_player (edit a track) | voicevox_get_player_state (inspect state)`,
             },
           ],
           structuredContent: {

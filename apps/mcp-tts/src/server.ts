@@ -1,6 +1,7 @@
 import { VoicevoxClient } from '@kajidog/voicevox-client'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { getConfig } from './config.js'
+import { expandGroups } from './tool-groups.js'
 import { registerDictionaryTools } from './tools/dictionary.js'
 import { registerPlayerTools } from './tools/player.js'
 import { registerSpeakTool } from './tools/speak.js'
@@ -35,7 +36,7 @@ export function createServer(): McpServer {
     server,
     voicevoxClient,
     config,
-    disabledTools: new Set(config.disabledTools),
+    disabledTools: new Set([...config.disabledTools, ...expandGroups(config.disabledGroups ?? [])]),
     restrictions: {
       immediate: config.restrictImmediate,
       waitForStart: config.restrictWaitForStart,
