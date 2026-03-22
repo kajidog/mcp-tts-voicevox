@@ -346,6 +346,7 @@ export function getHelpText(): string {
       'npx @kajidog/mcp-tts-voicevox --url http://192.168.1.50:50021 --speaker 3',
       'npx @kajidog/mcp-tts-voicevox --http --port 8080',
       'npx @kajidog/mcp-tts-voicevox --disable-tools synthesize_file',
+      'npx @kajidog/mcp-tts-voicevox --disable-groups player,dictionary',
       'npx @kajidog/mcp-tts-voicevox --config ./my-config.json',
       'npx @kajidog/mcp-tts-voicevox --init',
     ],

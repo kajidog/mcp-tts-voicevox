@@ -259,9 +259,25 @@ Restrict AI from specifying certain options.
 ### Disable Tools
 
 ```bash
-# Disable unnecessary tools
+# Disable individual tools
 export VOICEVOX_DISABLED_TOOLS=speak_player,synthesize_file
+
+# Disable a built-in group of tools
+export VOICEVOX_DISABLED_GROUPS=player
+
+# Combine groups and individual tools
+export VOICEVOX_DISABLED_GROUPS=dictionary
+export VOICEVOX_DISABLED_TOOLS=synthesize_file
 ```
+
+Built-in groups for `VOICEVOX_DISABLED_GROUPS` / `--disable-groups`:
+
+| Group | Tools |
+|-------|-------|
+| `player` | `speak_player`, `resynthesize_player`, `get_player_state` |
+| `dictionary` | `get_accent_phrases`, `get_user_dictionary` |
+| `file` | `synthesize_file` |
+| `apps` | `speak_player`, `resynthesize_player` (MCP App UI tools) |
 
 ### UI Player Settings
 
@@ -305,8 +321,11 @@ npx @kajidog/mcp-tts-voicevox --http --port 8080
 # With restrictions
 npx @kajidog/mcp-tts-voicevox --restrict-immediate --restrict-wait-for-end
 
-# Disable tools
+# Disable individual tools
 npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
+
+# Disable a tool group
+npx @kajidog/mcp-tts-voicevox --disable-groups player
 ```
 
 | Argument | Description |
@@ -325,7 +344,8 @@ npx @kajidog/mcp-tts-voicevox --disable-tools speak_player,synthesize_file
 | `--restrict-immediate` | Restrict immediate |
 | `--restrict-wait-for-start` | Restrict waitForStart |
 | `--restrict-wait-for-end` | Restrict waitForEnd |
-| `--disable-tools <tools>` | Disable tools |
+| `--disable-tools <tools>` | Disable tools (comma-separated tool names) |
+| `--disable-groups <groups>` | Disable tool groups: `player`, `dictionary`, `file`, `apps` |
 | `--auto-play` / `--no-auto-play` | Auto-play in UI player |
 | `--player-export` / `--no-player-export` | Enable/disable track export(download) in UI player |
 | `--player-export-dir <dir>` | Default output directory for exported tracks |
@@ -379,7 +399,8 @@ VOICEVOX_CONFIG=./my-config.json npx @kajidog/mcp-tts-voicevox
   "speed": 1.2,
   "http": true,
   "port": 8080,
-  "disable-tools": ["synthesize_file"]
+  "disable-tools": ["synthesize_file"],
+  "disable-groups": ["dictionary"]
 }
 ```
 
