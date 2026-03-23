@@ -66,7 +66,7 @@ export function registerSpeakTool(deps: ToolDeps) {
     {
       title: 'Speak',
       description:
-        'Convert text to speech and play it. Text is split by line breaks (\\n) into separate speech units. Each line is processed as an independent audio segment.',
+        'Play text as speech immediately. Use this for simple TTS — no UI, no editing. If you need a player UI or want to edit/replay segments, use voicevox_speak_player instead.',
       inputSchema: buildSpeakInputSchema(restrictions),
       annotations: {
         readOnlyHint: false,

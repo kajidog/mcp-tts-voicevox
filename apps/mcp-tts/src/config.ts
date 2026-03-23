@@ -112,6 +112,16 @@ const voicevoxConfigDefs: ConfigDefs = {
     default: [],
     valueName: '<tools>',
   },
+  disabledGroups: {
+    cli: '--disable-groups',
+    env: 'VOICEVOX_DISABLED_GROUPS',
+    description:
+      'Comma-separated list of tool groups to disable. Built-in groups: player (all player UI tools), dictionary (all dictionary read+write tools), file (synthesize_file), apps (MCP App UI tools)',
+    group: 'Tool Options',
+    type: 'string[]',
+    default: [],
+    valueName: '<groups>',
+  },
   autoPlay: {
     cli: '--auto-play',
     env: 'VOICEVOX_AUTO_PLAY',
@@ -234,6 +244,7 @@ export interface ServerConfig extends BaseServerConfig {
 
   // 無効化ツール
   disabledTools: string[]
+  disabledGroups: string[]
 }
 
 // パスのデフォルト値（process.cwd()依存のため関数で生成）
@@ -335,6 +346,7 @@ export function getHelpText(): string {
       'npx @kajidog/mcp-tts-voicevox --url http://192.168.1.50:50021 --speaker 3',
       'npx @kajidog/mcp-tts-voicevox --http --port 8080',
       'npx @kajidog/mcp-tts-voicevox --disable-tools synthesize_file',
+      'npx @kajidog/mcp-tts-voicevox --disable-groups player,dictionary',
       'npx @kajidog/mcp-tts-voicevox --config ./my-config.json',
       'npx @kajidog/mcp-tts-voicevox --init',
     ],

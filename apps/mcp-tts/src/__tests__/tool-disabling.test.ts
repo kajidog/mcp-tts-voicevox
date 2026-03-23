@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getConfig, resetConfigCache } from '../config'
+import { TOOL_GROUPS, expandGroups } from '../tool-groups'
 
 describe('tool disabling', () => {
   const originalEnv = process.env
@@ -66,6 +67,107 @@ describe('tool disabling', () => {
       for (const toolName of validToolNames) {
         expect(config.disabledTools).toContain(toolName)
       }
+    })
+  })
+})
+
+describe('tool groups (--disable-groups)', () => {
+  const originalEnv = process.env
+
+  beforeEach(() => {
+    vi.resetModules()
+    resetConfigCache()
+    process.env = { ...originalEnv }
+  })
+
+  afterEach(() => {
+    process.env = originalEnv
+    resetConfigCache()
+  })
+
+  describe('expandGroups', () => {
+    it('player グループを展開する', () => {
+      const tools = expandGroups(['player'])
+      expect(tools).toEqual(TOOL_GROUPS.player)
+      expect(tools).toContain('speak_player')
+      expect(tools).toContain('resynthesize_player')
+      expect(tools).toContain('get_player_state')
+      expect(tools).toContain('open_dictionary_ui')
+    })
+
+    it('dictionary グループを展開する', () => {
+      const tools = expandGroups(['dictionary'])
+      expect(tools).toEqual(TOOL_GROUPS.dictionary)
+      expect(tools).toContain('get_accent_phrases')
+      expect(tools).toContain('get_user_dictionary')
+      expect(tools).toContain('add_user_dictionary_word')
+      expect(tools).toContain('update_user_dictionary_word')
+      expect(tools).toContain('delete_user_dictionary_word')
+      expect(tools).toContain('add_user_dictionary_words')
+      expect(tools).toContain('update_user_dictionary_words')
+    })
+
+    it('file グループを展開する', () => {
+      const tools = expandGroups(['file'])
+      expect(tools).toEqual(TOOL_GROUPS.file)
+      expect(tools).toContain('synthesize_file')
+    })
+
+    it('apps グループを展開する', () => {
+      const tools = expandGroups(['apps'])
+      expect(tools).toEqual(TOOL_GROUPS.apps)
+      expect(tools).toContain('speak_player')
+      expect(tools).toContain('resynthesize_player')
+      expect(tools).toContain('open_dictionary_ui')
+    })
+
+    it('複数グループを展開する', () => {
+      const tools = expandGroups(['player', 'dictionary'])
+      expect(tools).toContain('speak_player')
+      expect(tools).toContain('get_accent_phrases')
+    })
+
+    it('空配列を渡すと空配列を返す', () => {
+      const tools = expandGroups([])
+      expect(tools).toEqual([])
+    })
+
+    it('不明なグループ名はスキップしてエラーを出す', () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const tools = expandGroups(['nonexistent'])
+      expect(tools).toEqual([])
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('nonexistent'))
+      consoleSpy.mockRestore()
+    })
+  })
+
+  describe('getConfig with disabled groups', () => {
+    it('VOICEVOX_DISABLED_GROUPS で player グループを無効化できる', () => {
+      process.env.VOICEVOX_DISABLED_GROUPS = 'player'
+
+      const config = getConfig([], process.env)
+
+      expect(config.disabledGroups).toEqual(['player'])
+    })
+
+    it('CLI引数 --disable-groups が環境変数を上書きする', () => {
+      process.env.VOICEVOX_DISABLED_GROUPS = 'dictionary'
+
+      const config = getConfig(['--disable-groups', 'player'], process.env)
+
+      expect(config.disabledGroups).toEqual(['player'])
+    })
+
+    it('--disable-groups で複数グループを指定できる', () => {
+      const config = getConfig(['--disable-groups', 'player,dictionary'], {})
+
+      expect(config.disabledGroups).toEqual(['player', 'dictionary'])
+    })
+
+    it('デフォルトは空配列', () => {
+      const config = getConfig([], {})
+
+      expect(config.disabledGroups).toEqual([])
     })
   })
 })
