@@ -92,6 +92,7 @@ describe('tool groups (--disable-groups)', () => {
       expect(tools).toContain('speak_player')
       expect(tools).toContain('resynthesize_player')
       expect(tools).toContain('get_player_state')
+      expect(tools).toContain('open_dictionary_ui')
     })
 
     it('dictionary グループを展開する', () => {
@@ -99,6 +100,11 @@ describe('tool groups (--disable-groups)', () => {
       expect(tools).toEqual(TOOL_GROUPS.dictionary)
       expect(tools).toContain('get_accent_phrases')
       expect(tools).toContain('get_user_dictionary')
+      expect(tools).toContain('add_user_dictionary_word')
+      expect(tools).toContain('update_user_dictionary_word')
+      expect(tools).toContain('delete_user_dictionary_word')
+      expect(tools).toContain('add_user_dictionary_words')
+      expect(tools).toContain('update_user_dictionary_words')
     })
 
     it('file グループを展開する', () => {
@@ -112,6 +118,7 @@ describe('tool groups (--disable-groups)', () => {
       expect(tools).toEqual(TOOL_GROUPS.apps)
       expect(tools).toContain('speak_player')
       expect(tools).toContain('resynthesize_player')
+      expect(tools).toContain('open_dictionary_ui')
     })
 
     it('複数グループを展開する', () => {

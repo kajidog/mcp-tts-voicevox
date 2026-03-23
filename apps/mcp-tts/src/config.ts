@@ -116,7 +116,7 @@ const voicevoxConfigDefs: ConfigDefs = {
     cli: '--disable-groups',
     env: 'VOICEVOX_DISABLED_GROUPS',
     description:
-      'Comma-separated list of tool groups to disable. Built-in groups: player (speak_player, resynthesize_player, get_player_state), dictionary (get_accent_phrases, get_user_dictionary), file (synthesize_file), apps (speak_player, resynthesize_player)',
+      'Comma-separated list of tool groups to disable. Built-in groups: player (all player UI tools), dictionary (all dictionary read+write tools), file (synthesize_file), apps (MCP App UI tools)',
     group: 'Tool Options',
     type: 'string[]',
     default: [],

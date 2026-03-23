@@ -274,10 +274,10 @@ Built-in groups for `VOICEVOX_DISABLED_GROUPS` / `--disable-groups`:
 
 | Group | Tools |
 |-------|-------|
-| `player` | `speak_player`, `resynthesize_player`, `get_player_state` |
-| `dictionary` | `get_accent_phrases`, `get_user_dictionary` |
+| `player` | `speak_player`, `resynthesize_player`, `get_player_state`, `open_dictionary_ui` |
+| `dictionary` | `get_accent_phrases`, `get_user_dictionary`, `add_user_dictionary_word`, `update_user_dictionary_word`, `delete_user_dictionary_word`, `add_user_dictionary_words`, `update_user_dictionary_words` |
 | `file` | `synthesize_file` |
-| `apps` | `speak_player`, `resynthesize_player` (MCP App UI tools) |
+| `apps` | `speak_player`, `resynthesize_player`, `open_dictionary_ui` (MCP App UI tools) |
 
 ### UI Player Settings
 

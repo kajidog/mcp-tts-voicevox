@@ -5,14 +5,22 @@
  * Tool names are unprefixed (the voicevox_ prefix is handled by registration).
  */
 export const TOOL_GROUPS: Record<string, string[]> = {
-  /** Player UI tools (speak_player, resynthesize_player, get_player_state) */
-  player: ['speak_player', 'resynthesize_player', 'get_player_state'],
-  /** Dictionary / accent tools */
-  dictionary: ['get_accent_phrases', 'get_user_dictionary'],
+  /** All player UI tools */
+  player: ['speak_player', 'resynthesize_player', 'get_player_state', 'open_dictionary_ui'],
+  /** All dictionary tools (read + write) */
+  dictionary: [
+    'get_accent_phrases',
+    'get_user_dictionary',
+    'add_user_dictionary_word',
+    'update_user_dictionary_word',
+    'delete_user_dictionary_word',
+    'add_user_dictionary_words',
+    'update_user_dictionary_words',
+  ],
   /** Audio file synthesis tool */
   file: ['synthesize_file'],
   /** MCP App tools (tools registered as UI apps, i.e. with registerAppTool) */
-  apps: ['speak_player', 'resynthesize_player'],
+  apps: ['speak_player', 'resynthesize_player', 'open_dictionary_ui'],
 }
 
 /**
