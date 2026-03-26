@@ -197,6 +197,33 @@ const voicevoxConfigDefs: ConfigDefs = {
     default: '',
     valueName: '<domain>',
   },
+  apiTimeout: {
+    cli: '--api-timeout',
+    env: 'VOICEVOX_API_TIMEOUT',
+    description: 'API request timeout in milliseconds',
+    group: 'Voicevox Configuration',
+    type: 'number',
+    default: 30000,
+    valueName: '<ms>',
+  },
+  apiRetryCount: {
+    cli: '--api-retry-count',
+    env: 'VOICEVOX_API_RETRY_COUNT',
+    description: 'Number of retries on transient API errors (timeout/network failure)',
+    group: 'Voicevox Configuration',
+    type: 'number',
+    default: 0,
+    valueName: '<count>',
+  },
+  apiRetryDelay: {
+    cli: '--api-retry-delay',
+    env: 'VOICEVOX_API_RETRY_DELAY',
+    description: 'Delay in milliseconds between API retries',
+    group: 'Voicevox Configuration',
+    type: 'number',
+    default: 1000,
+    valueName: '<ms>',
+  },
   configFile: {
     cli: '--config',
     env: 'VOICEVOX_CONFIG',
@@ -220,6 +247,9 @@ export interface ServerConfig extends BaseServerConfig {
   defaultSpeaker: number
   defaultSpeedScale: number
   useStreaming?: boolean
+  apiTimeout: number
+  apiRetryCount: number
+  apiRetryDelay: number
 
   // 再生オプションのデフォルト
   defaultImmediate: boolean

@@ -20,6 +20,12 @@ export interface VoicevoxConfig {
   maxSegmentLength?: number
   /** 先読みする音声の最大件数（READY + GENERATING の上限、デフォルト: 2） */
   prefetchSize?: number
+  /** APIリクエストのタイムアウト（ミリ秒、デフォルト: 30000） */
+  apiTimeout?: number
+  /** 一時的なAPIエラー（タイムアウト・ネットワーク障害）時のリトライ回数（デフォルト: 0） */
+  apiRetryCount?: number
+  /** リトライ間隔（ミリ秒、デフォルト: 1000） */
+  apiRetryDelay?: number
   /** デフォルトの再生オプション */
   defaultPlaybackOptions?: PlaybackOptions
   /**

@@ -3,9 +3,15 @@ import type { AccentPhrase, AudioQuery, Speaker, SpeakerInfo, UserDictionaryWord
 
 export class VoicevoxApi {
   private readonly baseUrl: string
+  private readonly timeout: number
+  private readonly retryCount: number
+  private readonly retryDelay: number
 
-  constructor(baseUrl: string) {
+  constructor(baseUrl: string, options?: { timeout?: number; retryCount?: number; retryDelay?: number }) {
     this.baseUrl = this.normalizeUrl(baseUrl)
+    this.timeout = options?.timeout ?? 30000
+    this.retryCount = options?.retryCount ?? 0
+    this.retryDelay = options?.retryDelay ?? 1000
   }
 
   /**
@@ -239,46 +245,67 @@ export class VoicevoxApi {
     headers: Record<string, string> = {},
     responseType: 'json' | 'arraybuffer' | 'text' = 'json'
   ): Promise<T> {
-    try {
-      const url = `${this.baseUrl}${endpoint}`
-      const init: RequestInit = {
-        method: method.toUpperCase(),
-        headers,
-        signal: AbortSignal.timeout(30000),
+    const url = `${this.baseUrl}${endpoint}`
+    let lastError: unknown
+
+    for (let attempt = 0; attempt <= this.retryCount; attempt++) {
+      if (attempt > 0) {
+        await new Promise((resolve) => setTimeout(resolve, this.retryDelay))
       }
 
-      if (data !== null) {
-        init.body = JSON.stringify(data)
-      }
+      try {
+        const init: RequestInit = {
+          method: method.toUpperCase(),
+          headers,
+          signal: AbortSignal.timeout(this.timeout),
+        }
 
-      const response = await fetch(url, init)
+        if (data !== null) {
+          init.body = JSON.stringify(data)
+        }
 
-      if (!response.ok) {
-        throw new VoicevoxError(
-          `APIリクエストに失敗しました: ${response.status}`,
-          VoicevoxErrorCode.API_CONNECTION_ERROR
-        )
-      }
+        const response = await fetch(url, init)
 
-      if (responseType === 'arraybuffer') {
-        return (await response.arrayBuffer()) as T
+        if (!response.ok) {
+          throw new VoicevoxError(
+            `APIリクエストに失敗しました: ${response.status}`,
+            VoicevoxErrorCode.API_CONNECTION_ERROR
+          )
+        }
+
+        if (responseType === 'arraybuffer') {
+          return (await response.arrayBuffer()) as T
+        }
+        if (responseType === 'text') {
+          return (await response.text()) as T
+        }
+        if (response.status === 204) {
+          return null as T
+        }
+        return (await response.json()) as T
+      } catch (error) {
+        if (error instanceof VoicevoxError) {
+          throw error
+        }
+        // タイムアウトまたはネットワーク障害のみリトライ対象
+        const isTransient =
+          (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError')) ||
+          error instanceof TypeError
+        if (!isTransient || attempt >= this.retryCount) {
+          throw new VoicevoxError(
+            `APIリクエストに失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+            VoicevoxErrorCode.API_CONNECTION_ERROR
+          )
+        }
+        lastError = error
       }
-      if (responseType === 'text') {
-        return (await response.text()) as T
-      }
-      if (response.status === 204) {
-        return null as T
-      }
-      return (await response.json()) as T
-    } catch (error) {
-      if (error instanceof VoicevoxError) {
-        throw error
-      }
-      throw new VoicevoxError(
-        `APIリクエストに失敗しました: ${error instanceof Error ? error.message : String(error)}`,
-        VoicevoxErrorCode.API_CONNECTION_ERROR
-      )
     }
+
+    // ここには到達しないが TypeScript のために
+    throw new VoicevoxError(
+      `APIリクエストに失敗しました: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
+      VoicevoxErrorCode.API_CONNECTION_ERROR
+    )
   }
 
   /**
