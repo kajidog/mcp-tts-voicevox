@@ -84,7 +84,11 @@ export class VoicevoxClient {
       this.defaultPlaybackOptions.waitForEnd = envOptions.waitForEnd
     }
 
-    this.api = new VoicevoxApi(config.url)
+    this.api = new VoicevoxApi(config.url, {
+      timeout: config.apiTimeout,
+      retryCount: config.apiRetryCount,
+      retryDelay: config.apiRetryDelay,
+    })
     this.queueService = new QueueService(this.api, {
       useStreaming: config.useStreaming,
       prefetchSize: config.prefetchSize,

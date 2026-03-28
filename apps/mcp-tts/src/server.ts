@@ -29,6 +29,9 @@ export function createServer(): McpServer {
     defaultSpeaker: config.defaultSpeaker,
     defaultSpeedScale: config.defaultSpeedScale,
     useStreaming: config.useStreaming,
+    apiTimeout: config.apiTimeout,
+    apiRetryCount: config.apiRetryCount,
+    apiRetryDelay: config.apiRetryDelay,
   })
 
   // 共通依存オブジェクト
