@@ -1,6 +1,6 @@
 import type { NormalizedDictionaryWord } from './accent-utils.js'
 import { VoicevoxApi } from './api.js'
-import type { VoiceApiClient } from './api.js'
+import type { ApiClientConfig, VoiceApiClient } from './api.js'
 import { handleError } from './error.js'
 import { QueueService } from './queue/queue-service.js'
 import { QueueEventType, QueueItemStatus } from './queue/types.js'
@@ -13,7 +13,7 @@ import { SpeechService } from './services/speech-service.js'
 import type { SpeechServiceSpeakOptions } from './services/speech-service.js'
 import type { AccentPhrase, AudioQuery, PlaybackOptions, SpeakResult, SpeechSegment, VoicevoxConfig } from './types.js'
 
-export type VoiceApiClientClass = new (config: unknown) => VoiceApiClient
+export type VoiceApiClientClass = new (config: ApiClientConfig) => VoiceApiClient
 
 /**
  * 話者オプション（統一API用）
@@ -60,6 +60,7 @@ export class VoicevoxClient {
   private readonly defaultPlaybackOptions: PlaybackOptions
   private readonly dictionaryService: DictionaryService
   private readonly speechService: SpeechService
+  private readonly configUrl: string
 
   constructor(
     config: VoicevoxConfig,
@@ -69,6 +70,7 @@ export class VoicevoxClient {
     } = {}
   ) {
     this.validateConfig(config)
+    this.configUrl = config.url
 
     const defaultSpeaker = config.defaultSpeaker ?? 1
     const defaultSpeedScale = config.defaultSpeedScale ?? 1.0
@@ -96,7 +98,7 @@ export class VoicevoxClient {
     if (options.apiClient) {
       this.api = options.apiClient
     } else if (options.apiClientClass) {
-      this.api = this.createApiClient(options.apiClientClass, {
+      this.api = new options.apiClientClass({
         url: config.url,
         defaultSpeaker,
         apiClientOptions: config.apiClientOptions,
@@ -104,7 +106,7 @@ export class VoicevoxClient {
     } else {
       this.api = new VoicevoxApi({
         url: config.url,
-        defaultHeaders: this.extractDefaultHeaders(config.apiClientOptions),
+        defaultHeaders: config.defaultHeaders,
       })
     }
     this.queueService = new QueueService(this.api, {
@@ -130,20 +132,6 @@ export class VoicevoxClient {
         console.error(`音声合成エラー: ${item.text} (${item.error?.message || '不明なエラー'})`)
       }
     })
-  }
-
-  private createApiClient(
-    ApiClientClass: VoiceApiClientClass,
-    config: { url: string; defaultSpeaker: number; apiClientOptions?: Record<string, unknown> }
-  ): VoiceApiClient {
-    return new ApiClientClass(config)
-  }
-
-  private extractDefaultHeaders(apiClientOptions?: Record<string, unknown>): Record<string, string> | undefined {
-    const value = apiClientOptions?.defaultHeaders
-    if (!value || typeof value !== 'object') return undefined
-    const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => typeof v === 'string')
-    return Object.fromEntries(entries) as Record<string, string>
   }
 
   public async speak(input: string | string[] | SpeechSegment[], options: SpeakOptions = {}): Promise<SpeakResult> {
@@ -246,15 +234,11 @@ export class VoicevoxClient {
   public async checkHealth(): Promise<{ connected: boolean; version?: string; url: string }> {
     if (!this.api.checkHealth) {
       return {
-        connected: true,
-        url: this.getUrlForHealth(),
+        connected: false,
+        url: this.configUrl,
       }
     }
     return this.api.checkHealth()
-  }
-
-  private getUrlForHealth(): string {
-    return 'custom-api-client'
   }
 
   public getQueueService(): QueueService {

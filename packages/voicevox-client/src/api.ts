@@ -33,6 +33,15 @@ export interface VoiceApiClient {
   deleteUserDictionaryWord?(wordUuid: string): Promise<void>
 }
 
+/**
+ * カスタムAPIクライアントのコンストラクタに渡される設定
+ */
+export interface ApiClientConfig {
+  url: string
+  defaultSpeaker: number
+  apiClientOptions?: Record<string, unknown>
+}
+
 export interface VoicevoxApiOptions {
   url: string
   timeoutMs?: number

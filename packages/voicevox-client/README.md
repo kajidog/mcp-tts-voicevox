@@ -42,10 +42,10 @@ const speakers = await client.getSpeakers();
 `VoicevoxClient` can accept a custom API client class at initialization.
 
 ```typescript
-import { VoicevoxClient, type VoiceApiClient, type AudioQuery } from '@kajidog/voicevox-client'
+import { VoicevoxClient, type VoiceApiClient, type ApiClientConfig, type AudioQuery } from '@kajidog/voicevox-client'
 
 class SakuraApiClient implements VoiceApiClient {
-  constructor(private readonly config: { url: string; defaultSpeaker: number; apiClientOptions?: Record<string, unknown> }) {}
+  constructor(private readonly config: ApiClientConfig) {}
 
   async generateQuery(text: string, _speaker?: number): Promise<AudioQuery> {
     // If provider has text -> wav only, return a lightweight pseudo query.
