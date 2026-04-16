@@ -1,11 +1,54 @@
 import { VoicevoxError, VoicevoxErrorCode, handleError } from './error.js'
 import type { AccentPhrase, AudioQuery, Speaker, SpeakerInfo, UserDictionaryWord } from './types.js'
 
-export class VoicevoxApi {
-  private readonly baseUrl: string
+/**
+ * 音声APIクライアントの抽象インターフェース
+ * 他サービス統合時はこのインターフェースを実装する
+ */
+export interface VoiceApiClient {
+  generateQuery(text: string, speaker?: number): Promise<AudioQuery>
+  synthesize(query: AudioQuery, speaker?: number): Promise<ArrayBuffer>
+  generateQueryFromPreset?(text: string, presetId: number, coreVersion?: string): Promise<AudioQuery>
+  getSpeakers?(): Promise<Speaker[]>
+  getSpeakerInfo?(uuid: string): Promise<SpeakerInfo>
+  checkHealth?(): Promise<{ connected: boolean; version?: string; url: string }>
+  getAccentPhrases?(text: string, speaker?: number): Promise<AccentPhrase[]>
+  updateMoraData?(accentPhrases: AccentPhrase[], speaker: number): Promise<AccentPhrase[]>
+  getUserDictionary?(): Promise<Record<string, UserDictionaryWord>>
+  addUserDictionaryWord?(input: {
+    surface: string
+    pronunciation: string
+    accentType: number
+    priority: number
+    wordType?: string
+  }): Promise<void>
+  updateUserDictionaryWord?(input: {
+    wordUuid: string
+    surface: string
+    pronunciation: string
+    accentType: number
+    priority: number
+    wordType?: string
+  }): Promise<void>
+  deleteUserDictionaryWord?(wordUuid: string): Promise<void>
+}
 
-  constructor(baseUrl: string) {
-    this.baseUrl = this.normalizeUrl(baseUrl)
+export interface VoicevoxApiOptions {
+  url: string
+  timeoutMs?: number
+  defaultHeaders?: Record<string, string>
+}
+
+export class VoicevoxApi implements VoiceApiClient {
+  private readonly baseUrl: string
+  private readonly timeoutMs: number
+  private readonly defaultHeaders: Record<string, string>
+
+  constructor(options: string | VoicevoxApiOptions) {
+    const normalized = typeof options === 'string' ? { url: options } : options
+    this.baseUrl = this.normalizeUrl(normalized.url)
+    this.timeoutMs = normalized.timeoutMs ?? 30000
+    this.defaultHeaders = normalized.defaultHeaders ?? {}
   }
 
   /**
@@ -243,8 +286,11 @@ export class VoicevoxApi {
       const url = `${this.baseUrl}${endpoint}`
       const init: RequestInit = {
         method: method.toUpperCase(),
-        headers,
-        signal: AbortSignal.timeout(30000),
+        headers: {
+          ...this.defaultHeaders,
+          ...headers,
+        },
+        signal: AbortSignal.timeout(this.timeoutMs),
       }
 
       if (data !== null) {

@@ -29,6 +29,8 @@ export interface VoicevoxConfig {
    * - undefined: 環境変数 VOICEVOX_STREAMING_PLAYBACK または自動判定
    */
   useStreaming?: boolean
+  /** APIクライアント初期化用の追加設定（APIキー等） */
+  apiClientOptions?: Record<string, unknown>
 }
 
 /**

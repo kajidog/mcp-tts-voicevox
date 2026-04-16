@@ -1,5 +1,6 @@
 import type { NormalizedDictionaryWord } from './accent-utils.js'
 import { VoicevoxApi } from './api.js'
+import type { VoiceApiClient } from './api.js'
 import { handleError } from './error.js'
 import { QueueService } from './queue/queue-service.js'
 import { QueueEventType, QueueItemStatus } from './queue/types.js'
@@ -11,6 +12,8 @@ import type {
 import { SpeechService } from './services/speech-service.js'
 import type { SpeechServiceSpeakOptions } from './services/speech-service.js'
 import type { AccentPhrase, AudioQuery, PlaybackOptions, SpeakResult, SpeechSegment, VoicevoxConfig } from './types.js'
+
+export type VoiceApiClientClass = new (config: unknown) => VoiceApiClient
 
 /**
  * 話者オプション（統一API用）
@@ -53,12 +56,18 @@ function getPlaybackOptionsFromEnv(): PlaybackOptions {
 
 export class VoicevoxClient {
   private readonly queueService: QueueService
-  private readonly api: VoicevoxApi
+  private readonly api: VoiceApiClient
   private readonly defaultPlaybackOptions: PlaybackOptions
   private readonly dictionaryService: DictionaryService
   private readonly speechService: SpeechService
 
-  constructor(config: VoicevoxConfig) {
+  constructor(
+    config: VoicevoxConfig,
+    options: {
+      apiClientClass?: VoiceApiClientClass
+      apiClient?: VoiceApiClient
+    } = {}
+  ) {
     this.validateConfig(config)
 
     const defaultSpeaker = config.defaultSpeaker ?? 1
@@ -84,7 +93,20 @@ export class VoicevoxClient {
       this.defaultPlaybackOptions.waitForEnd = envOptions.waitForEnd
     }
 
-    this.api = new VoicevoxApi(config.url)
+    if (options.apiClient) {
+      this.api = options.apiClient
+    } else if (options.apiClientClass) {
+      this.api = this.createApiClient(options.apiClientClass, {
+        url: config.url,
+        defaultSpeaker,
+        apiClientOptions: config.apiClientOptions,
+      })
+    } else {
+      this.api = new VoicevoxApi({
+        url: config.url,
+        defaultHeaders: this.extractDefaultHeaders(config.apiClientOptions),
+      })
+    }
     this.queueService = new QueueService(this.api, {
       useStreaming: config.useStreaming,
       prefetchSize: config.prefetchSize,
@@ -108,6 +130,20 @@ export class VoicevoxClient {
         console.error(`音声合成エラー: ${item.text} (${item.error?.message || '不明なエラー'})`)
       }
     })
+  }
+
+  private createApiClient(
+    ApiClientClass: VoiceApiClientClass,
+    config: { url: string; defaultSpeaker: number; apiClientOptions?: Record<string, unknown> }
+  ): VoiceApiClient {
+    return new ApiClientClass(config)
+  }
+
+  private extractDefaultHeaders(apiClientOptions?: Record<string, unknown>): Record<string, string> | undefined {
+    const value = apiClientOptions?.defaultHeaders
+    if (!value || typeof value !== 'object') return undefined
+    const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => typeof v === 'string')
+    return Object.fromEntries(entries) as Record<string, string>
   }
 
   public async speak(input: string | string[] | SpeechSegment[], options: SpeakOptions = {}): Promise<SpeakResult> {
@@ -187,6 +223,9 @@ export class VoicevoxClient {
 
   public async getSpeakers() {
     try {
+      if (!this.api.getSpeakers) {
+        throw new Error('このAPIクライアントはスピーカー一覧取得に対応していません')
+      }
       return await this.api.getSpeakers()
     } catch (error) {
       throw handleError('スピーカー一覧取得中にエラーが発生しました', error)
@@ -195,6 +234,9 @@ export class VoicevoxClient {
 
   public async getSpeakerInfo(uuid: string) {
     try {
+      if (!this.api.getSpeakerInfo) {
+        throw new Error('このAPIクライアントはスピーカー情報取得に対応していません')
+      }
       return await this.api.getSpeakerInfo(uuid)
     } catch (error) {
       throw handleError('スピーカー情報取得中にエラーが発生しました', error)
@@ -202,7 +244,17 @@ export class VoicevoxClient {
   }
 
   public async checkHealth(): Promise<{ connected: boolean; version?: string; url: string }> {
+    if (!this.api.checkHealth) {
+      return {
+        connected: true,
+        url: this.getUrlForHealth(),
+      }
+    }
     return this.api.checkHealth()
+  }
+
+  private getUrlForHealth(): string {
+    return 'custom-api-client'
   }
 
   public getQueueService(): QueueService {

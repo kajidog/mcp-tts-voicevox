@@ -6,7 +6,7 @@ import {
   parseAccentNotation,
 } from '../accent-utils.js'
 import type { NormalizedDictionaryWord } from '../accent-utils.js'
-import type { VoicevoxApi } from '../api.js'
+import type { VoiceApiClient } from '../api.js'
 import { handleError } from '../error.js'
 import type { AccentPhrase } from '../types.js'
 
@@ -29,12 +29,13 @@ export interface DictionaryWordUpdateInput {
 
 export class DictionaryService {
   constructor(
-    private readonly api: VoicevoxApi,
+    private readonly api: VoiceApiClient,
     private readonly defaultSpeaker: number
   ) {}
 
   public async getDictionary(): Promise<NormalizedDictionaryWord[]> {
     try {
+      if (!this.api.getUserDictionary) throw new Error('このAPIクライアントは辞書取得に対応していません')
       const dictionary = await this.api.getUserDictionary()
       return normalizeUserDictionaryWords(dictionary)
     } catch (error) {
@@ -48,6 +49,7 @@ export class DictionaryService {
       const surface = input.surface.trim()
       if (!surface) throw new Error('surface is required')
 
+      if (!this.api.addUserDictionaryWord) throw new Error('このAPIクライアントは辞書追加に対応していません')
       await this.api.addUserDictionaryWord({
         surface,
         pronunciation,
@@ -69,6 +71,7 @@ export class DictionaryService {
         const surface = input.surface.trim()
         if (!surface) throw new Error('surface is required')
 
+        if (!this.api.addUserDictionaryWord) throw new Error('このAPIクライアントは辞書追加に対応していません')
         await this.api.addUserDictionaryWord({
           surface,
           pronunciation,
@@ -89,6 +92,7 @@ export class DictionaryService {
       const wordUuid = input.wordUuid.trim()
       if (!wordUuid) throw new Error('wordUuid is required')
 
+      if (!this.api.getUserDictionary) throw new Error('このAPIクライアントは辞書取得に対応していません')
       const dictionary = await this.api.getUserDictionary()
       const existing = dictionary[wordUuid]
       if (!existing) throw new Error(`Word not found: ${wordUuid}`)
@@ -110,6 +114,7 @@ export class DictionaryService {
         effectiveAccentType = existing.accent_type
       }
 
+      if (!this.api.updateUserDictionaryWord) throw new Error('このAPIクライアントは辞書更新に対応していません')
       await this.api.updateUserDictionaryWord({
         wordUuid,
         surface: effectiveSurface,
@@ -127,6 +132,7 @@ export class DictionaryService {
 
   public async updateDictionaryWords(inputs: DictionaryWordUpdateInput[]): Promise<NormalizedDictionaryWord[]> {
     try {
+      if (!this.api.getUserDictionary) throw new Error('このAPIクライアントは辞書取得に対応していません')
       const dictionary = await this.api.getUserDictionary()
 
       for (const input of inputs) {
@@ -153,6 +159,7 @@ export class DictionaryService {
           effectiveAccentType = existing.accent_type
         }
 
+        if (!this.api.updateUserDictionaryWord) throw new Error('このAPIクライアントは辞書更新に対応していません')
         await this.api.updateUserDictionaryWord({
           wordUuid,
           surface: effectiveSurface,
@@ -174,6 +181,7 @@ export class DictionaryService {
       const normalizedUuid = wordUuid.trim()
       if (!normalizedUuid) throw new Error('wordUuid is required')
 
+      if (!this.api.deleteUserDictionaryWord) throw new Error('このAPIクライアントは辞書削除に対応していません')
       await this.api.deleteUserDictionaryWord(normalizedUuid)
       return this.getDictionary()
     } catch (error) {
@@ -189,6 +197,7 @@ export class DictionaryService {
       const normalizedText = text.trim()
       if (!normalizedText) throw new Error('text is required')
       const effectiveSpeaker = speaker ?? this.defaultSpeaker
+      if (!this.api.getAccentPhrases) throw new Error('このAPIクライアントはアクセント句取得に対応していません')
       const accentPhrases = await this.api.getAccentPhrases(normalizedText, effectiveSpeaker)
       const notation = accentPhrasesToNotation(accentPhrases)
       return { notation, accentPhrases }

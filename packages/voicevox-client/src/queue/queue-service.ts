@@ -1,4 +1,4 @@
-import type { VoicevoxApi } from '../api.js'
+import type { VoiceApiClient } from '../api.js'
 import { PlaybackService } from '../playback/index.js'
 import type { AudioSource } from '../playback/types.js'
 import { type QueueEventCallbacks, type QueueItemData, QueueItemStatus, QueueStateMachine } from '../state/index.js'
@@ -41,7 +41,7 @@ export interface QueueServiceOptions {
  * 状態マシンと再生サービスを統合した簡素化されたキュー管理
  */
 export class QueueService {
-  private readonly api: VoicevoxApi
+  private readonly api: VoiceApiClient
   private readonly fileManager: AudioFileManager
   private readonly eventManager: EventManager
   private readonly audioGenerator: AudioGenerator
@@ -52,7 +52,7 @@ export class QueueService {
   private isPlaying = false
   private isPaused = false
 
-  constructor(apiInstance: VoicevoxApi, options: QueueServiceOptions = {}) {
+  constructor(apiInstance: VoiceApiClient, options: QueueServiceOptions = {}) {
     this.api = apiInstance
 
     const prefetchSize = options.prefetchSize ?? 2
@@ -313,7 +313,7 @@ export class QueueService {
   /**
    * APIインスタンスを取得
    */
-  getApi(): VoicevoxApi {
+  getApi(): VoiceApiClient {
     return this.api
   }
 

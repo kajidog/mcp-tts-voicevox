@@ -37,6 +37,54 @@ const filePath = await client.generateAudioFile('Test message', './output.wav');
 const speakers = await client.getSpeakers();
 ```
 
+## Custom API Client (for Sakura AI Engine etc.)
+
+`VoicevoxClient` can accept a custom API client class at initialization.
+
+```typescript
+import { VoicevoxClient, type VoiceApiClient, type AudioQuery } from '@kajidog/voicevox-client'
+
+class SakuraApiClient implements VoiceApiClient {
+  constructor(private readonly config: { url: string; defaultSpeaker: number; apiClientOptions?: Record<string, unknown> }) {}
+
+  async generateQuery(text: string, _speaker?: number): Promise<AudioQuery> {
+    // If provider has text -> wav only, return a lightweight pseudo query.
+    return {
+      accent_phrases: [],
+      speedScale: 1,
+      pitchScale: 0,
+      intonationScale: 1,
+      volumeScale: 1,
+      prePhonemeLength: 0,
+      postPhonemeLength: 0,
+      outputSamplingRate: 24000,
+      outputStereo: false,
+      kana: text,
+    }
+  }
+
+  async synthesize(query: AudioQuery): Promise<ArrayBuffer> {
+    const apiKey = this.config.apiClientOptions?.apiKey as string
+    const speakerId = this.config.apiClientOptions?.speakerId ?? this.config.defaultSpeaker
+    const res = await fetch(`${this.config.url}/v1/tts`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: query.kana ?? '', speakerId }),
+    })
+    return await res.arrayBuffer()
+  }
+}
+
+const client = new VoicevoxClient(
+  {
+    url: 'https://your-sakura-engine.example.com',
+    defaultSpeaker: 1,
+    apiClientOptions: { apiKey: process.env.SAKURA_API_KEY, speakerId: 888753760 },
+  },
+  { apiClientClass: SakuraApiClient }
+)
+```
+
 ## Features
 
 - **Text-to-Speech Synthesis**: Convert text to speech with multiple speaker voices

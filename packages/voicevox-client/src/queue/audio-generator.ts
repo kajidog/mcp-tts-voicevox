@@ -1,4 +1,4 @@
-import type { VoicevoxApi } from '../api.js'
+import type { VoiceApiClient } from '../api.js'
 import type { ItemStateMachine } from '../state/item-state-machine.js'
 import type { QueueItemData } from '../state/types.js'
 import type { AudioQuery } from '../types.js'
@@ -21,10 +21,10 @@ export type GenerationErrorCallback = (item: QueueItemData, error: Error) => voi
  * 音声合成処理を担当
  */
 export class AudioGenerator {
-  private api: VoicevoxApi
+  private api: VoiceApiClient
   private fileManager: AudioFileManager
 
-  constructor(apiInstance: VoicevoxApi, fileManager: AudioFileManager) {
+  constructor(apiInstance: VoiceApiClient, fileManager: AudioFileManager) {
     this.api = apiInstance
     this.fileManager = fileManager
   }

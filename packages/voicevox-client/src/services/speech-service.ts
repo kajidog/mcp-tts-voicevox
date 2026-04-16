@@ -1,4 +1,4 @@
-import type { VoicevoxApi } from '../api.js'
+import type { VoiceApiClient } from '../api.js'
 import { handleError } from '../error.js'
 import type { QueueService } from '../queue/queue-service.js'
 import type { EnqueueResult } from '../queue/queue-service.js'
@@ -28,7 +28,7 @@ export interface SpeechServiceSpeakOptions extends PlaybackOptions {
 
 export class SpeechService {
   constructor(
-    private readonly api: VoicevoxApi,
+    private readonly api: VoiceApiClient,
     private readonly queueService: QueueService,
     private readonly config: SpeechServiceConfig
   ) {}
