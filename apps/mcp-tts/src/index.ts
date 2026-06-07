@@ -4,7 +4,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isNodejs, launchServer, setSessionConfig } from '@kajidog/mcp-core'
+import { isNodejs, launchServer } from '@kajidog/mcp-core'
 import { getConfig, getConfigTemplate, getHelpText } from './config.js'
 import { createServer, server } from './server.js'
 
@@ -142,18 +142,9 @@ async function startMCPServer(): Promise<void> {
     serverName: 'VOICEVOX MCP TTS',
     serverFactory: createServer,
     httpOptions: {
+      // ステートレス運用のため X-Voicevox-Speaker は各ツールがリクエスト単位で読み取る。
+      // ここではブラウザがヘッダーを送れるよう CORS 許可だけ行う。
       extraCorsHeaders: ['X-Voicevox-Speaker'],
-      onSessionInitialized: (sessionId, request) => {
-        // X-Voicevox-Speaker ヘッダーからセッションのデフォルト話者を設定
-        const speakerHeader = request.headers.get('X-Voicevox-Speaker')
-        if (speakerHeader) {
-          const parsed = Number.parseInt(speakerHeader, 10)
-          if (!Number.isNaN(parsed) && parsed >= 0) {
-            setSessionConfig(sessionId, { defaultSpeaker: parsed })
-            console.log(`Session ${sessionId} default speaker: ${parsed}`)
-          }
-        }
-      },
     },
   })
 }

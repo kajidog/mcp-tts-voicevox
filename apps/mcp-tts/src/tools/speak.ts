@@ -96,8 +96,8 @@ export function registerSpeakTool(deps: ToolDeps) {
       extra: ToolHandlerExtra
     ): Promise<CallToolResult> => {
       try {
-        // 有効な話者IDを取得（優先順位: 明示的パラメータ > セッション設定 > グローバル設定）
-        const effectiveSpeaker = getEffectiveSpeaker(speaker, extra.sessionId)
+        // 有効な話者IDを取得（優先順位: 明示的パラメータ > リクエストヘッダー > グローバル設定）
+        const effectiveSpeaker = getEffectiveSpeaker(speaker, extra)
 
         // 設定からデフォルトの再生オプションを取得
         const playbackOptions = {

@@ -21,9 +21,6 @@ export {
   validateConfig,
 } from './config-schema.js'
 
-// Session
-export { type SessionConfig, setSessionConfig, getSessionConfig, deleteSessionConfig } from './session.js'
-
 // HTTP
 export { type CreateHttpAppOptions, createHttpApp } from './http.js'
 

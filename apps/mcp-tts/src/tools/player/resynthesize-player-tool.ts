@@ -79,7 +79,7 @@ export function registerResynthesizePlayerTool(deps: ToolDeps, runtime: PlayerRu
         }
 
         const existingSegment = state.segments[trackIndex]
-        const effectiveDefaultSpeaker = getEffectiveSpeaker(undefined, extra.sessionId) ?? config.defaultSpeaker
+        const effectiveDefaultSpeaker = getEffectiveSpeaker(undefined, extra) ?? config.defaultSpeaker
         const effectiveAutoPlay = autoPlay ?? config.autoPlay
 
         // 優先順位: 明示入力 > 既存セグメント > サーバーデフォルト
