@@ -58,7 +58,7 @@ export function splitText(text: string, maxLength: number): string[] {
   let currentSegment = ''
 
   // 文を句読点で分割
-  const sentences = text.split(sentenceEndings).reduce((acc, part, i, arr) => {
+  const sentences = text.split(sentenceEndings).reduce((acc, part, i, _arr) => {
     if (i % 2 === 0) {
       // テキスト部分
       acc.push(part)
@@ -142,7 +142,7 @@ export function isTestEnvironment(): boolean {
   try {
     const processEnv = typeof process !== 'undefined' ? process.env : {}
     return processEnv.NODE_ENV === 'test' || processEnv.VITEST !== undefined
-  } catch (e) {
+  } catch (_e) {
     return false
   }
 }

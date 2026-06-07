@@ -68,7 +68,7 @@ VOICEVOX を使用した MCP テキスト読み上げサーバー
 
 ### 必要なもの
 
-- Node.js 18.0.0 以上（または Bun）**または Docker**
+- Node.js 20.0.0 以上（または Bun）**または Docker**
 - [VOICEVOX Engine](https://voicevox.hiroshiba.jp/)（起動しておく。Docker Compose に含まれています）
 - ffplay（任意・推奨。Docker の場合は不要）
 

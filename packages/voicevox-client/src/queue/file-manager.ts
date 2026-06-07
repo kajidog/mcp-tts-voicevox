@@ -136,7 +136,7 @@ export class AudioFileManager {
    * @param filename ファイル名（オプション、ブラウザ環境でのダウンロード時に使用）
    * @returns 保存した一時ファイルのパス、またはブラウザ環境ではblobURL
    */
-  public async saveTempAudioFile(audioData: ArrayBuffer, filename?: string): Promise<string> {
+  public async saveTempAudioFile(audioData: ArrayBuffer, _filename?: string): Promise<string> {
     try {
       if (isBrowser()) {
         // ブラウザ環境ではBlobとURLを作成して返す（ダウンロードを実行しない）
@@ -197,7 +197,7 @@ export class AudioFileManager {
       try {
         const outputStat = await fsPromises.stat(output)
         isDir = outputStat.isDirectory()
-      } catch (err) {
+      } catch (_err) {
         // ファイルまたはディレクトリが存在しない場合
         // 末尾がスラッシュで終わる場合はディレクトリと見なす
         isDir = output.endsWith('/') || output.endsWith('\\')
@@ -323,7 +323,7 @@ export class AudioFileManager {
           document.head.removeChild(style)
           setTimeout(cleanup, 300)
         }
-      } catch (e) {
+      } catch (_e) {
         // アニメーションhackが失敗しても問題ない
         console.debug('Animation hack for download detection not supported')
       }

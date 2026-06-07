@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getConfig, resetConfigCache } from '../config'
-import { TOOL_GROUPS, expandGroups } from '../tool-groups'
+import { expandGroups, TOOL_GROUPS } from '../tool-groups'
 
 describe('tool disabling', () => {
   const originalEnv = process.env

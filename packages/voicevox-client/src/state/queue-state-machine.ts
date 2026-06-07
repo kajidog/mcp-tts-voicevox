@@ -1,11 +1,5 @@
 import { ItemStateMachine } from './item-state-machine.js'
-import {
-  type QueueAction,
-  type QueueItemData,
-  QueueItemStatus,
-  QueueState,
-  type QueueStateChangeCallback,
-} from './types.js'
+import { type QueueAction, type QueueItemData, QueueState, type QueueStateChangeCallback } from './types.js'
 
 /**
  * イベントコールバック型
@@ -140,7 +134,7 @@ export class QueueStateMachine {
     this.queue.push(item.id)
 
     // 状態マシンを作成
-    const sm = new ItemStateMachine(item.id, item.status, (itemId, oldStatus, newStatus) => {
+    const sm = new ItemStateMachine(item.id, item.status, (itemId, _oldStatus, newStatus) => {
       const itemData = this.items.get(itemId)
       if (itemData) {
         itemData.status = newStatus

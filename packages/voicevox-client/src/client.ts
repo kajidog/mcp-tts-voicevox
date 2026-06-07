@@ -3,13 +3,13 @@ import { VoicevoxApi } from './api.js'
 import { handleError } from './error.js'
 import { QueueService } from './queue/queue-service.js'
 import { QueueEventType, QueueItemStatus } from './queue/types.js'
-import { DictionaryService } from './services/dictionary-service.js'
 import type {
   DictionaryWordInput as DictionaryWordInputBase,
   DictionaryWordUpdateInput as DictionaryWordUpdateInputBase,
 } from './services/dictionary-service.js'
-import { SpeechService } from './services/speech-service.js'
+import { DictionaryService } from './services/dictionary-service.js'
 import type { SpeechServiceSpeakOptions } from './services/speech-service.js'
+import { SpeechService } from './services/speech-service.js'
 import type { AccentPhrase, AudioQuery, PlaybackOptions, SpeakResult, SpeechSegment, VoicevoxConfig } from './types.js'
 
 /**

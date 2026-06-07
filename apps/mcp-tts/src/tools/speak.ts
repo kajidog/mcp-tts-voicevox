@@ -1,5 +1,5 @@
-import { type SpeakResult, VoicevoxApi, applyNotationAccents, parseNotation } from '@kajidog/voicevox-client'
 import type { VoicevoxClient } from '@kajidog/voicevox-client'
+import { applyNotationAccents, parseNotation, type SpeakResult, VoicevoxApi } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod'
 import { registerToolIfEnabled } from './registration.js'

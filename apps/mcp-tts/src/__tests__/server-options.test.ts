@@ -133,7 +133,7 @@ describe('MCP Server - 再生オプションの処理', () => {
 
       const oldDefaultImmediate = process.env.VOICEVOX_DEFAULT_IMMEDIATE === 'true' // false
       const immediate = true // 明示指定
-      const oldResult = immediate ?? oldDefaultImmediate ?? true
+      const _oldResult = immediate ?? oldDefaultImmediate ?? true
 
       // 修正前は false ?? false ?? true = false になってしまう
       // （実際には false ?? true = false なので問題）

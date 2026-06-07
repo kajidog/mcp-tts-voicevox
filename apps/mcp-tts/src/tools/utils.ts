@@ -1,4 +1,4 @@
-import { type VoicevoxClient, formatSpeakResponse, parseAudioQuery, parseStringInput } from '@kajidog/voicevox-client'
+import { formatSpeakResponse, parseAudioQuery, parseStringInput, type VoicevoxClient } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import type { ToolHandlerExtra } from './types.js'
 

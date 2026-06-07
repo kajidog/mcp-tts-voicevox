@@ -68,7 +68,7 @@ Export behavior by environment:
 
 ### Requirements
 
-- Node.js 18.0.0 or higher (or [Bun](https://bun.sh/)) **or Docker**
+- Node.js 20.0.0 or higher (or [Bun](https://bun.sh/)) **or Docker**
 - [VOICEVOX Engine](https://voicevox.hiroshiba.jp/) (must be running; included in Docker Compose)
 - ffplay (optional, recommended — not needed with Docker)
 

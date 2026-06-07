@@ -5,8 +5,8 @@ import * as z from 'zod'
 import { registerAppToolIfEnabled } from '../registration.js'
 import type { ToolDeps, ToolHandlerExtra } from '../types.js'
 import { createErrorResponse, getEffectiveSpeaker } from '../utils.js'
-import { playerResourceUri } from './runtime.js'
 import type { PlayerRuntime } from './runtime.js'
+import { playerResourceUri } from './runtime.js'
 import type { PlayerSegmentState } from './session-state.js'
 
 export function registerResynthesizePlayerTool(deps: ToolDeps, runtime: PlayerRuntime): void {
