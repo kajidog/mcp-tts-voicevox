@@ -35,22 +35,25 @@ export interface LaunchOptions {
   server: McpServer
   config: BaseServerConfig
   serverName: string
-  /** セッションごとに新しい McpServer を生成するファクトリ関数（HTTPモード用） */
+  /** リクエストごとに新しい McpServer を生成するファクトリ関数（HTTPモードでは必須） */
   serverFactory?: () => McpServer
-  httpOptions?: Omit<CreateHttpAppOptions, 'server' | 'config' | 'serverFactory'>
+  httpOptions?: Omit<CreateHttpAppOptions, 'config' | 'serverFactory'>
 }
 
 /**
  * HTTP サーバーを起動する
  */
 export async function startHttpServer(options: LaunchOptions): Promise<void> {
-  const { server, config, serverName, serverFactory, httpOptions = {} } = options
+  const { config, serverName, serverFactory, httpOptions = {} } = options
+
+  if (!serverFactory) {
+    throw new Error('HTTP (stateless) mode requires a serverFactory to create an independent McpServer per request')
+  }
 
   try {
     console.error(`Starting ${serverName} HTTP server...`)
 
     const app = createHttpApp({
-      server,
       config,
       serverFactory,
       ...httpOptions,

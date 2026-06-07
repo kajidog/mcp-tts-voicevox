@@ -22,10 +22,15 @@ interface HealthCheckResponse {
 }
 
 export interface CreateHttpAppOptions {
-  server: McpServer
   config: BaseServerConfig
-  /** リクエストごとに新しい McpServer を生成するファクトリ関数（ステートレスHTTPモード用） */
-  serverFactory?: () => McpServer
+  /**
+   * リクエストごとに新しい McpServer を生成するファクトリ関数（必須）。
+   *
+   * ステートレスモードでは transport を使い回せず（メッセージID衝突）、
+   * 1 つの McpServer を複数 transport へ並行 connect することもできない。
+   * そのため毎リクエストで独立したサーバーインスタンスが必要。
+   */
+  serverFactory: () => McpServer
   /** 追加のCORSヘッダー（例: 'X-Voicevox-Speaker'） */
   extraCorsHeaders?: string[]
 }
@@ -154,7 +159,13 @@ function validateApiKey(config: BaseServerConfig) {
  * @returns 設定済みのHonoアプリケーション
  */
 export function createHttpApp(options: CreateHttpAppOptions): Hono {
-  const { server, config, serverFactory, extraCorsHeaders = [] } = options
+  const { config, serverFactory, extraCorsHeaders = [] } = options
+
+  if (typeof serverFactory !== 'function') {
+    throw new Error(
+      'createHttpApp requires a serverFactory: stateless HTTP creates an independent McpServer per request'
+    )
+  }
 
   /**
    * MCP エンドポイントハンドラー（ステートレス）
@@ -178,7 +189,7 @@ export function createHttpApp(options: CreateHttpAppOptions): Hono {
       return c.json(badRequestError('Invalid JSON'), { status: 400 })
     }
 
-    const mcpServer = serverFactory ? serverFactory() : server
+    const mcpServer = serverFactory()
     const transport = new WebStandardStreamableHTTPServerTransport({
       // sessionIdGenerator: undefined → ステートレスモード（セッションID無し・検証無し）
       sessionIdGenerator: undefined,
