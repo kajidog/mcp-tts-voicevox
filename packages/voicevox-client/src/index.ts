@@ -1,52 +1,49 @@
+export * from './accent-utils.js'
+export * from './api.js'
+export * from './cache-policy.js'
 export {
-  VoicevoxClient,
-  type SpeakOptions,
   type DictionaryWordInput,
   type DictionaryWordUpdateInput,
+  type SpeakOptions,
+  VoicevoxClient,
 } from './client.js'
-export * from './types.js'
-export * from './api.js'
-export * from './utils.js'
 export * from './error.js'
-export * from './accent-utils.js'
-export * from './cache-policy.js'
-
+// playbackモジュールから再エクスポート
+export {
+  type ActivePlayback,
+  type AudioSource,
+  BrowserPlaybackStrategy,
+  createPlaybackStrategy,
+  type PlaybackCallbacks,
+  PlaybackService,
+  type PlaybackStrategy,
+} from './playback/index.js'
 // queueモジュールから再エクスポート（stateと重複するものを除く）
 export {
-  QueueService,
-  type EnqueueResult,
-  type EnqueueOptions,
   AudioFileManager,
-  EventManager,
   AudioGenerator,
+  type EnqueueOptions,
+  type EnqueueResult,
+  EventManager,
+  type QueueEventListener,
   QueueEventType,
   type QueueItem,
-  type QueueEventListener,
   type QueueManager,
+  QueueService,
 } from './queue/index.js'
-
 // stateモジュールから再エクスポート
 export {
+  type ItemAction,
   ItemStateMachine,
-  QueueStateMachine,
+  type QueueAction,
   type QueueEventCallbacks,
+  type QueueItemData,
   QueueItemStatus,
   QueueState,
-  type ItemAction,
-  type QueueAction,
-  type QueueItemData,
   type QueueStateChangeCallback,
+  QueueStateMachine,
   type StateChangeCallback,
   type StateTransition,
 } from './state/index.js'
-
-// playbackモジュールから再エクスポート
-export {
-  PlaybackService,
-  BrowserPlaybackStrategy,
-  createPlaybackStrategy,
-  type ActivePlayback,
-  type AudioSource,
-  type PlaybackCallbacks,
-  type PlaybackStrategy,
-} from './playback/index.js'
+export * from './types.js'
+export * from './utils.js'

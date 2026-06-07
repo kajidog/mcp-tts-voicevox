@@ -1,3 +1,4 @@
+import type { NormalizedDictionaryWord } from '../accent-utils.js'
 import {
   accentPhrasesToNotation,
   estimateAccentType,
@@ -5,7 +6,6 @@ import {
   normalizeUserDictionaryWords,
   parseAccentNotation,
 } from '../accent-utils.js'
-import type { NormalizedDictionaryWord } from '../accent-utils.js'
 import type { VoicevoxApi } from '../api.js'
 import { handleError } from '../error.js'
 import type { AccentPhrase } from '../types.js'

@@ -1,4 +1,4 @@
-import { type ChildProcess, type SpawnOptions, execSync, spawn } from 'node:child_process'
+import { type ChildProcess, execSync, type SpawnOptions, spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import type { PlaybackStrategy } from './types.js'
@@ -79,7 +79,7 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
 
       // stdinのエラーハンドラを設定（write EOFエラーを防ぐ）
       if (ffplayProcess.stdin) {
-        ffplayProcess.stdin.on('error', (err) => {
+        ffplayProcess.stdin.on('error', (_err) => {
           // 中断時や書き込みエラーは無視（既に処理中の場合）
           if (isAborted || signal?.aborted) {
             return

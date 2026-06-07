@@ -4,8 +4,8 @@ import * as z from 'zod'
 import { registerAppToolIfEnabled } from '../registration.js'
 import type { ToolDeps, ToolHandlerExtra } from '../types.js'
 import { createErrorResponse, getEffectiveSpeaker, parseStringInput } from '../utils.js'
-import { playerResourceUri } from './runtime.js'
 import type { PlayerRuntime } from './runtime.js'
+import { playerResourceUri } from './runtime.js'
 
 export function registerSpeakPlayerTool(deps: ToolDeps, runtime: PlayerRuntime): void {
   const { server, config, disabledTools } = deps

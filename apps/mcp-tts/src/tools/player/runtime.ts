@@ -1,5 +1,5 @@
-import { VoicevoxApi } from '@kajidog/voicevox-client'
 import type { AccentPhrase, AudioQuery } from '@kajidog/voicevox-client'
+import { VoicevoxApi } from '@kajidog/voicevox-client'
 import type { ToolDeps } from '../types.js'
 import { AudioCacheStore, createAudioCacheKey } from './audio-cache.js'
 import { getPlayerDictionaryRevision } from './dictionary-revision.js'

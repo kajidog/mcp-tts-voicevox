@@ -67,7 +67,12 @@ export function registerPlayerDictionaryTools(context: PlayerUIToolContext): voi
       pronunciation,
       accentType,
       priority,
-    }: { surface: string; pronunciation: string; accentType?: number; priority?: number }): Promise<CallToolResult> => {
+    }: {
+      surface: string
+      pronunciation: string
+      accentType?: number
+      priority?: number
+    }): Promise<CallToolResult> => {
       try {
         const words = await voicevoxClient.addDictionaryWord({
           surface,

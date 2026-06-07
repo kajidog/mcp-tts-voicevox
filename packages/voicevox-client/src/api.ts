@@ -1,4 +1,4 @@
-import { VoicevoxError, VoicevoxErrorCode, handleError } from './error.js'
+import { handleError, VoicevoxError, VoicevoxErrorCode } from './error.js'
 import type { AccentPhrase, AudioQuery, Speaker, SpeakerInfo, UserDictionaryWord } from './types.js'
 
 export class VoicevoxApi {

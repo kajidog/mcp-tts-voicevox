@@ -37,8 +37,19 @@
     "prepare": "pnpm build",
     "prepublishOnly": "pnpm test"
   },
-  "files": ["dist", "README.md", "LICENSE"],
-  "keywords": ["voicevox", "tts", "text-to-speech", "mcp", "mcp-server", "mcp-apps"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "voicevox",
+    "tts",
+    "text-to-speech",
+    "mcp",
+    "mcp-server",
+    "mcp-apps"
+  ],
   "author": {
     "name": "kajidog",
     "email": "dev@kajidog.com"
@@ -57,19 +68,19 @@
   },
   "dependencies": {
     "@kajidog/voicevox-client": "workspace:*",
-    "@modelcontextprotocol/ext-apps": "^1.0.0",
-    "@modelcontextprotocol/sdk": "^1.26.0",
-    "zod": "^4.0.0"
+    "@modelcontextprotocol/ext-apps": "^1.7.4",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
     "@kajidog/mcp-core": "workspace:*",
     "@kajidog/player-ui": "workspace:*",
-    "@biomejs/biome": "^1.9.4",
-    "@types/node": "^20.0.0",
-    "tsup": "^8.5.0",
-    "vitest": "^2.1.8",
-    "tsx": "^4.19.0",
-    "typescript": "^5.0.0"
+    "@types/node": "^25.9.2",
+    "tsup": "^8.5.1",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^2.1.9"
   },
   "peerDependencies": {
     "typescript": ">=4.5.0"

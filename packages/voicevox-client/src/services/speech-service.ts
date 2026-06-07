@@ -1,7 +1,6 @@
 import type { VoicevoxApi } from '../api.js'
 import { handleError } from '../error.js'
-import type { QueueService } from '../queue/queue-service.js'
-import type { EnqueueResult } from '../queue/queue-service.js'
+import type { EnqueueResult, QueueService } from '../queue/queue-service.js'
 import type { AudioQuery, PlaybackOptions, SpeakResult, SpeechSegment } from '../types.js'
 import { downloadBlob, isBrowser, splitText } from '../utils.js'
 

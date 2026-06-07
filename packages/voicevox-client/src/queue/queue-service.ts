@@ -453,7 +453,7 @@ export class QueueService {
     if (audioSource) {
       try {
         await this.playbackService.play(item.id, audioSource)
-      } catch (error) {
+      } catch (_error) {
         // エラーはPlaybackServiceのコールバックで処理される
       }
     }

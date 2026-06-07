@@ -113,7 +113,7 @@ export class PlaybackService {
    * 全ての再生を停止
    */
   stopAll(): void {
-    for (const [itemId, playback] of this.activePlaybacks) {
+    for (const [_itemId, playback] of this.activePlaybacks) {
       playback.controller.abort()
     }
     this.activePlaybacks.clear()
@@ -126,7 +126,7 @@ export class PlaybackService {
   async stopAllAndWait(): Promise<void> {
     const promises: Promise<void>[] = []
 
-    for (const [itemId, playback] of this.activePlaybacks) {
+    for (const [_itemId, playback] of this.activePlaybacks) {
       playback.controller.abort()
       if (playback.playPromise) {
         // エラーは無視（中断による終了は正常）

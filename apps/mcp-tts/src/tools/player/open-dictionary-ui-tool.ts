@@ -2,8 +2,8 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { registerAppToolIfEnabled } from '../registration.js'
 import type { ToolDeps } from '../types.js'
 import { createErrorResponse } from '../utils.js'
-import { playerResourceUri } from './runtime.js'
 import type { PlayerRuntime } from './runtime.js'
+import { playerResourceUri } from './runtime.js'
 
 export function registerOpenDictionaryUITool(deps: ToolDeps, runtime: PlayerRuntime): void {
   const { server, disabledTools } = deps
