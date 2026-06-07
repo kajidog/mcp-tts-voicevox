@@ -4,7 +4,12 @@ import type { ServerConfig } from '../config.js'
 
 // ツールハンドラーのextraパラメータ用の型定義
 export interface ToolHandlerExtra {
+  /** ステートレスHTTP / stdio では未定義。プレイヤー状態のフォールバックキーにのみ使用 */
   sessionId?: string
+  /** リクエスト単位のHTTP情報（ヘッダーはすべて小文字キー） */
+  requestInfo?: {
+    headers?: Record<string, string | string[] | undefined>
+  }
 }
 
 // 各 register*Tools に渡す共通依存オブジェクト

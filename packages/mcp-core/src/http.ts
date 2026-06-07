@@ -1,12 +1,9 @@
-import { randomUUID } from 'node:crypto'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
-import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import { type Context, Hono, type Next } from 'hono'
 import { cors } from 'hono/cors'
 
 import type { BaseServerConfig } from './config.js'
-import { deleteSessionConfig } from './session.js'
 
 // 型定義
 interface ErrorResponse {
@@ -20,27 +17,23 @@ interface ErrorResponse {
 
 interface HealthCheckResponse {
   status: 'ok'
-  transports: number
+  mode: 'stateless'
   timestamp: string
 }
 
 export interface CreateHttpAppOptions {
   server: McpServer
   config: BaseServerConfig
-  /** セッションごとに新しい McpServer を生成するファクトリ関数（HTTPモード用） */
+  /** リクエストごとに新しい McpServer を生成するファクトリ関数（ステートレスHTTPモード用） */
   serverFactory?: () => McpServer
   /** 追加のCORSヘッダー（例: 'X-Voicevox-Speaker'） */
   extraCorsHeaders?: string[]
-  /** セッション初期化時のコールバック（ヘッダーからの設定読み取り等に使用） */
-  onSessionInitialized?: (sessionId: string, request: Request) => void
-  /** セッション終了時のコールバック */
-  onSessionClosed?: (sessionId: string) => void
 }
 
 /**
  * JSONRPCエラーレスポンスを生成するヘルパー関数
  */
-function badRequestError(message = 'Bad Request: No valid session ID provided'): ErrorResponse {
+function badRequestError(message = 'Bad Request'): ErrorResponse {
   return {
     jsonrpc: '2.0',
     error: { code: -32000, message },
@@ -161,81 +154,49 @@ function validateApiKey(config: BaseServerConfig) {
  * @returns 設定済みのHonoアプリケーション
  */
 export function createHttpApp(options: CreateHttpAppOptions): Hono {
-  const { server, config, serverFactory, extraCorsHeaders = [], onSessionInitialized, onSessionClosed } = options
-
-  // セッションごとのtransportを管理
-  const transports: Map<string, WebStandardStreamableHTTPServerTransport> = new Map()
+  const { server, config, serverFactory, extraCorsHeaders = [] } = options
 
   /**
-   * MCP エンドポイントハンドラー
+   * MCP エンドポイントハンドラー（ステートレス）
+   *
+   * セッション管理は行わず、1 リクエストを自己完結で処理する。
+   * リクエストごとに使い捨ての McpServer + transport を生成する
+   * （ステートレス transport は使い回すとメッセージID衝突を起こすため）。
    */
   async function handleMCP(c: Context): Promise<Response> {
     console.log(`Received ${c.req.method} request for MCP`)
 
-    const sessionId = c.req.header('mcp-session-id')
+    // ステートレスではサーバー起点のSSEストリーム/セッション終了が無いため POST のみ受け付ける
+    if (c.req.method !== 'POST') {
+      return c.json(badRequestError('Method Not Allowed: stateless mode accepts POST only'), { status: 405 })
+    }
+
+    let body: unknown
+    try {
+      body = await c.req.json()
+    } catch {
+      return c.json(badRequestError('Invalid JSON'), { status: 400 })
+    }
+
+    const mcpServer = serverFactory ? serverFactory() : server
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      // sessionIdGenerator: undefined → ステートレスモード（セッションID無し・検証無し）
+      sessionIdGenerator: undefined,
+      // 単発のJSONレスポンスを返す（SSEストリームを張らない）
+      enableJsonResponse: true,
+    })
 
     try {
-      // 既存セッションの再利用
-      if (sessionId && transports.has(sessionId)) {
-        console.log(`Reusing existing session: ${sessionId}`)
-        const transport = transports.get(sessionId)!
-        return transport.handleRequest(c.req.raw)
-      }
+      await mcpServer.connect(transport)
+      const response = await transport.handleRequest(c.req.raw, { parsedBody: body })
 
-      // 新しいセッションの初期化（POSTリクエストのみ）
-      if (c.req.method === 'POST') {
-        let body: unknown
-        try {
-          body = await c.req.json()
-        } catch {
-          return c.json(badRequestError('Invalid JSON'), { status: 400 })
-        }
+      // 使い捨てインスタンスを後始末（JSONレスポンスはバッファ済みのため安全）
+      void mcpServer.close()
 
-        // initializeリクエストの場合のみ新しいtransportを作成
-        if (isInitializeRequest(body)) {
-          console.log('Creating new WebStandard session')
-
-          // コールバック用にリクエストを保持
-          const rawRequest = c.req.raw
-
-          const transport = new WebStandardStreamableHTTPServerTransport({
-            sessionIdGenerator: () => randomUUID(),
-            onsessioninitialized: (newSessionId) => {
-              console.log(`Session initialized: ${newSessionId}`)
-              transports.set(newSessionId, transport)
-
-              // アプリ固有の初期化処理
-              onSessionInitialized?.(newSessionId, rawRequest)
-            },
-          })
-
-          // クリーンアップハンドラー
-          transport.onclose = () => {
-            const sid = transport.sessionId
-            if (sid) {
-              console.log(`Transport closed for session: ${sid}`)
-              transports.delete(sid)
-              deleteSessionConfig(sid)
-
-              // アプリ固有のクリーンアップ処理
-              onSessionClosed?.(sid)
-            }
-          }
-
-          // セッションごとに新しいサーバーインスタンスを使用
-          const sessionServer = serverFactory ? serverFactory() : server
-          await sessionServer.connect(transport)
-
-          // リクエスト処理（parsedBodyを渡す）
-          return transport.handleRequest(c.req.raw, { parsedBody: body })
-        }
-      }
-
-      // セッションIDがなく、initializeリクエストでもない場合
-      console.log('Invalid request - no session ID and not an initialize request')
-      return c.json(badRequestError(), { status: 400 })
+      return response
     } catch (e) {
       console.error('MCP connection error:', e)
+      void mcpServer.close()
       return c.json(internalServerError(), { status: 500 })
     }
   }
@@ -246,7 +207,7 @@ export function createHttpApp(options: CreateHttpAppOptions): Hono {
   function handleHealth(c: Context): Response {
     const response: HealthCheckResponse = {
       status: 'ok',
-      transports: transports.size,
+      mode: 'stateless',
       timestamp: new Date().toISOString(),
     }
     return c.json(response)
@@ -255,12 +216,13 @@ export function createHttpApp(options: CreateHttpAppOptions): Hono {
   // アプリケーションのセットアップ
   const app: Hono = new Hono()
 
-  // CORSを設定
+  // CORSを設定（ステートレス: mcp-session-id は廃止、ルーティング用ヘッダーを許可）
   const allowHeaders = [
     'Content-Type',
-    'mcp-session-id',
     'Last-Event-ID',
     'mcp-protocol-version',
+    'Mcp-Method',
+    'Mcp-Name',
     'X-API-Key',
     'Authorization',
     ...extraCorsHeaders,
@@ -270,9 +232,9 @@ export function createHttpApp(options: CreateHttpAppOptions): Hono {
     '/mcp',
     cors({
       origin: '*',
-      allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+      allowMethods: ['POST', 'OPTIONS'],
       allowHeaders,
-      exposeHeaders: ['mcp-session-id', 'mcp-protocol-version'],
+      exposeHeaders: ['mcp-protocol-version'],
     })
   )
 

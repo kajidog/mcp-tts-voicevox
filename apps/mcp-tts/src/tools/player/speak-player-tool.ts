@@ -55,7 +55,7 @@ export function registerSpeakPlayerTool(deps: ToolDeps, runtime: PlayerRuntime):
           throw new Error('Text is empty')
         }
 
-        const effectiveSpeaker = getEffectiveSpeaker(speaker, extra.sessionId) ?? config.defaultSpeaker
+        const effectiveSpeaker = getEffectiveSpeaker(speaker, extra) ?? config.defaultSpeaker
         const effectiveSpeed = speedScale ?? config.defaultSpeedScale
 
         const baseSegments = parsedSegments.map((s) => ({
