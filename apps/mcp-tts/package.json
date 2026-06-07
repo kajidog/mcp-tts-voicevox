@@ -64,7 +64,7 @@
   "homepage": "https://github.com/kajidog/mcp-tts-voicevox#readme",
   "license": "ISC",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@kajidog/voicevox-client": "workspace:*",
