@@ -3,6 +3,7 @@ import { applyNotationAccents, parseNotation, type SpeakResult, VoicevoxApi } fr
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod'
 import { registerToolIfEnabled } from './registration.js'
+import { composeDescription, enabledToolRef } from './tool-hints.js'
 import type { ToolDeps, ToolHandlerExtra } from './types.js'
 import {
   createErrorResponse,
@@ -59,14 +60,18 @@ export function buildSpeakInputSchema(restrictions: {
 export function registerSpeakTool(deps: ToolDeps) {
   const { server, voicevoxClient, config, disabledTools, restrictions } = deps
 
+  const playerRef = enabledToolRef(disabledTools, 'speak_player')
+
   registerToolIfEnabled(
     server,
     disabledTools,
     'speak',
     {
       title: 'Speak',
-      description:
-        'Play text as speech immediately. Use this for simple TTS — no UI, no editing. If you need a player UI or want to edit/replay segments, use voicevox_speak_player instead.',
+      description: composeDescription(
+        'Play text as speech immediately. Use this for simple TTS — no UI, no editing.',
+        playerRef && `If you need a player UI or want to edit/replay segments, use ${playerRef} instead.`
+      ),
       inputSchema: buildSpeakInputSchema(restrictions),
       annotations: {
         readOnlyHint: false,

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod'
 import { registerAppToolIfEnabled } from '../registration.js'
+import { buildNextHint, composeDescription, enabledToolRef } from '../tool-hints.js'
 import type { ToolDeps, ToolHandlerExtra } from '../types.js'
 import { createErrorResponse, getEffectiveSpeaker, parseStringInput } from '../utils.js'
 import type { PlayerRuntime } from './runtime.js'
@@ -10,14 +11,18 @@ import { playerResourceUri } from './runtime.js'
 export function registerSpeakPlayerTool(deps: ToolDeps, runtime: PlayerRuntime): void {
   const { server, config, disabledTools } = deps
 
+  const speakRef = enabledToolRef(disabledTools, 'speak')
+
   registerAppToolIfEnabled(
     server,
     disabledTools,
     'speak_player',
     {
       title: 'Speak Player',
-      description:
-        'Use when you need a player UI (display, edit, or replay audio). Creates a VOICEVOX player session, returns viewUUID. Multi-speaker format: "1:Hello\\n2:World". For simple playback without UI, use voicevox_speak instead.',
+      description: composeDescription(
+        'Use when you need a player UI (display, edit, or replay audio). Creates a VOICEVOX player session, returns viewUUID. Multi-speaker format: "1:Hello\\n2:World".',
+        speakRef && `For simple playback without UI, use ${speakRef} instead.`
+      ),
       inputSchema: {
         text: z
           .string()
@@ -88,11 +93,15 @@ export function registerSpeakPlayerTool(deps: ToolDeps, runtime: PlayerRuntime):
           speakerName: speakerNameMap.get(s.speaker),
           speedScale: s.speedScale,
         }))
+        const nextHint = buildNextHint(disabledTools, [
+          { name: 'resynthesize_player', label: 'edit a track' },
+          { name: 'get_player_state', label: 'inspect state' },
+        ])
         return {
           content: [
             {
               type: 'text',
-              text: `Voicevox Player started. viewUUID: ${viewUUID} 「${textPreview}」\nNext: voicevox_resynthesize_player (edit a track) | voicevox_get_player_state (inspect state)`,
+              text: `Voicevox Player started. viewUUID: ${viewUUID} 「${textPreview}」${nextHint ? `\n${nextHint}` : ''}`,
             },
           ],
           structuredContent: {

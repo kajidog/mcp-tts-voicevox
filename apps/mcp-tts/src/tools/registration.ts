@@ -21,7 +21,7 @@ export function addToolPrefix(name: string): string {
 /**
  * Check if a tool is disabled, accepting both prefixed and unprefixed names.
  */
-function isToolDisabled(disabledTools: Set<string>, name: string): boolean {
+export function isToolDisabled(disabledTools: Set<string>, name: string): boolean {
   const fullName = addToolPrefix(name)
   return disabledTools.has(name) || disabledTools.has(fullName)
 }

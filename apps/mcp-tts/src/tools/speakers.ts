@@ -1,10 +1,13 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { registerToolIfEnabled } from './registration.js'
+import { composeDescription, enabledToolRef } from './tool-hints.js'
 import type { ToolDeps } from './types.js'
 import { createErrorResponse, createSuccessResponse } from './utils.js'
 
 export function registerSpeakerTools(deps: ToolDeps) {
   const { server, voicevoxClient, disabledTools } = deps
+
+  const speakRef = enabledToolRef(disabledTools, 'speak')
 
   // ping_voicevox ツール
   registerToolIfEnabled(
@@ -68,8 +71,12 @@ export function registerSpeakerTools(deps: ToolDeps) {
     'get_speakers',
     {
       title: 'Get Speakers',
-      description:
-        'Get a list of available speakers. The returned "speaker" field is the exact ID to pass to speak.speaker',
+      description: composeDescription(
+        'Get a list of available speakers.',
+        speakRef
+          ? `The returned "speaker" field is the exact ID to pass to ${speakRef}.speaker.`
+          : 'The returned "speaker" field is the exact ID to pass as the speaker parameter.'
+      ),
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
