@@ -2,7 +2,7 @@ import type { VoicevoxClient } from '@kajidog/voicevox-client'
 import { applyNotationAccents, parseNotation, type SpeakResult, VoicevoxApi } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod'
-import { registerToolIfEnabled } from './registration.js'
+import { isToolEnabled, registerToolIfEnabled } from './registration.js'
 import type { ToolDeps, ToolHandlerExtra } from './types.js'
 import {
   createErrorResponse,
@@ -66,7 +66,10 @@ export function registerSpeakTool(deps: ToolDeps) {
     {
       title: 'Speak',
       description:
-        'Play text as speech immediately. Use this for simple TTS — no UI, no editing. If you need a player UI or want to edit/replay segments, use voicevox_speak_player instead.',
+        'Play text as speech immediately. Use this for simple TTS — no UI, no editing.' +
+        (isToolEnabled(disabledTools, 'speak_player')
+          ? ' If you need a player UI or want to edit/replay segments, use voicevox_speak_player instead.'
+          : ''),
       inputSchema: buildSpeakInputSchema(restrictions),
       annotations: {
         readOnlyHint: false,

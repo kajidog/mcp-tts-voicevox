@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { type AccentPhrase, type AudioQuery, applyNotationAccents, parseNotation } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod'
-import { registerAppToolIfEnabled } from '../registration.js'
+import { isToolEnabled, registerAppToolIfEnabled } from '../registration.js'
 import type { ToolDeps, ToolHandlerExtra } from '../types.js'
 import { createErrorResponse, getEffectiveSpeaker } from '../utils.js'
 import type { PlayerRuntime } from './runtime.js'
@@ -12,18 +12,24 @@ import type { PlayerSegmentState } from './session-state.js'
 export function registerResynthesizePlayerTool(deps: ToolDeps, runtime: PlayerRuntime): void {
   const { server, config, disabledTools } = deps
 
+  const viewUUIDOrigin = isToolEnabled(disabledTools, 'speak_player')
+    ? 'speak_player/resynthesize_player'
+    : 'a previous resynthesize_player call'
+  const phrasesDescription = isToolEnabled(disabledTools, 'get_player_state')
+    ? 'Inline notation (see get_player_state hint)'
+    : 'Inline notation: comma-separated phrases, [bracket] marks accent mora. Example: "コン[ニ]チワ,セ[カ]イ"'
+
   registerAppToolIfEnabled(
     server,
     disabledTools,
     'resynthesize_player',
     {
       title: 'Resynthesize Player',
-      description:
-        'Edit one player track by index. Requires viewUUID from speak_player/resynthesize_player. Returns new viewUUID.',
+      description: `Edit one player track by index. Requires viewUUID from ${viewUUIDOrigin}. Returns new viewUUID.`,
       inputSchema: {
         viewUUID: z.string().describe('Latest viewUUID'),
         trackIndex: z.number().int().min(0).describe('Segment index to update'),
-        phrases: z.string().optional().describe('Inline notation (see get_player_state hint)'),
+        phrases: z.string().optional().describe(phrasesDescription),
         speaker: z.number().optional().describe('Speaker ID'),
         speedScale: z.number().optional().describe('Speed'),
         intonationScale: z.number().optional().describe('Intonation'),
@@ -72,7 +78,11 @@ export function registerResynthesizePlayerTool(deps: ToolDeps, runtime: PlayerRu
       try {
         const state = runtime.getSessionState(inputViewUUID, extra?.sessionId)
         if (!state) {
-          throw new Error('No player state found for the given viewUUID. Use speak_player first.')
+          throw new Error(
+            isToolEnabled(disabledTools, 'speak_player')
+              ? 'No player state found for the given viewUUID. Use speak_player first.'
+              : 'No player state found for the given viewUUID.'
+          )
         }
         if (trackIndex < 0 || trackIndex >= state.segments.length) {
           throw new Error(`trackIndex ${trackIndex} is out of range. Valid range: 0-${state.segments.length - 1}`)
