@@ -25,12 +25,24 @@ describe('parseStringInput', () => {
     expect(parseStringInput('1:23:45 経過しました')).toEqual([{ text: '1:23:45 経過しました' }])
   })
 
-  it('コロンの後に空白を挟んで数字が続く場合もテキスト扱いにする', () => {
-    expect(parseStringInput('10: 30に集合')).toEqual([{ text: '10: 30に集合' }])
-  })
-
   it('コロンの後が数字以外なら話者プレフィックスとして扱う', () => {
     expect(parseStringInput('3: こんにちは')).toEqual([{ text: 'こんにちは', speaker: 3 }])
+  })
+
+  it('数字始まりテキストへの話者プレフィックスは維持する（3桁以上は時刻扱いしない）', () => {
+    expect(parseStringInput('3:2026年もよろしく')).toEqual([{ text: '2026年もよろしく', speaker: 3 }])
+  })
+
+  it('コロンの後に空白を挟む場合は時刻扱いせず話者プレフィックスとして扱う', () => {
+    expect(parseStringInput('2: 123')).toEqual([{ text: '123', speaker: 2 }])
+  })
+
+  it('話者部分が3桁以上なら時刻扱いせず話者プレフィックスとして扱う', () => {
+    expect(parseStringInput('888:45と読んで')).toEqual([{ text: '45と読んで', speaker: 888 }])
+  })
+
+  it('分が2桁を超える場合は時刻扱いせず話者プレフィックスとして扱う', () => {
+    expect(parseStringInput('10:305号室へ')).toEqual([{ text: '305号室へ', speaker: 10 }])
   })
 
   it('話者プレフィックスと時刻表記の混在行を正しくパースする', () => {
