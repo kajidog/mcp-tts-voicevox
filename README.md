@@ -236,6 +236,8 @@ The main feature callable from Claude.
 | `VOICEVOX_URL` | Engine URL | `http://localhost:50021` |
 | `VOICEVOX_DEFAULT_SPEAKER` | Default speaker ID | `1` |
 | `VOICEVOX_DEFAULT_SPEED_SCALE` | Playback speed | `1.0` |
+| `VOICEVOX_RETRY_COUNT` | Retries for failed API requests (0 disables) | `2` |
+| `VOICEVOX_RETRY_DELAY_MS` | Initial retry delay in ms (exponential backoff) | `250` |
 
 ### Playback Options
 

@@ -2,13 +2,16 @@ import type { AudioQuery, SpeakResult } from './types.js'
 
 /**
  * マルチスピーカーテキスト "1:Hello\n2:World" をパースする
+ *
+ * コロンの直後（空白を除く）が数字で始まる行は「10:30に集合」のような
+ * 時刻表記とみなし、話者プレフィックスとして扱わず行全体をテキストにする
  */
 export const parseStringInput = (input: string): Array<{ text: string; speaker?: number }> => {
   // \n と \\n の両方に対応するため、まず \\n を \n に変換してから分割
   const normalizedInput = input.replace(/\\n/g, '\n')
   const lines = normalizedInput.split('\n').filter((line) => line.trim())
   return lines.map((line) => {
-    const match = line.match(/^(\d+):(.*)$/)
+    const match = line.match(/^(\d+):(?!\s*\d)(.*)$/)
     if (match) {
       return { text: match[2].trim(), speaker: Number.parseInt(match[1], 10) }
     }

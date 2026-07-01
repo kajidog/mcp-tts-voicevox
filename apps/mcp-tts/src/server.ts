@@ -28,6 +28,8 @@ export function createServer(): McpServer {
     url: config.voicevoxUrl,
     defaultSpeaker: config.defaultSpeaker,
     defaultSpeedScale: config.defaultSpeedScale,
+    retryCount: config.retryCount,
+    retryDelayMs: config.retryDelayMs,
     useStreaming: config.useStreaming,
   })
 

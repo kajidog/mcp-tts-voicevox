@@ -48,6 +48,24 @@ const voicevoxConfigDefs: ConfigDefs = {
     default: 1.0,
     valueName: '<scale>',
   },
+  retryCount: {
+    cli: '--retry-count',
+    env: 'VOICEVOX_RETRY_COUNT',
+    description: 'Number of retries for failed VOICEVOX API requests (0 disables)',
+    group: 'Voicevox Configuration',
+    type: 'number',
+    default: 2,
+    valueName: '<count>',
+  },
+  retryDelayMs: {
+    cli: '--retry-delay-ms',
+    env: 'VOICEVOX_RETRY_DELAY_MS',
+    description: 'Initial retry delay in milliseconds (exponential backoff)',
+    group: 'Voicevox Configuration',
+    type: 'number',
+    default: 250,
+    valueName: '<ms>',
+  },
   useStreaming: {
     cli: '--use-streaming',
     env: 'VOICEVOX_USE_STREAMING',
@@ -219,6 +237,8 @@ export interface ServerConfig extends BaseServerConfig {
   voicevoxUrl: string
   defaultSpeaker: number
   defaultSpeedScale: number
+  retryCount: number
+  retryDelayMs: number
   useStreaming?: boolean
 
   // 再生オプションのデフォルト
