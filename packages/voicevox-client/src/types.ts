@@ -18,6 +18,10 @@ export interface VoicevoxConfig {
   defaultPostPhonemeLength?: number
   /** テキスト分割時の最大文字数（デフォルト: 150） */
   maxSegmentLength?: number
+  /** APIリクエスト失敗時のリトライ回数（初回を除く。0でリトライ無効、デフォルト: 2） */
+  retryCount?: number
+  /** リトライの初期ディレイ（ミリ秒、指数バックオフ、デフォルト: 250） */
+  retryDelayMs?: number
   /** 先読みする音声の最大件数（READY + GENERATING の上限、デフォルト: 2） */
   prefetchSize?: number
   /** デフォルトの再生オプション */

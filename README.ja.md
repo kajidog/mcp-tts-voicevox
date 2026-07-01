@@ -236,6 +236,8 @@ Claude から呼び出せるメインの機能です。
 | `VOICEVOX_URL` | Engine の URL | `http://localhost:50021` |
 | `VOICEVOX_DEFAULT_SPEAKER` | デフォルト話者 ID | `1` |
 | `VOICEVOX_DEFAULT_SPEED_SCALE` | 再生速度 | `1.0` |
+| `VOICEVOX_RETRY_COUNT` | API リクエスト失敗時のリトライ回数（0 で無効） | `2` |
+| `VOICEVOX_RETRY_DELAY_MS` | リトライの初期ディレイ（ミリ秒、指数バックオフ） | `250` |
 
 ### 再生オプション
 

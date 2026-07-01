@@ -74,7 +74,10 @@ export function createPlayerRuntime(deps: ToolDeps): PlayerRuntime {
 
   const cache = audioCacheStore
   const sessionState = sessionStateStore
-  const playerVoicevoxApi = new VoicevoxApi(config.voicevoxUrl)
+  const playerVoicevoxApi = new VoicevoxApi(config.voicevoxUrl, {
+    retryCount: config.retryCount,
+    retryDelayMs: config.retryDelayMs,
+  })
 
   const getSpeakerList = async () => {
     // スピーカー一覧は変化が少ないためプロセス内キャッシュする。

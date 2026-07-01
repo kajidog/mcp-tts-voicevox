@@ -23,7 +23,7 @@ export function buildSpeakInputSchema(restrictions: {
     text: z
       .string()
       .describe(
-        'Text split by line breaks (\\n). IMPORTANT: Each line = one speech unit (processed and played separately). Keep the FIRST LINE SHORT for quick playback start - audio begins as soon as the first line is synthesized. Example: "Hi!\\nThis is a longer explanation that follows." Optional speaker prefix per line: "1:Hello\\n2:World"'
+        'Text split by line breaks (\\n). IMPORTANT: Each line = one speech unit (processed and played separately). Keep the FIRST LINE SHORT for quick playback start - audio begins as soon as the first line is synthesized. Example: "Hi!\\nThis is a longer explanation that follows." Optional speaker prefix per line: "1:Hello\\n2:World". Time-like lines such as "10:30..." are read as-is, not treated as a speaker prefix.'
       ),
     phrases: z
       .string()
@@ -112,7 +112,7 @@ export function registerSpeakTool(deps: ToolDeps) {
           // phrases モード: インライン表記からアクセント指定付きで再生
           result = await processPhrasesInput(
             voicevoxClient,
-            config.voicevoxUrl,
+            config,
             phrases,
             effectiveSpeaker ?? config.defaultSpeaker,
             speedScale,
@@ -135,7 +135,7 @@ export function registerSpeakTool(deps: ToolDeps) {
  */
 async function processPhrasesInput(
   voicevoxClient: VoicevoxClient,
-  voicevoxUrl: string,
+  config: ToolDeps['config'],
   phrases: string,
   speaker: number,
   speedScale?: number,
@@ -145,7 +145,10 @@ async function processPhrasesInput(
     waitForEnd?: boolean
   }
 ): Promise<SpeakResult> {
-  const api = new VoicevoxApi(voicevoxUrl)
+  const api = new VoicevoxApi(config.voicevoxUrl, {
+    retryCount: config.retryCount,
+    retryDelayMs: config.retryDelayMs,
+  })
   const parsedPhrases = parseNotation(phrases)
   if (parsedPhrases.length === 0) {
     throw new Error('phrases is empty')

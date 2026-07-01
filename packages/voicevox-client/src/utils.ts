@@ -1,13 +1,27 @@
 import type { AudioQuery, SpeakResult } from './types.js'
 
 /**
+ * 行頭が時刻表記（例: "10:30", "1:23:45"）かどうかを判定する
+ *
+ * 時刻とみなすのは「1〜2桁 : ちょうど2桁（続けて3桁目の数字がない）」の場合のみ。
+ * "3:2026年..." のような数字始まりテキストへの話者プレフィックスは時刻扱いしない
+ */
+const startsWithTimeNotation = (line: string): boolean => /^\d{1,2}:\d{2}(:\d{2})?(?!\d)/.test(line)
+
+/**
  * マルチスピーカーテキスト "1:Hello\n2:World" をパースする
+ *
+ * 「10:30に集合」のような時刻表記で始まる行は話者プレフィックスとして
+ * 扱わず、行全体をテキストにする
  */
 export const parseStringInput = (input: string): Array<{ text: string; speaker?: number }> => {
   // \n と \\n の両方に対応するため、まず \\n を \n に変換してから分割
   const normalizedInput = input.replace(/\\n/g, '\n')
   const lines = normalizedInput.split('\n').filter((line) => line.trim())
   return lines.map((line) => {
+    if (startsWithTimeNotation(line)) {
+      return { text: line }
+    }
     const match = line.match(/^(\d+):(.*)$/)
     if (match) {
       return { text: match[2].trim(), speaker: Number.parseInt(match[1], 10) }
