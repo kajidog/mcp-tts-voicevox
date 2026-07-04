@@ -1,7 +1,7 @@
 import { type AccentPhrase, accentPhrasesToNotation } from '@kajidog/voicevox-client'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod'
-import { registerToolIfEnabled } from '../registration.js'
+import { isToolEnabled, registerToolIfEnabled } from '../registration.js'
 import type { ToolDeps, ToolHandlerExtra } from '../types.js'
 import { createErrorResponse } from '../utils.js'
 import type { PlayerRuntime } from './runtime.js'
@@ -10,19 +10,21 @@ import { DEFAULT_STATE_PAGE_LIMIT, MAX_STATE_PAGE_LIMIT, MAX_TOOL_CONTENT_BYTES 
 export function registerGetPlayerStateTool(deps: ToolDeps, runtime: PlayerRuntime): void {
   const { server, disabledTools } = deps
 
+  const viewUUIDSources = ['speak_player', 'resynthesize_player'].filter((name) => isToolEnabled(disabledTools, name))
+  const viewUUIDOrigin = viewUUIDSources.length > 0 ? viewUUIDSources.join('/') : 'the player session'
+
   registerToolIfEnabled(
     server,
     disabledTools,
     'get_player_state',
     {
       title: 'Get VOICEVOX Player State',
-      description:
-        'Read current player state (segments, accent phrases). Use latest viewUUID from speak_player/resynthesize_player. If hasMore is true, call again with nextCursor.',
+      description: `Read current player state (segments, accent phrases). Use latest viewUUID from ${viewUUIDOrigin}. If hasMore is true, call again with nextCursor.`,
       inputSchema: {
         viewUUID: z
           .string()
           .optional()
-          .describe('Player instance ID from speak_player/resynthesize_player. Always pass the latest viewUUID.'),
+          .describe(`Player instance ID from ${viewUUIDOrigin}. Always pass the latest viewUUID.`),
         cursor: z.number().int().min(0).optional().describe('Start index in segments array (default: 0)'),
         limit: z
           .number()
@@ -102,7 +104,10 @@ export function registerGetPlayerStateTool(deps: ToolDeps, runtime: PlayerRuntim
             limit: effectiveLimit,
             hasMore,
             nextCursor: hasMore ? pageEnd : null,
-            ...(effectiveCursor === 0 && responseSegments.length > 0
+            // hint は resynthesize_player 専用の案内のため、無効時は付与しない。
+            ...(effectiveCursor === 0 &&
+            responseSegments.length > 0 &&
+            isToolEnabled(disabledTools, 'resynthesize_player')
               ? {
                   hint: 'To edit a track, call resynthesize_player with viewUUID + trackIndex. The "phrases" param uses inline notation: comma-separated phrases, [bracket] marks accent mora. Example: "コン[ニ]チワ,セ[カ]イ". Omit brackets to use VOICEVOX default accent. Omitted params keep existing values.',
                 }

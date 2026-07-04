@@ -27,6 +27,14 @@ function isToolDisabled(disabledTools: Set<string>, name: string): boolean {
 }
 
 /**
+ * Check if a tool will be registered (not disabled).
+ * Use this to avoid mentioning disabled tools in descriptions/responses.
+ */
+export function isToolEnabled(disabledTools: Set<string>, name: string): boolean {
+  return !isToolDisabled(disabledTools, name)
+}
+
+/**
  * Register a tool with auto-prefixed name (disabled tools are skipped).
  *
  * Uses rest args to forward all overload variants of `McpServer.registerTool`

@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getConfig, resetConfigCache } from '../config'
 import { expandGroups, TOOL_GROUPS } from '../tool-groups'
+import { registerGetPlayerStateTool } from '../tools/player/get-player-state-tool'
+import { registerResynthesizePlayerTool } from '../tools/player/resynthesize-player-tool'
+import type { PlayerRuntime } from '../tools/player/runtime'
+import { registerSpeakPlayerTool } from '../tools/player/speak-player-tool'
+import { registerSpeakTool } from '../tools/speak'
+import { registerSpeakerTools } from '../tools/speakers'
+import type { ToolDeps } from '../tools/types'
 
 describe('tool disabling', () => {
   const originalEnv = process.env
@@ -168,6 +175,166 @@ describe('tool groups (--disable-groups)', () => {
       const config = getConfig([], {})
 
       expect(config.disabledGroups).toEqual([])
+    })
+  })
+})
+
+describe('disabled-tool guidance in descriptions and responses', () => {
+  function createDeps(disabledTools: Iterable<string> = []) {
+    const registerTool = vi.fn()
+    const deps: ToolDeps = {
+      server: { registerTool } as any,
+      voicevoxClient: {} as any,
+      config: {
+        voicevoxUrl: 'http://localhost:50021',
+        defaultSpeaker: 1,
+        defaultSpeedScale: 1,
+        defaultImmediate: true,
+        defaultWaitForStart: false,
+        defaultWaitForEnd: false,
+        autoPlay: true,
+      } as any,
+      disabledTools: new Set(disabledTools),
+      restrictions: { immediate: false, waitForStart: false, waitForEnd: false },
+    }
+    const getRegisteredCall = (name: string) => {
+      const call = registerTool.mock.calls.find((c: any[]) => c[0] === name)
+      expect(call).toBeDefined()
+      return call!
+    }
+    return {
+      deps,
+      getToolConfig: (name: string) => getRegisteredCall(name)[1],
+      getToolHandler: (name: string) => getRegisteredCall(name)[2],
+    }
+  }
+
+  function createMockRuntime(overrides: Partial<PlayerRuntime> = {}): PlayerRuntime {
+    return {
+      playerVoicevoxApi: {} as any,
+      getSpeakerList: vi.fn(async () => []),
+      getSpeakerName: vi.fn(async (id: number) => `Speaker ${id}`),
+      resolveSpeakerNames: vi.fn(async (ids: number[]) => new Map(ids.map((id) => [id, `Speaker ${id}`]))),
+      getUserDictionaryWords: vi.fn(async () => []),
+      synthesizeWithCache: vi.fn(),
+      setSessionState: vi.fn(),
+      getSessionState: vi.fn(() => undefined),
+      getSessionStateByKey: vi.fn(() => undefined),
+      ...overrides,
+    }
+  }
+
+  describe('無効化なし（回帰確認）', () => {
+    it('speak の description は voicevox_speak_player を案内する', () => {
+      const { deps, getToolConfig } = createDeps()
+      registerSpeakTool(deps)
+      expect(getToolConfig('voicevox_speak').description).toContain('voicevox_speak_player')
+    })
+
+    it('get_player_state の description と viewUUID は speak_player/resynthesize_player を案内する', () => {
+      const { deps, getToolConfig } = createDeps()
+      registerGetPlayerStateTool(deps, createMockRuntime())
+      const config = getToolConfig('voicevox_get_player_state')
+      expect(config.description).toContain('speak_player/resynthesize_player')
+      expect(config.inputSchema.viewUUID.description).toContain('speak_player/resynthesize_player')
+    })
+
+    it('speak_player の description は voicevox_speak を案内する', () => {
+      const { deps, getToolConfig } = createDeps()
+      registerSpeakPlayerTool(deps, createMockRuntime())
+      expect(getToolConfig('voicevox_speak_player').description).toContain('voicevox_speak')
+    })
+
+    it('get_speakers の description は speak.speaker を案内する', () => {
+      const { deps, getToolConfig } = createDeps()
+      registerSpeakerTools(deps)
+      expect(getToolConfig('voicevox_get_speakers').description).toContain('speak.speaker')
+    })
+  })
+
+  describe('--disable-groups apps 相当（speak_player/resynthesize_player が無効）', () => {
+    const appsDisabled = expandGroups(['apps'])
+
+    it('speak の description に speak_player が現れない', () => {
+      const { deps, getToolConfig } = createDeps(appsDisabled)
+      registerSpeakTool(deps)
+      expect(getToolConfig('voicevox_speak').description).not.toContain('speak_player')
+    })
+
+    it('get_player_state の description と viewUUID に無効ツール名が現れない', () => {
+      const { deps, getToolConfig } = createDeps(appsDisabled)
+      registerGetPlayerStateTool(deps, createMockRuntime())
+      const config = getToolConfig('voicevox_get_player_state')
+      expect(config.description).not.toContain('speak_player')
+      expect(config.description).not.toContain('resynthesize_player')
+      expect(config.inputSchema.viewUUID.description).not.toContain('speak_player')
+      expect(config.inputSchema.viewUUID.description).not.toContain('resynthesize_player')
+    })
+
+    it('get_player_state のレスポンス hint が resynthesize_player 無効時に省略される', async () => {
+      const state = { segments: [{ text: 'こんにちは', speaker: 1 }], updatedAt: 1 }
+      const { deps, getToolHandler } = createDeps(appsDisabled)
+      registerGetPlayerStateTool(deps, createMockRuntime({ getSessionState: vi.fn(() => state) }))
+      const result = await getToolHandler('voicevox_get_player_state')({}, {})
+      const payload = JSON.parse(result.content[0].text)
+      expect(payload.hint).toBeUndefined()
+    })
+
+    it('get_player_state のレスポンス hint は有効時には含まれる', async () => {
+      const state = { segments: [{ text: 'こんにちは', speaker: 1 }], updatedAt: 1 }
+      const { deps, getToolHandler } = createDeps()
+      registerGetPlayerStateTool(deps, createMockRuntime({ getSessionState: vi.fn(() => state) }))
+      const result = await getToolHandler('voicevox_get_player_state')({}, {})
+      const payload = JSON.parse(result.content[0].text)
+      expect(payload.hint).toContain('resynthesize_player')
+    })
+  })
+
+  describe('個別無効化', () => {
+    it('speak 無効時、speak_player の description に voicevox_speak が現れない', () => {
+      const { deps, getToolConfig } = createDeps(['speak'])
+      registerSpeakPlayerTool(deps, createMockRuntime())
+      const description = getToolConfig('voicevox_speak_player').description
+      // 自ツール名 (voicevox_speak_player) は含まれてよいが、voicevox_speak 単体への案内は消える
+      expect(description).not.toContain('use voicevox_speak instead')
+    })
+
+    it('speak 無効時、get_speakers の description に speak.speaker が現れない', () => {
+      const { deps, getToolConfig } = createDeps(['speak'])
+      registerSpeakerTools(deps)
+      expect(getToolConfig('voicevox_get_speakers').description).not.toContain('speak.speaker')
+    })
+
+    it('speak_player の Next 行は無効ツールを列挙しない', async () => {
+      const { deps, getToolHandler } = createDeps(['get_player_state'])
+      registerSpeakPlayerTool(deps, createMockRuntime())
+      const result = await getToolHandler('voicevox_speak_player')({ text: 'こんにちは' }, {})
+      const text = result.content[0].text
+      expect(text).toContain('voicevox_resynthesize_player')
+      expect(text).not.toContain('voicevox_get_player_state')
+    })
+
+    it('speak_player の Next 行は後続ツールが全て無効なら省略される', async () => {
+      const { deps, getToolHandler } = createDeps(['get_player_state', 'resynthesize_player'])
+      registerSpeakPlayerTool(deps, createMockRuntime())
+      const result = await getToolHandler('voicevox_speak_player')({ text: 'こんにちは' }, {})
+      expect(result.content[0].text).not.toContain('Next:')
+    })
+
+    it('resynthesize_player のエラー文は speak_player 無効時に案内を含まない', async () => {
+      const { deps, getToolHandler } = createDeps(['speak_player'])
+      registerResynthesizePlayerTool(deps, createMockRuntime())
+      const result = await getToolHandler('voicevox_resynthesize_player')({ viewUUID: 'x', trackIndex: 0 }, {})
+      expect(result.isError).toBe(true)
+      expect(result.content[0].text).not.toContain('speak_player')
+    })
+
+    it('resynthesize_player のエラー文は speak_player 有効時に案内を含む', async () => {
+      const { deps, getToolHandler } = createDeps()
+      registerResynthesizePlayerTool(deps, createMockRuntime())
+      const result = await getToolHandler('voicevox_resynthesize_player')({ viewUUID: 'x', trackIndex: 0 }, {})
+      expect(result.isError).toBe(true)
+      expect(result.content[0].text).toContain('Use speak_player first')
     })
   })
 })
