@@ -33,6 +33,11 @@ describe('config module', () => {
       expect(result.defaultSpeedScale).toBe(1.5)
     })
 
+    it('--post-phoneme-length を正しくパースする', () => {
+      const result = parseCliArgs(['--post-phoneme-length', '0.5'])
+      expect(result.defaultPostPhonemeLength).toBe(0.5)
+    })
+
     it('--immediate を正しくパースする', () => {
       const result = parseCliArgs(['--immediate'])
       expect(result.defaultImmediate).toBe(true)
@@ -174,6 +179,11 @@ describe('config module', () => {
     it('VOICEVOX_DEFAULT_SPEED_SCALE を正しく読み込む', () => {
       const result = parseEnvVars({ VOICEVOX_DEFAULT_SPEED_SCALE: '1.5' })
       expect(result.defaultSpeedScale).toBe(1.5)
+    })
+
+    it('VOICEVOX_DEFAULT_POST_PHONEME_LENGTH を正しく読み込む', () => {
+      const result = parseEnvVars({ VOICEVOX_DEFAULT_POST_PHONEME_LENGTH: '0.5' })
+      expect(result.defaultPostPhonemeLength).toBe(0.5)
     })
 
     it('VOICEVOX_DEFAULT_IMMEDIATE=false で false を返す', () => {

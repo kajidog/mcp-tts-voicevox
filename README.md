@@ -244,6 +244,7 @@ The main feature callable from Claude.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `VOICEVOX_USE_STREAMING` | Streaming playback (requires `ffplay`) | `false` |
+| `VOICEVOX_DEFAULT_POST_PHONEME_LENGTH` | Trailing silence per segment in seconds. Increase for a longer pause between queued segments (also protects the end of speech from being cut off with streaming playback) | engine default |
 | `VOICEVOX_DEFAULT_IMMEDIATE` | Immediate playback | `true` |
 | `VOICEVOX_DEFAULT_WAIT_FOR_START` | Wait for playback start | `false` |
 | `VOICEVOX_DEFAULT_WAIT_FOR_END` | Wait for playback end | `false` |
@@ -312,6 +313,7 @@ Built-in groups for `VOICEVOX_DISABLED_GROUPS` / `--disable-groups`:
 <summary><b>Command Line Arguments</b></summary>
 
 Command line arguments take priority over environment variables.
+The complete, up-to-date list of options is always available via `npx @kajidog/mcp-tts-voicevox --help`.
 
 ```bash
 # Basic settings
@@ -340,6 +342,7 @@ npx @kajidog/mcp-tts-voicevox --disable-groups player
 | `--speaker <value>` | Default speaker ID |
 | `--speed <value>` | Playback speed |
 | `--use-streaming` / `--no-use-streaming` | Streaming playback |
+| `--post-phoneme-length <sec>` | Trailing silence per segment (pause between queued segments) |
 | `--immediate` / `--no-immediate` | Immediate playback |
 | `--wait-for-start` / `--no-wait-for-start` | Wait for start |
 | `--wait-for-end` / `--no-wait-for-end` | Wait for end |

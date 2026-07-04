@@ -73,6 +73,15 @@ const voicevoxConfigDefs: ConfigDefs = {
     group: 'Playback Options',
     type: 'boolean',
   },
+  defaultPostPhonemeLength: {
+    cli: '--post-phoneme-length',
+    env: 'VOICEVOX_DEFAULT_POST_PHONEME_LENGTH',
+    description:
+      'Trailing silence per speech segment in seconds (default: VOICEVOX engine default). Increase for a longer pause between queued segments; with streaming playback (ffplay) the silence also protects the end of speech from being cut off',
+    group: 'Playback Options',
+    type: 'number',
+    valueName: '<sec>',
+  },
   defaultImmediate: {
     cli: '--immediate',
     env: 'VOICEVOX_DEFAULT_IMMEDIATE',
@@ -240,6 +249,7 @@ export interface ServerConfig extends BaseServerConfig {
   retryCount: number
   retryDelayMs: number
   useStreaming?: boolean
+  defaultPostPhonemeLength?: number
 
   // 再生オプションのデフォルト
   defaultImmediate: boolean

@@ -19,7 +19,7 @@ const config = getConfig()
 export function createServer(): McpServer {
   const server = new McpServer({
     name: 'mcp-tts-voicevox',
-    version: '0.8.0',
+    version: '0.8.1',
     description: 'A Voicevox server that converts text to speech for playback and saving.',
   })
 
@@ -31,6 +31,7 @@ export function createServer(): McpServer {
     retryCount: config.retryCount,
     retryDelayMs: config.retryDelayMs,
     useStreaming: config.useStreaming,
+    defaultPostPhonemeLength: config.defaultPostPhonemeLength,
   })
 
   // 共通依存オブジェクト

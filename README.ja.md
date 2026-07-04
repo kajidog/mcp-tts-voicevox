@@ -244,6 +244,7 @@ Claude から呼び出せるメインの機能です。
 | 環境変数 | 説明 | デフォルト |
 |---------|------|-----------|
 | `VOICEVOX_USE_STREAMING` | ストリーミング再生（`ffplay` 必要） | `false` |
+| `VOICEVOX_DEFAULT_POST_PHONEME_LENGTH` | セグメント末尾の無音（秒）。大きくするとキュー再生時のセグメント間の間が長くなる（ストリーミング再生時は音声末尾の欠け防止にもなる） | エンジンのデフォルト |
 | `VOICEVOX_DEFAULT_IMMEDIATE` | 即時再生 | `true` |
 | `VOICEVOX_DEFAULT_WAIT_FOR_START` | 再生開始まで待機 | `false` |
 | `VOICEVOX_DEFAULT_WAIT_FOR_END` | 再生完了まで待機 | `false` |
@@ -312,6 +313,7 @@ export VOICEVOX_DISABLED_TOOLS=synthesize_file
 <summary><b>コマンドライン引数で設定</b></summary>
 
 コマンドライン引数は環境変数より優先されます。
+最新のオプション一覧は `npx @kajidog/mcp-tts-voicevox --help` でいつでも確認できます。
 
 ```bash
 # 基本設定
@@ -340,6 +342,7 @@ npx @kajidog/mcp-tts-voicevox --disable-groups player
 | `--speaker <value>` | デフォルト話者 ID |
 | `--speed <value>` | 再生速度 |
 | `--use-streaming` / `--no-use-streaming` | ストリーミング再生 |
+| `--post-phoneme-length <sec>` | セグメント末尾の無音（キュー再生時のセグメント間の間） |
 | `--immediate` / `--no-immediate` | 即時再生 |
 | `--wait-for-start` / `--no-wait-for-start` | 再生開始待機 |
 | `--wait-for-end` / `--no-wait-for-end` | 再生完了待機 |
