@@ -179,6 +179,7 @@ export function registerResynthesizePlayerTool(deps: ToolDeps, runtime: PlayerRu
         const nextState = {
           segments: enrichedSegments,
           updatedAt: Date.now(),
+          autoPlay: effectiveAutoPlay,
         }
         // 新しい viewUUID を払い出し、古いUI状態との衝突を避ける。
         runtime.setSessionState(viewUUID, nextState)
@@ -186,19 +187,7 @@ export function registerResynthesizePlayerTool(deps: ToolDeps, runtime: PlayerRu
           runtime.setSessionState(extra.sessionId, nextState)
         }
 
-        const uiSegments = enrichedSegments.map((seg) => ({
-          text: seg.text,
-          speaker: seg.speaker,
-          speakerName: seg.speakerName,
-          speedScale: seg.speedScale,
-          intonationScale: seg.intonationScale,
-          volumeScale: seg.volumeScale,
-          prePhonemeLength: seg.prePhonemeLength,
-          postPhonemeLength: seg.postPhonemeLength,
-          pauseLengthScale: seg.pauseLengthScale,
-          accentPhrases: seg.accentPhrases,
-        }))
-
+        // 「viewUUID: <uuid>」はプレーヤーUIとの契約（speak_player と同様）。
         return {
           content: [
             {
@@ -206,18 +195,6 @@ export function registerResynthesizePlayerTool(deps: ToolDeps, runtime: PlayerRu
               text: `Voicevox Player updated track ${trackIndex}. viewUUID: ${viewUUID}`,
             },
           ],
-          structuredContent: {
-            viewUUID,
-            autoPlay: effectiveAutoPlay,
-            segments: uiSegments,
-            resynthesizedTrackIndex: trackIndex,
-          },
-          _meta: {
-            viewUUID,
-            autoPlay: effectiveAutoPlay,
-            segments: uiSegments,
-            resynthesizedTrackIndex: trackIndex,
-          },
         }
       } catch (error) {
         return createErrorResponse(error)

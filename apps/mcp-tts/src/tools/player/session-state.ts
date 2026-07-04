@@ -26,6 +26,7 @@ export interface PlayerSegmentState {
 export interface PlayerSessionState {
   segments: PlayerSegmentState[]
   updatedAt: number
+  autoPlay?: boolean
 }
 
 // ---------------------------------------------------------------------------

@@ -1,81 +1,24 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import type { DictionaryData, MultiPlayerData, PlayerData } from './types'
 
-export function extractPlayerData(result: CallToolResult): PlayerData | null {
+// ホストは content テキスト以外（structuredContent / _meta）をUIへ転送しないため、
+// ツール結果の解釈は content テキストとの契約に依存する。
+// 契約元: apps/mcp-tts/src/tools/player/{speak,resynthesize}-player-tool.ts,
+//         open-dictionary-ui-tool.ts
+
+function getResultText(result: CallToolResult): string {
   const textContent = result.content?.find((c: { type: string }) => c.type === 'text')
-  if (!textContent || textContent.type !== 'text') return null
-
-  try {
-    const data = JSON.parse(textContent.text)
-    if (!data.audioBase64) return null
-    return {
-      audioBase64: data.audioBase64,
-      text: data.text || '',
-      autoPlay: data.autoPlay !== false,
-      speaker: data.speaker ?? 0,
-      speakerName: data.speakerName || `Speaker ${data.speaker}`,
-      kana: typeof data.kana === 'string' ? data.kana : undefined,
-      speedScale: data.speedScale,
-      audioQuery: typeof data.audioQuery === 'object' && data.audioQuery ? data.audioQuery : undefined,
-    }
-  } catch {
-    return null
-  }
+  return textContent?.type === 'text' ? textContent.text : ''
 }
 
-export function extractMultiPlayerData(result: CallToolResult): MultiPlayerData | null {
-  // content からセグメント配列を試みる（後方互換）
-  const textContent = result.content?.find((c: { type: string }) => c.type === 'text')
-  if (textContent?.type === 'text') {
-    try {
-      const data = JSON.parse(textContent.text)
-      if (data.segments && Array.isArray(data.segments)) {
-        return {
-          segments: data.segments,
-          autoPlay: data.autoPlay !== false,
-          viewUUID: typeof data.viewUUID === 'string' ? data.viewUUID : undefined,
-        }
-      }
-    } catch {
-      // JSON でない場合（例: "Voicevox Player started. ..."）は _meta にフォールバック
-    }
-  }
-
-  // _meta からセグメント配列を読む（speak_player / resynthesize_player の新形式）
-  const meta = (result as { _meta?: Record<string, unknown> })?._meta
-  if (meta?.segments && Array.isArray(meta.segments)) {
-    return {
-      segments: meta.segments as MultiPlayerData['segments'],
-      autoPlay: meta.autoPlay !== false,
-      viewUUID: typeof meta.viewUUID === 'string' ? meta.viewUUID : undefined,
-    }
-  }
-
-  return null
+/** speak_player / resynthesize_player の結果テキストから viewUUID を読み取る */
+export function extractViewUUID(result: CallToolResult): string | null {
+  const match = getResultText(result).match(/viewUUID: ([0-9a-fA-F-]{36})/)
+  return match ? match[1] : null
 }
 
-export function extractDictionaryData(result: CallToolResult): DictionaryData | null {
-  const meta = (result as { _meta?: Record<string, unknown> })?._meta
-  if (meta?.mode === 'dictionary' && Array.isArray(meta.dictionaryWords)) {
-    return {
-      words: meta.dictionaryWords as DictionaryData['words'],
-      notice: typeof meta.dictionaryNotice === 'string' ? meta.dictionaryNotice : undefined,
-    }
-  }
-
-  const textContent = result.content?.find((c: { type: string }) => c.type === 'text')
-  if (textContent?.type !== 'text') return null
-
-  try {
-    const data = JSON.parse(textContent.text) as { words?: DictionaryData['words']; notice?: string }
-    if (!Array.isArray(data.words)) return null
-    return {
-      words: data.words,
-      notice: typeof data.notice === 'string' ? data.notice : undefined,
-    }
-  } catch {
-    return null
-  }
+/** open_dictionary_ui の結果かどうか判定する */
+export function isDictionaryResult(result: CallToolResult): boolean {
+  return getResultText(result).startsWith('Dictionary manager opened')
 }
 
 /** 秒を mm:ss 形式に変換 */

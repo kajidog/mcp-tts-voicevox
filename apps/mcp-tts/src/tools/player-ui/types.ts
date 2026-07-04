@@ -36,6 +36,7 @@ export type PlayerSegmentState = {
 export type PlayerSessionState = {
   segments: PlayerSegmentState[]
   updatedAt: number
+  autoPlay?: boolean
 }
 
 export interface PlayerUIShared {

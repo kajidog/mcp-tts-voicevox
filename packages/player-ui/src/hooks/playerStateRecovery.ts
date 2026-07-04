@@ -1,6 +1,4 @@
-import type { App } from '@modelcontextprotocol/ext-apps'
 import type { AudioSegment } from '../types'
-import { fetchPlayerStateOnServer } from './playerToolClient'
 
 const playerSnapshotFullKey = (viewUUID: string) => `voicevox-player-state-full-${viewUUID}`
 const playerSnapshotSlimKey = (viewUUID: string) => `voicevox-player-state-${viewUUID}`
@@ -9,7 +7,11 @@ function toSlimSnapshotSegments(segments: AudioSegment[]): AudioSegment[] {
   return segments.map(({ audioBase64, ...rest }) => rest)
 }
 
-function mergeLocalAudioSegments(baseSegments: AudioSegment[], localSegments: AudioSegment[] | null): AudioSegment[] {
+/** サーバー状態のセグメントに、localStorage にキャッシュ済みの音声データを合流させる */
+export function mergeLocalAudioSegments(
+  baseSegments: AudioSegment[],
+  localSegments: AudioSegment[] | null
+): AudioSegment[] {
   if (!localSegments?.length) return baseSegments
   return baseSegments.map((segment, index) => {
     const local = localSegments[index]
@@ -57,30 +59,3 @@ export function saveLocalSnapshot(viewUUID: string | undefined, segments: AudioS
   }
 }
 
-export async function resolveRestoredSegments(
-  app: App,
-  viewUUID: string | undefined,
-  initialSegments: AudioSegment[]
-): Promise<AudioSegment[]> {
-  let restoredSegments = initialSegments
-  const localSegments = loadLocalSnapshot(viewUUID)
-
-  try {
-    const restoredByView = await fetchPlayerStateOnServer(app, { viewUUID })
-    if (restoredByView?.segments?.length) {
-      restoredSegments = restoredByView.segments
-    } else {
-      const restoredBySession = await fetchPlayerStateOnServer(app, {})
-      if (restoredBySession?.segments?.length) {
-        restoredSegments = restoredBySession.segments
-      } else if (localSegments?.length) {
-        restoredSegments = localSegments
-      }
-    }
-  } catch (error) {
-    console.warn('[playerStateRecovery] Failed to restore player state:', error)
-    if (localSegments?.length) restoredSegments = localSegments
-  }
-
-  return mergeLocalAudioSegments(restoredSegments, localSegments)
-}

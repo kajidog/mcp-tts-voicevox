@@ -15,6 +15,52 @@ export function registerPlayerStateTools(context: PlayerUIToolContext): void {
   registerAppToolIfEnabled(
     server,
     disabledTools,
+    '_get_player_state_for_player',
+    {
+      title: 'Get Player State (Player)',
+      description:
+        'Fetch full player segments (including audioQuery/accentPhrases) for a viewUUID. Only callable from the app UI.',
+      inputSchema: {
+        viewUUID: z.string().describe('Player instance ID from the tool result text'),
+      },
+      _meta: {
+        ui: {
+          resourceUri: playerResourceUri,
+          visibility: ['app'],
+        },
+      },
+    },
+    async ({ viewUUID }: { viewUUID: string }): Promise<CallToolResult> => {
+      try {
+        const state = shared.getSessionState(viewUUID)
+        if (!state) {
+          // サーバー再起動などで状態が消えたケース。UIが再実行の案内を出せるよう、
+          // エラーではなく notFound で返す。
+          return {
+            content: [{ type: 'text', text: JSON.stringify({ notFound: true }) }],
+          }
+        }
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                segments: state.segments,
+                updatedAt: state.updatedAt,
+                autoPlay: state.autoPlay ?? config.autoPlay,
+              }),
+            },
+          ],
+        }
+      } catch (error) {
+        return createErrorResponse(error)
+      }
+    }
+  )
+
+  registerAppToolIfEnabled(
+    server,
+    disabledTools,
     '_save_player_state_for_player',
     {
       title: 'Save Player State (Player)',

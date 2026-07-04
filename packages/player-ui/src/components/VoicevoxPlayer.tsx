@@ -2,26 +2,23 @@ import type { App } from '@modelcontextprotocol/ext-apps'
 import { useApp } from '@modelcontextprotocol/ext-apps/react'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { useEffect, useRef, useState } from 'react'
-import { resolveRestoredSegments } from '../hooks/playerStateRecovery'
-import type { AudioSegment, DictionaryData, MultiPlayerData } from '../types'
-import { extractDictionaryData, extractMultiPlayerData, extractPlayerData } from '../utils'
+import { loadLocalSnapshot, mergeLocalAudioSegments } from '../hooks/playerStateRecovery'
+import { fetchDictionaryWords, fetchPlayerViewState } from '../hooks/playerToolClient'
+import type { DictionaryData, MultiPlayerData } from '../types'
+import { extractViewUUID, isDictionaryResult } from '../utils'
 import { DictionaryManager } from './dictionary/DictionaryManager'
 import { MultiAudioPlayer } from './MultiAudioPlayer'
 
-interface LoadingProgress {
-  completed: number
-  total: number
-}
-
 const statusBox =
   'mx-4 my-3 rounded-xl border border-[var(--ui-border)] bg-[var(--ui-surface)] px-4 py-3 text-sm text-[var(--ui-text)]'
+
+const DICTIONARY_NOTICE = '辞書変更は既存トラックに自動反映されません。Playerで再生成すると反映されます。'
 
 export function VoicevoxPlayer() {
   const [multiPlayerData, setMultiPlayerData] = useState<MultiPlayerData | null>(null)
   const [dictionaryData, setDictionaryData] = useState<DictionaryData | null>(null)
   const [status, setStatus] = useState<'connecting' | 'waiting' | 'ready' | 'error'>('connecting')
   const [errorMsg, setErrorMsg] = useState('')
-  const [loadingProgress, setLoadingProgress] = useState<LoadingProgress | null>(null)
   const appRef = useRef<App | null>(null)
   // 復元検出: viewUUID が localStorage に既存ならアプリ再起動後の復元とみなす
   const isRestoreRef = useRef(false)
@@ -37,16 +34,38 @@ export function VoicevoxPlayer() {
       createdApp.ontoolinput = async (_params) => {
         // ツール実行中は待機表示へ。実際の音声合成進捗は MultiAudioPlayer 側で扱う。
         setStatus('waiting')
-        setLoadingProgress(null)
       }
 
+      // ホストは content テキストしかUIへ転送しないため、結果テキストから
+      // viewUUID を読み取り、データ本体はサーバーツールで取得するプル型にしている。
       createdApp.ontoolresult = async (result: CallToolResult) => {
-        // viewUUID による復元検出（公式パターン: Persisting view state）
-        // アプリ再起動時、ホストはキャッシュされた tool result を再送するため、
-        // localStorage に UUID が既存なら復元 = autoPlay を無効化
-        const meta = (result as any)?._meta
-        const viewUUID = meta?.viewUUID as string | undefined
-        if (viewUUID) {
+        if (result.isError) {
+          setStatus('error')
+          const errText = result.content?.find((c: { type: string }) => c.type === 'text')
+          setErrorMsg(errText && errText.type === 'text' ? errText.text : 'Unknown error')
+          return
+        }
+
+        try {
+          if (isDictionaryResult(result)) {
+            const words = await fetchDictionaryWords(createdApp)
+            setDictionaryData({ words, notice: DICTIONARY_NOTICE })
+            setMultiPlayerData(null)
+            setStatus('ready')
+            return
+          }
+
+          const viewUUID = extractViewUUID(result)
+          if (!viewUUID) {
+            setStatus('error')
+            setErrorMsg('ツール結果から viewUUID を読み取れませんでした（サーバーとUIのバージョン不一致の可能性）')
+            return
+          }
+          playerViewUUIDRef.current = viewUUID
+
+          // viewUUID による復元検出（公式パターン: Persisting view state）
+          // アプリ再起動時、ホストはキャッシュされた tool result を再送するため、
+          // localStorage に UUID が既存なら復元 = autoPlay を無効化
           const storageKey = `voicevox-played-${viewUUID}`
           try {
             if (localStorage.getItem(storageKey)) {
@@ -55,65 +74,33 @@ export function VoicevoxPlayer() {
               localStorage.setItem(storageKey, '1')
             }
           } catch {
-            // localStorage が使えない場合はフォールバック（autoPlay を許可）
+            // localStorage が使えない場合は autoPlay を許可したまま続行
           }
-        }
 
-        if (result.isError) {
+          const state = await fetchPlayerViewState(createdApp, viewUUID)
+          if (!state) {
+            setStatus('error')
+            setErrorMsg('このプレーヤーのデータは失われました。もう一度読み上げを実行すると、新しいプレーヤーが開きます。')
+            return
+          }
+          setMultiPlayerData({
+            segments: mergeLocalAudioSegments(state.segments, loadLocalSnapshot(viewUUID)),
+            autoPlay: isRestoreRef.current ? false : state.autoPlay,
+            viewUUID,
+          })
+          setDictionaryData(null)
+          setStatus('ready')
+        } catch (error) {
           setStatus('error')
-          const errText = result.content?.find((c: { type: string }) => c.type === 'text')
-          setErrorMsg(errText && errText.type === 'text' ? errText.text : 'Unknown error')
-          return
-        }
-
-        const dictionary = extractDictionaryData(result)
-        if (dictionary) {
-          setDictionaryData(dictionary)
-          setMultiPlayerData(null)
-          setStatus('ready')
-          return
-        }
-        // speak_player の完了通知（音声データなし）は無視する
-        // 音声データは _resynthesize_for_player 経由でのみ受け取る
-        const multiData = extractMultiPlayerData(result)
-        if (multiData) {
-          if (multiData.viewUUID) {
-            playerViewUUIDRef.current = multiData.viewUUID
-          }
-          const restoredSegments = await resolveRestoredSegments(createdApp, multiData.viewUUID, multiData.segments)
-          setMultiPlayerData({
-            ...multiData,
-            segments: restoredSegments,
-            autoPlay: isRestoreRef.current ? false : multiData.autoPlay,
-          })
-          setDictionaryData(null)
-          setStatus('ready')
-          return
-        }
-
-        const data = extractPlayerData(result)
-        if (data) {
-          const segment: AudioSegment = {
-            audioBase64: data.audioBase64,
-            text: data.text,
-            speaker: data.speaker,
-            speakerName: data.speakerName,
-            audioQuery: data.audioQuery,
-          }
-          setMultiPlayerData({
-            segments: [segment],
-            autoPlay: isRestoreRef.current ? false : data.autoPlay,
-          })
-          setDictionaryData(null)
-          setStatus('ready')
+          setErrorMsg(`プレーヤー状態の取得に失敗しました: ${error instanceof Error ? error.message : String(error)}`)
         }
       }
 
       createdApp.ontoolcancelled = () => {
-        setStatus('waiting')
+        setStatus('error')
+        setErrorMsg('ツール呼び出しがキャンセルされました。もう一度お試しください。')
         setMultiPlayerData(null)
         setDictionaryData(null)
-        setLoadingProgress(null)
       }
 
       createdApp.onteardown = async () => {
@@ -147,23 +134,9 @@ export function VoicevoxPlayer() {
 
   if (status === 'waiting') {
     return (
-      <div className={`${statusBox} space-y-2`}>
-        {loadingProgress ? (
-          <>
-            <span>{`音声を生成中... ${loadingProgress.completed} / ${loadingProgress.total}`}</span>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--ui-progress-bg)]">
-              <div
-                className="h-full rounded-full bg-[var(--ui-accent)] transition-[width] duration-150"
-                style={{ width: `${(loadingProgress.completed / loadingProgress.total) * 100}%` }}
-              />
-            </div>
-          </>
-        ) : (
-          <div className="flex items-center gap-2">
-            <div className="vv-spinner" />
-            プレーヤーを準備中...
-          </div>
-        )}
+      <div className={`${statusBox} flex items-center gap-2`}>
+        <div className="vv-spinner" />
+        プレーヤーを準備中...
       </div>
     )
   }

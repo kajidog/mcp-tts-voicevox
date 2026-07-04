@@ -198,39 +198,34 @@ export async function savePlayerStateOnServer(
   assertNoToolError(result)
 }
 
-export async function fetchPlayerStateOnServer(
+/** viewUUID のプレーヤー状態を取得する。サーバーに状態が残っていなければ null */
+export async function fetchPlayerViewState(
   app: App,
-  args: { viewUUID?: string }
-): Promise<{ segments: AudioSegment[]; updatedAt: number } | null> {
-  const collected: AudioSegment[] = []
-  let cursor: number | undefined = 0
-  let updatedAt = 0
-
-  for (let page = 0; page < 20; page++) {
-    const result = await app.callServerTool({
-      name: 'get_player_state',
-      arguments: {
-        viewUUID: args.viewUUID,
-        cursor,
-        limit: 100,
-      },
-    })
-    const payload = getTextPayload(result.content)
-    if (!payload) break
-    const parsed = JSON.parse(payload) as {
-      segments?: AudioSegment[]
-      updatedAt?: number
-      hasMore?: boolean
-      nextCursor?: number | null
-    }
-    if (Array.isArray(parsed.segments)) collected.push(...parsed.segments)
-    if (typeof parsed.updatedAt === 'number') updatedAt = parsed.updatedAt
-    if (!parsed.hasMore || parsed.nextCursor === null || parsed.nextCursor === undefined) break
-    cursor = parsed.nextCursor
+  viewUUID: string
+): Promise<{ segments: AudioSegment[]; updatedAt: number; autoPlay: boolean } | null> {
+  const result = await app.callServerTool({
+    name: '_get_player_state_for_player',
+    arguments: { viewUUID },
+  })
+  assertNoToolError(result)
+  const payload = getTextPayload(result.content)
+  if (!payload) {
+    throw new Error('_get_player_state_for_player returned no payload')
   }
-
-  if (collected.length === 0) return null
-  return { segments: collected, updatedAt }
+  const parsed = JSON.parse(payload) as {
+    notFound?: boolean
+    segments?: AudioSegment[]
+    updatedAt?: number
+    autoPlay?: boolean
+  }
+  if (parsed.notFound || !Array.isArray(parsed.segments) || parsed.segments.length === 0) {
+    return null
+  }
+  return {
+    segments: parsed.segments,
+    updatedAt: parsed.updatedAt ?? 0,
+    autoPlay: parsed.autoPlay !== false,
+  }
 }
 
 export async function exportTracksOnServer(

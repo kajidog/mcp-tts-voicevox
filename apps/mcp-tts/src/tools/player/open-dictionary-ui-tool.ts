@@ -26,19 +26,10 @@ export function registerOpenDictionaryUITool(deps: ToolDeps, runtime: PlayerRunt
     async (): Promise<CallToolResult> => {
       try {
         const words = await runtime.getUserDictionaryWords()
-        const notice = '辞書変更は既存トラックに自動反映されません。Playerで再生成すると反映されます。'
+        // 「Dictionary manager opened」はプレーヤーUIとの契約。UIはこのテキストで
+        // 辞書モードを判定し、_get_user_dictionary_for_player で単語一覧を取得する。
         return {
           content: [{ type: 'text', text: `Dictionary manager opened. ${words.length} word(s).` }],
-          structuredContent: {
-            mode: 'dictionary',
-            dictionaryWords: words,
-            dictionaryNotice: notice,
-          },
-          _meta: {
-            mode: 'dictionary',
-            dictionaryWords: words,
-            dictionaryNotice: notice,
-          },
         }
       } catch (error) {
         return createErrorResponse(error)

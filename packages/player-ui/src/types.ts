@@ -2,18 +2,6 @@ import type { AccentPhrase, AudioQuery, Mora } from '@kajidog/voicevox-client'
 
 export type { Mora, AccentPhrase, AudioQuery }
 
-/** ツール結果から情報を抽出 */
-export interface PlayerData {
-  audioBase64: string
-  text: string
-  autoPlay: boolean
-  speaker: number
-  speakerName: string
-  kana?: string
-  speedScale?: number
-  audioQuery?: AudioQuery
-}
-
 export interface SpeakerInfo {
   id: number
   name: string

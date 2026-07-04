@@ -75,6 +75,7 @@ export function registerSpeakPlayerTool(deps: ToolDeps, runtime: PlayerRuntime):
             speedScale: s.speedScale,
           })),
           updatedAt: Date.now(),
+          autoPlay: config.autoPlay,
         }
         runtime.setSessionState(viewUUID, nextState)
         if (extra.sessionId && extra.sessionId !== viewUUID) {
@@ -83,18 +84,15 @@ export function registerSpeakPlayerTool(deps: ToolDeps, runtime: PlayerRuntime):
 
         const fullText = parsedSegments.map((s) => s.text).join(' ')
         const textPreview = fullText.slice(0, 60) + (fullText.length > 60 ? '...' : '')
-        const uiSegments = baseSegments.map((s) => ({
-          text: s.text,
-          speaker: s.speaker,
-          speakerName: speakerNameMap.get(s.speaker),
-          speedScale: s.speedScale,
-        }))
         const nextSteps = [
           ...(isToolEnabled(disabledTools, 'resynthesize_player')
             ? ['voicevox_resynthesize_player (edit a track)']
             : []),
           ...(isToolEnabled(disabledTools, 'get_player_state') ? ['voicevox_get_player_state (inspect state)'] : []),
         ]
+        // 「viewUUID: <uuid>」はプレーヤーUIとの契約。ホストは content テキスト
+        // 以外（structuredContent / _meta）をUIへ転送しないため、UIはこのテキスト
+        // から viewUUID を読み取り _get_player_state_for_player で状態を取得する。
         return {
           content: [
             {
@@ -104,16 +102,6 @@ export function registerSpeakPlayerTool(deps: ToolDeps, runtime: PlayerRuntime):
                 (nextSteps.length > 0 ? `\nNext: ${nextSteps.join(' | ')}` : ''),
             },
           ],
-          structuredContent: {
-            viewUUID,
-            autoPlay: config.autoPlay,
-            segments: uiSegments,
-          },
-          _meta: {
-            viewUUID,
-            autoPlay: config.autoPlay,
-            segments: uiSegments,
-          },
         }
       } catch (error) {
         return createErrorResponse(error)
