@@ -49,6 +49,10 @@ VOICEVOX MCP server for text-to-speech. Four workspace packages with strict sepa
 its output (`noExternal: ['@kajidog/mcp-core']` in `tsup.config.ts`) and copies
 the built `player-ui` HTML to `dist/mcp-app.html`.
 
+**Supported runtimes differ on purpose.** `mcp-tts` requires Node >= 20 (its tsup
+`target` matches), while `voicevox-client` stays at >= 18 because it also ships to
+browsers and must not gratuitously narrow its consumer range.
+
 ### Module System: ESM Only
 
 All packages use `"type": "module"` with `module: NodeNext` in tsconfig. Key conventions:
