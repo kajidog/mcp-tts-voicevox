@@ -6,21 +6,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Package manager is **pnpm**. Do not use npm or yarn.
 
-This is a pnpm workspace **without a root `package.json`**. Run scripts either
-inside a package directory, or across the workspace with `pnpm -r <script>` /
-`pnpm --filter <package> <script>`.
+The root `package.json` is **private and holds no source** — it exists only to
+pin `packageManager` (pnpm 10), host the shared devDependencies (Biome,
+Changesets), and expose workspace-wide scripts. Run scripts from the root, or
+scope them with `pnpm --filter <package> <script>`.
 
 ### Build & Validate (whole workspace)
-- `pnpm -r build` - Build every package (tsgo / tsup / vite depending on the package)
-- `pnpm -r lint` - Biome check (+ `tsc --noEmit` in voicevox-client)
-- `pnpm -r test` - Run Vitest across packages
+- `pnpm build` - Build every package (tsgo / tsup / vite depending on the package)
+- `pnpm lint` - Biome check across **all** packages in one pass
+- `pnpm typecheck` - `tsc --noEmit` in each package
+- `pnpm test` - Run Vitest across packages
+
+Lint is deliberately a *single root invocation*: `biome.json`'s `includes`
+already covers every package, so `pnpm -r lint` would re-check the same files.
+Type checking stays per-package because each has its own tsconfig.
 
 ### Per-package
 - `pnpm --filter @kajidog/mcp-tts-voicevox dev` - Start MCP server in stdio mode via tsx
 - `pnpm --filter @kajidog/mcp-tts-voicevox dev:http` - Start MCP server in HTTP mode via tsx
 - `pnpm --filter @kajidog/mcp-tts-voicevox dev:bun` - Start MCP server via Bun (TypeScript direct execution)
-- `cd apps/mcp-tts && pnpm test` / `pnpm build` / `pnpm lint`
-- `cd packages/voicevox-client && pnpm test` / `pnpm build` / `pnpm lint` (lint includes `tsc --noEmit`)
+- `cd apps/mcp-tts && pnpm test` / `pnpm build` / `pnpm typecheck`
+- `cd packages/voicevox-client && pnpm test` / `pnpm build` / `pnpm typecheck`
 
 ### Run a Single Test
 - `cd apps/mcp-tts && pnpm vitest run src/__tests__/config.test.ts`
@@ -98,7 +104,26 @@ To change a compiler option for everyone, edit `tsconfig.base.json`.
 
 Tests use **Vitest** (pinned to v2). All API calls are mocked — no VOICEVOX engine needed.
 
+> The reason for the v2 pin is not recorded anywhere; v4 is current. Treat it as
+> unverified rather than deliberate — if you upgrade, run the full suite on all
+> three CI platforms, since `node-playback-strategy` mocking is sensitive to
+> Vitest's module resolution.
+
 `packages/voicevox-client/vitest.config.ts` aliases `node-playback-strategy` to `src/__mocks__/node-playback-strategy.ts` to avoid loading `child_process.spawn` in tests. When adding new playback strategies, update this mock.
+
+`mcp-core`'s tests cover `http.ts`'s security boundary (Origin / Host / API key middleware) by calling `app.request()` on the Hono app directly — no server needs to listen.
+
+`player-ui` has **no tests yet**; it is covered by `typecheck` and Biome only. Its a11y and React-hook-dependency lint rules are scoped to warnings in `biome.json` until there is coverage to refactor against.
+
+### Releases
+
+Versioning and publishing run on **Changesets**. Add a changeset in the same PR as any user-facing change to `@kajidog/mcp-tts-voicevox` or `@kajidog/voicevox-client`:
+
+```
+pnpm changeset
+```
+
+`.github/workflows/release.yml` then opens a "Version Packages" PR; merging it publishes to npm and pushes git tags. Never bump `version` fields by hand. Private packages (`mcp-core`, `player-ui`) and `examples` are excluded from versioning.
 
 ### Key Design Decisions
 
