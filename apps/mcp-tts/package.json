@@ -7,9 +7,12 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "bin": {
     "mcp-tts-voicevox": "./dist/index.js"
@@ -33,6 +36,7 @@
     "build:clean": "rm -rf dist && pnpm build",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "prepare": "pnpm build",
     "prepublishOnly": "pnpm test"
