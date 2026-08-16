@@ -24,17 +24,20 @@ interface MultiAudioSpeakerPanelProps {
 }
 
 const fieldLabel = 'flex items-center justify-between text-[11px] font-semibold text-[var(--ui-text-secondary)]'
-const inputBox = 'w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-2 py-1.5 text-sm text-[var(--ui-text)] outline-none focus-visible:border-[var(--ui-accent)]'
+const inputBox =
+  'w-full rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-2 py-1.5 text-sm text-[var(--ui-text)] outline-none focus-visible:border-[var(--ui-accent)]'
 const miniBtn =
   'rounded-md border border-[var(--ui-border)] bg-[var(--ui-button-bg)] px-2 py-1 text-xs text-[var(--ui-text)] transition-colors hover:border-[var(--ui-accent)] hover:bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-button-bg))] disabled:cursor-not-allowed disabled:opacity-60'
 
 function createDefaultAccentPhrases(text: string): AccentPhrase[] {
-  const moras = [...text.trim()].filter((ch) => ch !== ' ').map((ch) => ({
-    text: ch,
-    vowel: 'a',
-    vowel_length: 0,
-    pitch: 0,
-  }))
+  const moras = [...text.trim()]
+    .filter((ch) => ch !== ' ')
+    .map((ch) => ({
+      text: ch,
+      vowel: 'a',
+      vowel_length: 0,
+      pitch: 0,
+    }))
   if (moras.length === 0) return []
   return [{ moras, accent: 1 }]
 }
@@ -87,9 +90,12 @@ export function MultiAudioSpeakerPanel({
   const isEdit = panelMode === 'edit'
 
   const selectedSpeakerId = isEdit && draft ? draft.speaker : currentSegment?.speaker
-  const selectedSpeakerInfo = selectedSpeakerId === undefined
-    ? undefined
-    : Object.values(groupedSpeakers).flat().find((speaker) => speaker.id === selectedSpeakerId)
+  const selectedSpeakerInfo =
+    selectedSpeakerId === undefined
+      ? undefined
+      : Object.values(groupedSpeakers)
+          .flat()
+          .find((speaker) => speaker.id === selectedSpeakerId)
   const selectedSpeakerName = selectedSpeakerInfo
     ? `${selectedSpeakerInfo.characterName}（${selectedSpeakerInfo.name}）`
     : (currentSegment?.speakerName ?? '')
@@ -107,7 +113,10 @@ export function MultiAudioSpeakerPanel({
     if (isEdit && draft) {
       return normalizeAccentPhrases(draft.accentPhrases ?? draft.audioQuery?.accent_phrases, textValue)
     }
-    return normalizeAccentPhrases(currentSegment?.audioQuery?.accent_phrases ?? currentSegment?.accentPhrases, textValue)
+    return normalizeAccentPhrases(
+      currentSegment?.audioQuery?.accent_phrases ?? currentSegment?.accentPhrases,
+      textValue
+    )
   }, [isEdit, draft, currentSegment?.audioQuery?.accent_phrases, currentSegment?.accentPhrases, textValue])
   const canEditAccent = isEdit && !isTextDirty && !!draft?.audioQuery && !isSaving
   const flattenedMoras = useMemo(() => accentPhrases.flatMap((phrase) => phrase.moras), [accentPhrases])
@@ -129,7 +138,6 @@ export function MultiAudioSpeakerPanel({
     }, 0)
     return () => clearTimeout(timer)
   }, [showSpeakerList, selectedSpeakerId, speakerButtonRefs])
-
 
   const updateAccentAt = (phraseIndex: number, accent: number) => {
     if (!canEditAccent || !draft) return
@@ -183,9 +191,11 @@ export function MultiAudioSpeakerPanel({
             <div className="space-y-1">
               <button
                 type="button"
-                className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors ${showSpeakerList
-                  ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-bg))]'
-                  : 'border-[var(--ui-border)] bg-[var(--ui-surface)] hover:border-[var(--ui-accent)]'}`}
+                className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors ${
+                  showSpeakerList
+                    ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-bg))]'
+                    : 'border-[var(--ui-border)] bg-[var(--ui-surface)] hover:border-[var(--ui-accent)]'
+                }`}
                 onClick={() => setShowSpeakerList((v) => !v)}
                 disabled={isSaving}
               >
@@ -203,7 +213,9 @@ export function MultiAudioSpeakerPanel({
                   )}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">{selectedSpeakerName}</span>
-                <span className={`${showSpeakerList ? 'rotate-180' : ''} text-[var(--ui-text-secondary)] transition-transform duration-200`}>
+                <span
+                  className={`${showSpeakerList ? 'rotate-180' : ''} text-[var(--ui-text-secondary)] transition-transform duration-200`}
+                >
                   <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current">
                     <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" fill="currentColor" />
                   </svg>
@@ -236,9 +248,11 @@ export function MultiAudioSpeakerPanel({
                               ref={(el) => {
                                 speakerButtonRefs.current[speaker.id] = el
                               }}
-                              className={`${miniBtn} ${speaker.id === selectedSpeakerId
-                                ? '!border-[var(--ui-accent)] !text-[var(--ui-accent)] !bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-button-bg))] font-semibold'
-                                : ''}`}
+                              className={`${miniBtn} ${
+                                speaker.id === selectedSpeakerId
+                                  ? '!border-[var(--ui-accent)] !text-[var(--ui-accent)] !bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-button-bg))] font-semibold'
+                                  : ''
+                              }`}
                               aria-pressed={speaker.id === selectedSpeakerId}
                               onClick={() => {
                                 onChangeDraft({ speaker: speaker.id, audioQuery: undefined, accentPhrases: undefined })
@@ -312,10 +326,14 @@ export function MultiAudioSpeakerPanel({
                 className={`${inputBox} h-[60px] !text-xs leading-relaxed resize-none overflow-y-auto break-all whitespace-pre-wrap`}
                 value={textValue}
                 readOnly={isSaving}
-                onChange={(e) => onChangeDraft({ text: e.target.value, audioQuery: undefined, accentPhrases: undefined })}
+                onChange={(e) =>
+                  onChangeDraft({ text: e.target.value, audioQuery: undefined, accentPhrases: undefined })
+                }
               />
             ) : (
-              <div className={`${inputBox} h-[60px] !text-xs leading-relaxed cursor-default overflow-y-auto text-[var(--ui-text-secondary)] break-all whitespace-pre-wrap`}>
+              <div
+                className={`${inputBox} h-[60px] !text-xs leading-relaxed cursor-default overflow-y-auto text-[var(--ui-text-secondary)] break-all whitespace-pre-wrap`}
+              >
                 {textValue}
               </div>
             )}
@@ -375,10 +393,11 @@ export function MultiAudioSpeakerPanel({
                                     className="flex shrink-0 items-center justify-center gap-1"
                                   >
                                     <span
-                                      className={`inline-flex shrink-0 items-center justify-center rounded-md border px-1 text-xs leading-none py-1.5 transition-colors ${isAccentMora
-                                        ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_18%,var(--ui-bg))] text-[var(--ui-accent)] font-semibold'
-                                        : `border-[var(--ui-border)] text-[var(--ui-text)] ${isEdit ? 'hover:border-[var(--ui-accent)] hover:bg-[color-mix(in_oklab,var(--ui-accent)_10%,var(--ui-bg))]' : ''}`
-                                        } ${canEditAccent ? 'cursor-pointer' : ''}`}
+                                      className={`inline-flex shrink-0 items-center justify-center rounded-md border px-1 text-xs leading-none py-1.5 transition-colors ${
+                                        isAccentMora
+                                          ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_18%,var(--ui-bg))] text-[var(--ui-accent)] font-semibold'
+                                          : `border-[var(--ui-border)] text-[var(--ui-text)] ${isEdit ? 'hover:border-[var(--ui-accent)] hover:bg-[color-mix(in_oklab,var(--ui-accent)_10%,var(--ui-bg))]' : ''}`
+                                      } ${canEditAccent ? 'cursor-pointer' : ''}`}
                                       style={{ width: `${moraWidth}px` }}
                                       onClick={() => {
                                         if (canEditAccent) updateAccentAt(phraseIndex, moraIndex + 1)
@@ -446,7 +465,9 @@ export function MultiAudioSpeakerPanel({
                   {isEdit && (isTextDirty || !draft?.audioQuery) && (
                     <div className="absolute inset-0 z-30 flex items-center justify-center rounded-md bg-[var(--ui-bg)]/60 backdrop-blur-[1.5px]">
                       <div className="rounded border border-[var(--ui-border)] bg-[var(--ui-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--ui-text)] shadow-sm">
-                        {isTextDirty ? 'テキスト変更後はプレビュー再生でクエリを更新してください' : 'プレビュー再生後に操作可能になります'}
+                        {isTextDirty
+                          ? 'テキスト変更後はプレビュー再生でクエリを更新してください'
+                          : 'プレビュー再生後に操作可能になります'}
                       </div>
                     </div>
                   )}

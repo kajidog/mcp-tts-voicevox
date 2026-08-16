@@ -110,7 +110,11 @@ export function SpeakerPanel({
         >
           <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-[var(--ui-border)] bg-[var(--ui-tag-bg)] text-[var(--ui-accent)]">
             {headerIcon ? (
-              <img src={`data:image/png;base64,${headerIcon}`} alt="Speaker" className="h-full w-full object-cover object-[center_top]" />
+              <img
+                src={`data:image/png;base64,${headerIcon}`}
+                alt="Speaker"
+                className="h-full w-full object-cover object-[center_top]"
+              />
             ) : (
               <svg viewBox="0 0 24 24" aria-label="Speaker" className="h-4 w-4 fill-current">
                 <title>Speaker</title>
@@ -150,9 +154,11 @@ export function SpeakerPanel({
                     <button
                       type="button"
                       key={s.id}
-                      className={`${chipBtn} ${s.id === currentSpeaker
-                        ? '!border-[var(--ui-accent)] !text-[var(--ui-accent)] !bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-bg))] font-semibold'
-                        : ''}`}
+                      className={`${chipBtn} ${
+                        s.id === currentSpeaker
+                          ? '!border-[var(--ui-accent)] !text-[var(--ui-accent)] !bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-bg))] font-semibold'
+                          : ''
+                      }`}
                       aria-pressed={s.id === currentSpeaker}
                       onClick={() => onChangeSpeaker(s.id)}
                     >

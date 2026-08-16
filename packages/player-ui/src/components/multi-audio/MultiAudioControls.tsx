@@ -1,12 +1,4 @@
-import {
-  ChevronDownIcon,
-  NextIcon,
-  PauseIcon,
-  PlayIcon,
-  PrevIcon,
-  RepeatIcon,
-  RewindIcon,
-} from '../../icons'
+import { ChevronDownIcon, NextIcon, PauseIcon, PlayIcon, PrevIcon, RepeatIcon, RewindIcon } from '../../icons'
 
 interface MultiAudioControlsProps {
   autoAdvance: boolean
@@ -50,7 +42,13 @@ export function MultiAudioControls({
         <RewindIcon />
       </button>
 
-      <button type="button" className={btnBase} onClick={onPrev} disabled={isEditMode || currentIndex === 0} title="前へ">
+      <button
+        type="button"
+        className={btnBase}
+        onClick={onPrev}
+        disabled={isEditMode || currentIndex === 0}
+        title="前へ"
+      >
         <PrevIcon />
       </button>
 
@@ -61,7 +59,13 @@ export function MultiAudioControls({
         disabled={isPreviewLoading}
         title={isPreviewLoading ? 'プレビュー生成中...' : undefined}
       >
-        {isPreviewLoading ? <span className="vv-spinner-sm !border-white/40 !border-t-white" /> : isPlaying ? <PauseIcon /> : <PlayIcon />}
+        {isPreviewLoading ? (
+          <span className="vv-spinner-sm !border-white/40 !border-t-white" />
+        ) : isPlaying ? (
+          <PauseIcon />
+        ) : (
+          <PlayIcon />
+        )}
       </button>
 
       <button
@@ -76,9 +80,11 @@ export function MultiAudioControls({
 
       <button
         type="button"
-        className={`${btnBase} ${autoAdvance
-          ? '!border-[var(--ui-accent)] !text-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_14%,var(--ui-bg))] hover:bg-[color-mix(in_oklab,var(--ui-accent)_20%,var(--ui-bg))]'
-          : ''}`}
+        className={`${btnBase} ${
+          autoAdvance
+            ? '!border-[var(--ui-accent)] !text-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_14%,var(--ui-bg))] hover:bg-[color-mix(in_oklab,var(--ui-accent)_20%,var(--ui-bg))]'
+            : ''
+        }`}
         onClick={onToggleAutoAdvance}
         title={!autoAdvanceEnabled ? '編集中は連続再生を無効化' : autoAdvance ? '連続再生ON' : '連続再生OFF'}
         disabled={!autoAdvanceEnabled}
@@ -89,9 +95,11 @@ export function MultiAudioControls({
 
       <button
         type="button"
-        className={`ml-auto flex h-9 items-center gap-1 rounded-full border px-3 text-xs transition-colors ${showTrackList
-          ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-bg))] text-[var(--ui-accent)]'
-          : 'border-[var(--ui-border)] bg-[var(--ui-button-bg)] text-[var(--ui-text-secondary)] hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50'}`}
+        className={`ml-auto flex h-9 items-center gap-1 rounded-full border px-3 text-xs transition-colors ${
+          showTrackList
+            ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-bg))] text-[var(--ui-accent)]'
+            : 'border-[var(--ui-border)] bg-[var(--ui-button-bg)] text-[var(--ui-text-secondary)] hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)] disabled:cursor-not-allowed disabled:opacity-50'
+        }`}
         onClick={onToggleTrackList}
         disabled={isEditMode}
         title="トラック一覧"

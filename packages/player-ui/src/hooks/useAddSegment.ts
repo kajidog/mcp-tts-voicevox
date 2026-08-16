@@ -1,6 +1,6 @@
 import type { App } from '@modelcontextprotocol/ext-apps'
-import { useCallback } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
+import { useCallback } from 'react'
 import type { AudioSegment } from '../types'
 import { resynthesizeSegmentOnServer } from './playerToolClient'
 

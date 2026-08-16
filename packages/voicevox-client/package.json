@@ -20,9 +20,9 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "browser": "./dist/index.js",
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./dist/index.js"
     }
   },
   "type": "module",
@@ -31,8 +31,9 @@
     "build": "tsgo",
     "build:tsc": "tsc",
     "build:clean": "rm -rf dist && pnpm build",
-    "lint": "biome check . && tsc --noEmit",
+    "lint": "biome check .",
     "lint:fix": "biome check --write .",
+    "typecheck": "tsc --noEmit",
     "prepare": "pnpm build",
     "prepublishOnly": "pnpm test"
   },

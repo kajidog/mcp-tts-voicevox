@@ -41,9 +41,7 @@ export interface ResynthesizedSegment {
 
 function getTextPayload(content: unknown): string | null {
   if (!Array.isArray(content)) return null
-  const textContent = content.find((c) => (c as { type?: string }).type === 'text') as
-    | TextContent
-    | undefined
+  const textContent = content.find((c) => (c as { type?: string }).type === 'text') as TextContent | undefined
   return textContent?.type === 'text' ? textContent.text : null
 }
 
@@ -244,10 +242,7 @@ export async function exportTracksOnServer(
   return payload ? (JSON.parse(payload) as ExportTracksResult) : null
 }
 
-export async function selectExportDirectory(
-  app: App,
-  args: { defaultPath?: string }
-): Promise<string | null> {
+export async function selectExportDirectory(app: App, args: { defaultPath?: string }): Promise<string | null> {
   const result = await app.callServerTool({
     name: '_select_directory_for_player',
     arguments: args,

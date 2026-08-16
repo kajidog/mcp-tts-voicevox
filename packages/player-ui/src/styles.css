@@ -49,7 +49,7 @@ body {
   background: var(--ui-bg);
   color: var(--ui-text);
   font-size: 14px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 .vv-slider {
@@ -88,7 +88,6 @@ body {
 }
 
 @keyframes vv-eq {
-
   0%,
   100% {
     transform: scaleY(0.55);

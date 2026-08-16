@@ -1,10 +1,10 @@
 import type { App } from '@modelcontextprotocol/ext-apps'
-import type { MultiPlayerData } from '../types'
 import { useMultiAudioPlayer } from '../hooks/useMultiAudioPlayer'
+import type { MultiPlayerData } from '../types'
 import { MultiAudioControls } from './multi-audio/MultiAudioControls'
-import { NowPlayingRow } from './multi-audio/NowPlayingRow'
 import { MultiAudioSpeakerPanel } from './multi-audio/MultiAudioSpeakerPanel'
 import { MultiAudioTrackList } from './multi-audio/MultiAudioTrackList'
+import { NowPlayingRow } from './multi-audio/NowPlayingRow'
 
 interface MultiAudioPlayerProps {
   data: MultiPlayerData
