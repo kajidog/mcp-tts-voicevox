@@ -1,0 +1,23 @@
+{
+  "name": "mcp-tts-voicevox-workspace",
+  "version": "0.0.0",
+  "description": "Workspace root for the VOICEVOX MCP server monorepo (not published)",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "build:tsc": "pnpm -r build:tsc",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
+    "@changesets/cli": "^2.29.9"
+  }
+}
