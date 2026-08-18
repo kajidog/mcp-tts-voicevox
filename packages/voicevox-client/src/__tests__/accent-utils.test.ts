@@ -403,3 +403,136 @@ describe('normalizeUserDictionaryWords', () => {
     ])
   })
 })
+
+// ---------------------------------------------------------------------------
+// notation のフレーズ区切りと VOICEVOX のアクセント句区切りがずれるケース
+// ---------------------------------------------------------------------------
+
+describe('applyNotationAccents: アクセント句の区切りが notation と一致しない場合', () => {
+  it('1フレーズが複数アクセント句に分割されていても括弧位置を解決できる', () => {
+    // VOICEVOX は "アクセントシ" を ["アクセント", "シ"] に分割することがある。
+    // 旧実装では accentPhrases[0] に対して括弧位置5を探すため
+    // "Bracket position 5 does not align with any mora boundary" になっていた。
+    const parsed = parseNotation('アクセント[シ]')
+    const accentPhrases = [makeAccentPhrase(['ア', 'ク', 'セ', 'ン', 'ト'], 1), makeAccentPhrase(['シ'], 1)]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result).toHaveLength(1)
+    expect(result[0].moras.map((m) => m.text).join('')).toBe('アクセントシ')
+    expect(result[0].accent).toBe(6)
+  })
+
+  it('複数フレーズがそれぞれ分割されていても正しく対応付ける', () => {
+    const parsed = parseNotation('アクセント[シ]テエノ,カクニン[デ]ス')
+    const accentPhrases = [
+      makeAccentPhrase(['ア', 'ク', 'セ', 'ン', 'ト'], 1),
+      makeAccentPhrase(['シ', 'テ', 'エ', 'ノ'], 1),
+      makeAccentPhrase(['カ', 'ク', 'ニ', 'ン'], 1),
+      makeAccentPhrase(['デ', 'ス'], 1),
+    ]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result).toHaveLength(2)
+    expect(result[0].moras.map((m) => m.text).join('')).toBe('アクセントシテエノ')
+    expect(result[0].accent).toBe(6)
+    expect(result[1].moras.map((m) => m.text).join('')).toBe('カクニンデス')
+    expect(result[1].accent).toBe(5)
+  })
+
+  it('1つのアクセント句が複数フレーズにまたがる場合は分割する', () => {
+    const parsed = parseNotation('テ[ス]ト,ロ[ク]')
+    const accentPhrases = [makeAccentPhrase(['テ', 'ス', 'ト', 'ロ', 'ク'], 1)]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result).toHaveLength(2)
+    expect(result[0].moras.map((m) => m.text).join('')).toBe('テスト')
+    expect(result[0].accent).toBe(2)
+    expect(result[1].moras.map((m) => m.text).join('')).toBe('ロク')
+    expect(result[1].accent).toBe(2)
+  })
+
+  it('結合時は末尾の pause_mora を引き継ぐ', () => {
+    const parsed = parseNotation('アクセント[シ]')
+    const accentPhrases: AccentPhrase[] = [
+      makeAccentPhrase(['ア', 'ク', 'セ', 'ン', 'ト'], 1),
+      { ...makeAccentPhrase(['シ'], 1), pause_mora: makeMora('、'), is_interrogative: true },
+    ]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result[0].pause_mora?.text).toBe('、')
+    expect(result[0].is_interrogative).toBe(true)
+  })
+
+  it('分割時は前半に pause_mora / is_interrogative を引き継がない', () => {
+    const parsed = parseNotation('テ[ス]ト,ロ[ク]')
+    const accentPhrases: AccentPhrase[] = [
+      {
+        ...makeAccentPhrase(['テ', 'ス', 'ト', 'ロ', 'ク'], 1),
+        pause_mora: makeMora('、'),
+        is_interrogative: true,
+      },
+    ]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result[0].pause_mora).toBeUndefined()
+    expect(result[0].is_interrogative).toBe(false)
+    expect(result[1].pause_mora?.text).toBe('、')
+    expect(result[1].is_interrogative).toBe(true)
+  })
+
+  it('[]なしのフレーズは VOICEVOX のアクセント句分割を維持する', () => {
+    const parsed = parseNotation('アクセントシ')
+    const accentPhrases = [makeAccentPhrase(['ア', 'ク', 'セ', 'ン', 'ト'], 3), makeAccentPhrase(['シ'], 1)]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result).toHaveLength(2)
+    expect(result[0].accent).toBe(3)
+    expect(result[1].accent).toBe(1)
+  })
+
+  it('notation より長い分の AccentPhrase はそのまま後ろに残る', () => {
+    const parsed = parseNotation('テ[ス]ト')
+    const accentPhrases = [makeAccentPhrase(['テ', 'ス', 'ト', 'ロ', 'ク'], 4)]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result).toHaveLength(2)
+    expect(result[0].moras.map((m) => m.text).join('')).toBe('テスト')
+    expect(result[0].accent).toBe(2)
+    expect(result[1].moras.map((m) => m.text).join('')).toBe('ロク')
+    // 元の accent 4 は分割後の位置(1)に付け替わる
+    expect(result[1].accent).toBe(1)
+  })
+
+  it('テキストを対応付けられない場合は従来のインデックス対応にフォールバックする', () => {
+    // モーラ数が notation より少なく、区切り直しができないケース
+    const parsed = parseNotation('[ア]イウエオ')
+    const accentPhrases = [makeAccentPhrase(['ア', 'イ'], 2)]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result).toHaveLength(1)
+    expect(result[0].accent).toBe(1)
+  })
+
+  it('モーラ境界と一致しない括弧位置はエラーのまま', () => {
+    const parsed = parseNotation('キ[ョ]ウ')
+    const accentPhrases = [makeAccentPhrase(['キョ', 'ウ'], 1)]
+    expect(() => applyNotationAccents(parsed, accentPhrases)).toThrow()
+  })
+})
+
+describe('applyNotationAccents: 読点（pause_mora）を含む notation', () => {
+  it('1フレーズの中に読点があるとモーラと対応付けできずエラーになる', () => {
+    // 読点は moras ではなく pause_mora として表現されるため、notation の
+    // 文字位置とモーラ列がずれる。フレーズは "," で区切る必要がある。
+    const parsed = parseNotation('コンニチワ、セ[カ]イ')
+    const accentPhrases: AccentPhrase[] = [
+      { ...makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 3), pause_mora: makeMora('、') },
+      makeAccentPhrase(['セ', 'カ', 'イ'], 1),
+    ]
+    expect(() => applyNotationAccents(parsed, accentPhrases)).toThrow('does not align')
+  })
+
+  it('"," で区切れば読点付きのアクセント句も扱える', () => {
+    const parsed = parseNotation('コンニチワ,セ[カ]イ')
+    const accentPhrases: AccentPhrase[] = [
+      { ...makeAccentPhrase(['コ', 'ン', 'ニ', 'チ', 'ワ'], 3), pause_mora: makeMora('、') },
+      makeAccentPhrase(['セ', 'カ', 'イ'], 1),
+    ]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result).toHaveLength(2)
+    expect(result[0].pause_mora?.text).toBe('、')
+    expect(result[1].accent).toBe(2)
+  })
+})

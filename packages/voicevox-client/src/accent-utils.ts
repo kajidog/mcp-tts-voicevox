@@ -140,14 +140,172 @@ export function resolveAccentFromMoras(moras: Mora[], bracketCharIndex: number, 
 }
 
 /**
+ * AccentPhrase から一部のモーラを切り出して新しい AccentPhrase を作る。
+ * 末尾まで使い切らない切り出しでは pause_mora / is_interrogative は引き継がない
+ * （無音や疑問形はフレーズ末尾に付くもののため）。
+ */
+function sliceAccentPhrase(source: AccentPhrase, start: number, end: number): AccentPhrase {
+  if (start === 0 && end === source.moras.length) {
+    return { ...source }
+  }
+  const moras = source.moras.slice(start, end)
+  const sliced: AccentPhrase = {
+    ...source,
+    moras,
+    accent: Math.min(Math.max(source.accent - start, 1), moras.length),
+  }
+  if (end !== source.moras.length) {
+    sliced.pause_mora = undefined
+    sliced.is_interrogative = false
+  }
+  return sliced
+}
+
+/**
+ * 複数の AccentPhrase を1つに結合する。accent は呼び出し側で上書きする前提。
+ * 無音・疑問形は末尾のものを引き継ぐ。
+ */
+function mergeAccentPhrases(phrases: AccentPhrase[]): AccentPhrase {
+  const last = phrases[phrases.length - 1]
+  if (phrases.length === 1) {
+    return { ...last }
+  }
+  return {
+    ...last,
+    moras: phrases.flatMap((p) => p.moras),
+  }
+}
+
+export interface RegroupedAccentPhrases {
+  /** parsedPhrases と同じ並びのグループ。1フレーズが複数 AccentPhrase にまたがることがある */
+  groups: AccentPhrase[][]
+  /** notation が言及しなかった余りの AccentPhrase */
+  rest: AccentPhrase[]
+}
+
+/**
+ * VOICEVOX が返した AccentPhrase[] を notation のフレーズ区切りに合わせて組み直す。
+ *
+ * VOICEVOX はカタカナ列も形態素解析するため、アクセント句の区切りが notation の
+ * 区切りと一致するとは限らない（例: "アクセントシ" → ["アクセント", "シ"]）。
+ * インデックスで 1:1 対応させると括弧の文字位置が別のアクセント句に当たり、
+ * 正しい表記でも "does not align with any mora boundary" になってしまう。
+ * ここではモーラのテキストを数えて区切り直し、必要なら AccentPhrase を分割する
+ * （結合は applyNotationAccents 側で行う）。
+ *
+ * 1フレーズの中に読点（無音）が入る場合は moras に現れないため対応付けできない。
+ * モーラ境界とフレーズ境界が一致しない場合や、モーラ数が足りない場合は null を返す
+ * （カタカナ以外を含む notation など。呼び出し側は従来のインデックス対応に退避する）。
+ */
+export function regroupAccentPhrasesByNotation(
+  parsedPhrases: ParsedPhrase[],
+  accentPhrases: AccentPhrase[]
+): RegroupedAccentPhrases | null {
+  const groups: AccentPhrase[][] = []
+  let phraseIndex = 0
+  let moraOffset = 0
+
+  for (const parsed of parsedPhrases) {
+    // notation の方が多い場合、余ったフレーズは無視する
+    if (phraseIndex >= accentPhrases.length) break
+
+    let remaining = parsed.cleanText.length
+    const group: AccentPhrase[] = []
+
+    while (remaining > 0) {
+      if (phraseIndex >= accentPhrases.length) return null
+
+      const source = accentPhrases[phraseIndex]
+      let taken = 0
+      let consumed = 0
+      while (moraOffset + taken < source.moras.length && consumed < remaining) {
+        consumed += source.moras[moraOffset + taken].text.length
+        taken += 1
+      }
+      // モーラ境界がフレーズ境界と一致しない
+      if (taken === 0 || consumed > remaining) return null
+
+      group.push(sliceAccentPhrase(source, moraOffset, moraOffset + taken))
+      remaining -= consumed
+
+      if (moraOffset + taken >= source.moras.length) {
+        phraseIndex += 1
+        moraOffset = 0
+      } else {
+        moraOffset += taken
+      }
+    }
+
+    groups.push(group)
+  }
+
+  const rest: AccentPhrase[] = []
+  if (phraseIndex < accentPhrases.length) {
+    if (moraOffset > 0) {
+      const source = accentPhrases[phraseIndex]
+      rest.push(sliceAccentPhrase(source, moraOffset, source.moras.length))
+      phraseIndex += 1
+    }
+    rest.push(...accentPhrases.slice(phraseIndex))
+  }
+
+  return { groups, rest }
+}
+
+/**
  * ParsedPhrase[] のアクセント指定を AccentPhrase[] に適用する。
- * 左から1:1で対応。数が合わない場合、余分は無視/デフォルト維持。
+ *
+ * notation のフレーズ区切りを正として AccentPhrase を組み直してから適用する。
+ * `[]` を含むフレーズが複数のアクセント句にまたがっていた場合は1つに結合し、
+ * 逆に1つのアクセント句が複数フレーズにまたがっていた場合は分割する。
  *
  * bracketCharIndex === null（[] 省略）のフレーズ:
  *   - defaultAccentPhrases が渡された場合 → そのアクセント値（VOICEVOX自動判定）を使用
  *   - defaultAccentPhrases が未指定の場合 → accentPhrases のアクセント値をそのまま維持
+ *   いずれの場合も VOICEVOX が決めたアクセント句の区切りをそのまま残す。
  */
 export function applyNotationAccents(
+  parsedPhrases: ParsedPhrase[],
+  accentPhrases: AccentPhrase[],
+  defaultAccentPhrases?: AccentPhrase[]
+): AccentPhrase[] {
+  const regrouped = regroupAccentPhrasesByNotation(parsedPhrases, accentPhrases)
+  if (!regrouped) {
+    return applyNotationAccentsByIndex(parsedPhrases, accentPhrases, defaultAccentPhrases)
+  }
+
+  const defaultGroups = defaultAccentPhrases
+    ? regroupAccentPhrasesByNotation(parsedPhrases, defaultAccentPhrases)?.groups
+    : undefined
+
+  const result: AccentPhrase[] = []
+
+  regrouped.groups.forEach((group, i) => {
+    const parsed = parsedPhrases[i]
+
+    if (parsed.bracketCharIndex === null) {
+      const defaults = defaultGroups?.[i]
+      const useDefaults = defaults !== undefined && defaults.length === group.length
+      for (const [j, phrase] of group.entries()) {
+        result.push(useDefaults ? { ...phrase, accent: defaults[j].accent } : phrase)
+      }
+      return
+    }
+
+    const merged = mergeAccentPhrases(group)
+    merged.accent = resolveAccentFromMoras(merged.moras, parsed.bracketCharIndex, parsed.bracketLength)
+    result.push(merged)
+  })
+
+  result.push(...regrouped.rest)
+  return result
+}
+
+/**
+ * インデックスで 1:1 対応させる旧方式。
+ * regroupAccentPhrasesByNotation がテキストを対応付けられなかった場合の退避先。
+ */
+function applyNotationAccentsByIndex(
   parsedPhrases: ParsedPhrase[],
   accentPhrases: AccentPhrase[],
   defaultAccentPhrases?: AccentPhrase[]
