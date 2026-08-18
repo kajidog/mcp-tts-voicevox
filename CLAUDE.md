@@ -102,16 +102,23 @@ To change a compiler option for everyone, edit `tsconfig.base.json`.
 
 - **mcp-core / voicevox-client**: **tsgo** (from `@typescript/native-preview`) is default, **tsc** is fallback (`build:tsc`). ESM output to `dist/`.
 - **mcp-tts**: **tsup** (esbuild bundler + tsc-based `dts`). Bundles `mcp-core`, externalizes `voicevox-client`/`@modelcontextprotocol/*`/`zod`, and copies `player-ui`'s HTML.
+  - This is the one package still on **TypeScript 6**. tsup 8.5.1's `dts` step
+    (`rollup-plugin-dts`) uses the TypeScript compiler API and dies on
+    TypeScript 7 with `Cannot read properties of undefined (reading
+    'useCaseSensitiveFileNames')`. Move it to 7 once tsup ships a fix.
 - **player-ui**: **vite** + `vite-plugin-singlefile` → one self-contained `dist/mcp-app.html`.
 
 ### Testing
 
-Tests use **Vitest** (pinned to v2). All API calls are mocked — no VOICEVOX engine needed.
+Tests use **Vitest** (v4). All API calls are mocked — no VOICEVOX engine needed.
 
-> The reason for the v2 pin is not recorded anywhere; v4 is current. Treat it as
-> unverified rather than deliberate — if you upgrade, run the full suite on all
-> three CI platforms, since `node-playback-strategy` mocking is sensitive to
-> Vitest's module resolution.
+> Two v4 behaviours to keep in mind when writing mocks:
+> - A mock used with `new` must be given a **`function` or a class**, never an
+>   arrow — `vi.fn(() => ({ … }))` throws `is not a constructor`. Biome's
+>   `complexity/useArrowFunction` would rewrite those back into arrows, so the
+>   rule is switched off for `**/__tests__/**` in both `biome.json` files.
+> - `vi.restoreAllMocks()` only restores `vi.spyOn` spies; it no longer clears
+>   `vi.fn()` call history. Use `vi.clearAllMocks()` for that.
 
 `packages/voicevox-client/vitest.config.ts` aliases `node-playback-strategy` to `src/__mocks__/node-playback-strategy.ts` to avoid loading `child_process.spawn` in tests. When adding new playback strategies, update this mock.
 

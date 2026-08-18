@@ -4,32 +4,36 @@ import type { VoicevoxConfig } from '../types'
 
 // APIとプレイヤーのモック
 vi.mock('../api', () => ({
-  VoicevoxApi: vi.fn().mockImplementation(() => ({
-    generateQuery: vi.fn().mockResolvedValue({
-      accent_phrases: [],
-      speedScale: 1.0,
-      pitchScale: 0.0,
-      intonationScale: 1.0,
-      volumeScale: 1.0,
-      prePhonemeLength: 0.1,
-      postPhonemeLength: 0.1,
-      outputSamplingRate: 24000,
-      outputStereo: false,
-    }),
-    synthesize: vi.fn().mockResolvedValue(new ArrayBuffer(1024)),
-  })),
+  VoicevoxApi: vi.fn(function () {
+    return {
+      generateQuery: vi.fn().mockResolvedValue({
+        accent_phrases: [],
+        speedScale: 1.0,
+        pitchScale: 0.0,
+        intonationScale: 1.0,
+        volumeScale: 1.0,
+        prePhonemeLength: 0.1,
+        postPhonemeLength: 0.1,
+        outputSamplingRate: 24000,
+        outputStereo: false,
+      }),
+      synthesize: vi.fn().mockResolvedValue(new ArrayBuffer(1024)),
+    }
+  }),
 }))
 
 vi.mock('../player', () => ({
-  VoicevoxPlayer: vi.fn().mockImplementation(() => ({
-    getQueueManager: vi.fn().mockReturnValue({
-      enqueueQueryWithOptions: vi.fn().mockResolvedValue({
-        item: { id: 'test' },
-        promises: {},
+  VoicevoxPlayer: vi.fn(function () {
+    return {
+      getQueueManager: vi.fn().mockReturnValue({
+        enqueueQueryWithOptions: vi.fn().mockResolvedValue({
+          item: { id: 'test' },
+          promises: {},
+        }),
       }),
-    }),
-    clearQueue: vi.fn(),
-  })),
+      clearQueue: vi.fn(),
+    }
+  }),
 }))
 
 // Playback strategyのモック（Node.js固有モジュールの読み込みを防止）
@@ -46,12 +50,14 @@ vi.mock('../playback/playback-strategy', () => ({
     playFromFile: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn(),
   }),
-  BrowserPlaybackStrategy: vi.fn().mockImplementation(() => ({
-    supportsStreaming: vi.fn().mockReturnValue(false),
-    playFromBuffer: vi.fn().mockResolvedValue(undefined),
-    playFromFile: vi.fn().mockResolvedValue(undefined),
-    stop: vi.fn(),
-  })),
+  BrowserPlaybackStrategy: vi.fn(function () {
+    return {
+      supportsStreaming: vi.fn().mockReturnValue(false),
+      playFromBuffer: vi.fn().mockResolvedValue(undefined),
+      playFromFile: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn(),
+    }
+  }),
 }))
 
 describe('VoicevoxClient - 環境変数デフォルト値テスト', () => {

@@ -52,7 +52,7 @@ function makeState(overrides: Record<string, unknown> = {}): PlayerSessionState 
 }
 
 beforeEach(() => {
-  vi.restoreAllMocks()
+  vi.clearAllMocks()
   vi.useRealTimers()
 })
 

@@ -40,7 +40,7 @@ function makeConfig(overrides: Record<string, unknown> = {}): AudioCacheConfig {
 }
 
 beforeEach(() => {
-  vi.restoreAllMocks()
+  vi.clearAllMocks()
 })
 
 // ---------------------------------------------------------------------------
