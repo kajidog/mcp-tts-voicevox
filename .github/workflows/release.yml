@@ -46,7 +46,7 @@ jobs:
       # When that PR is merged and no changesets remain, it publishes to npm
       # and pushes a git tag per released package.
       - name: Create release PR or publish
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
           # `pnpm run` is required: bare `pnpm version` is pnpm's built-in
           # npm-compatible command, not the root "version" script.
