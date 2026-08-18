@@ -1,20 +1,20 @@
 import type { App } from '@modelcontextprotocol/ext-apps'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { AudioQuery, AudioSegment, MultiPlayerData, SpeakerInfo } from '../types'
+import { saveLocalSnapshot } from './playerStateRecovery'
 import {
+  type ExportCapability,
   fetchExportCapability,
   fetchSpeakersAndPortraits,
-  savePlayerStateOnServer,
   previewSegmentOnServer,
   resynthesizeSegmentOnServer,
+  savePlayerStateOnServer,
   selectExportDirectory,
-  type ExportCapability,
 } from './playerToolClient'
-import { saveLocalSnapshot } from './playerStateRecovery'
 import { useAddSegment } from './useAddSegment'
 import { useExportTracks } from './useExportTracks'
 import { usePersistentBoolean } from './usePersistentBoolean'
-import { useSegmentResynthesis, type EditDraftPayload } from './useSegmentResynthesis'
-import type { AudioQuery, AudioSegment, MultiPlayerData, SpeakerInfo } from '../types'
+import { type EditDraftPayload, useSegmentResynthesis } from './useSegmentResynthesis'
 
 interface UseMultiAudioPlayerArgs {
   app: App
@@ -159,7 +159,7 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
   }, [resynthesizingSet])
 
   useEffect(() => {
-    ; (async () => {
+    ;(async () => {
       try {
         const result = await fetchSpeakersAndPortraits(app)
         setSpeakers(result.speakers)
@@ -171,7 +171,7 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
   }, [app])
 
   useEffect(() => {
-    ; (async () => {
+    ;(async () => {
       try {
         const capability = await fetchExportCapability(app)
         setExportCapability(capability)
@@ -189,7 +189,7 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
   const initialAutoPlayPendingRef = useRef(false)
 
   useEffect(() => {
-    const newStr = JSON.stringify(data.segments.map(s => ({ text: s.text, speaker: s.speaker })))
+    const newStr = JSON.stringify(data.segments.map((s) => ({ text: s.text, speaker: s.speaker })))
     const isNewScript = prevDataSegmentsStr.current !== newStr && prevDataSegmentsStr.current !== ''
     const isFirstLoad = prevDataSegmentsStr.current === ''
 
@@ -209,7 +209,7 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
         initialAutoPlayPendingRef.current = true
       }
     } else {
-      setCurrentIndex(prev => prev >= data.segments.length ? Math.max(0, data.segments.length - 1) : prev)
+      setCurrentIndex((prev) => (prev >= data.segments.length ? Math.max(0, data.segments.length - 1) : prev))
     }
   }, [data.segments, data.autoPlay])
 
@@ -364,19 +364,19 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
               prev.map((s, idx) =>
                 idx === i
                   ? {
-                    ...s,
-                    audioBase64: result.audioBase64,
-                    speakerName: result.speakerName ?? s.speakerName,
-                    kana: result.kana ?? s.kana,
-                    audioQuery: result.audioQuery ?? s.audioQuery,
-                    speedScale: result.speedScale ?? s.speedScale,
-                    intonationScale: result.intonationScale ?? s.intonationScale,
-                    volumeScale: result.volumeScale ?? s.volumeScale,
-                    accentPhrases: result.accentPhrases ?? result.audioQuery?.accent_phrases ?? s.accentPhrases,
-                    prePhonemeLength: result.prePhonemeLength ?? s.prePhonemeLength,
-                    postPhonemeLength: result.postPhonemeLength ?? s.postPhonemeLength,
-                    pauseLengthScale: result.pauseLengthScale ?? s.pauseLengthScale,
-                  }
+                      ...s,
+                      audioBase64: result.audioBase64,
+                      speakerName: result.speakerName ?? s.speakerName,
+                      kana: result.kana ?? s.kana,
+                      audioQuery: result.audioQuery ?? s.audioQuery,
+                      speedScale: result.speedScale ?? s.speedScale,
+                      intonationScale: result.intonationScale ?? s.intonationScale,
+                      volumeScale: result.volumeScale ?? s.volumeScale,
+                      accentPhrases: result.accentPhrases ?? result.audioQuery?.accent_phrases ?? s.accentPhrases,
+                      prePhonemeLength: result.prePhonemeLength ?? s.prePhonemeLength,
+                      postPhonemeLength: result.postPhonemeLength ?? s.postPhonemeLength,
+                      pauseLengthScale: result.pauseLengthScale ?? s.pauseLengthScale,
+                    }
                   : s
               )
             )
@@ -435,13 +435,19 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
     [speakers, portraits]
   )
 
-  const handleApplyToSameSpeakerChange = useCallback((checked: boolean) => {
-    setApplyToSameSpeaker(checked)
-  }, [setApplyToSameSpeaker])
+  const handleApplyToSameSpeakerChange = useCallback(
+    (checked: boolean) => {
+      setApplyToSameSpeaker(checked)
+    },
+    [setApplyToSameSpeaker]
+  )
 
-  const handleBulkSwitchSpeakerChange = useCallback((checked: boolean) => {
-    setBulkSwitchSpeaker(checked)
-  }, [setBulkSwitchSpeaker])
+  const handleBulkSwitchSpeakerChange = useCallback(
+    (checked: boolean) => {
+      setBulkSwitchSpeaker(checked)
+    },
+    [setBulkSwitchSpeaker]
+  )
 
   const changeEditDraft = useCallback(
     (updates: Partial<EditDraft>) => {
@@ -533,20 +539,20 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
         prev.map((seg, idx) =>
           idx === currentIndex
             ? {
-              ...seg,
-              audioBase64: result.audioBase64,
-              speaker: result.speaker ?? seg.speaker,
-              speakerName: result.speakerName ?? seg.speakerName,
-              kana: result.kana ?? seg.kana,
-              audioQuery: result.audioQuery ?? seg.audioQuery,
-              speedScale: result.speedScale ?? seg.speedScale,
-              intonationScale: result.intonationScale ?? seg.intonationScale,
-              volumeScale: result.volumeScale ?? seg.volumeScale,
-              accentPhrases: result.accentPhrases ?? result.audioQuery?.accent_phrases ?? seg.accentPhrases,
-              prePhonemeLength: result.prePhonemeLength ?? seg.prePhonemeLength,
-              postPhonemeLength: result.postPhonemeLength ?? seg.postPhonemeLength,
-              pauseLengthScale: result.pauseLengthScale ?? seg.pauseLengthScale,
-            }
+                ...seg,
+                audioBase64: result.audioBase64,
+                speaker: result.speaker ?? seg.speaker,
+                speakerName: result.speakerName ?? seg.speakerName,
+                kana: result.kana ?? seg.kana,
+                audioQuery: result.audioQuery ?? seg.audioQuery,
+                speedScale: result.speedScale ?? seg.speedScale,
+                intonationScale: result.intonationScale ?? seg.intonationScale,
+                volumeScale: result.volumeScale ?? seg.volumeScale,
+                accentPhrases: result.accentPhrases ?? result.audioQuery?.accent_phrases ?? seg.accentPhrases,
+                prePhonemeLength: result.prePhonemeLength ?? seg.prePhonemeLength,
+                postPhonemeLength: result.postPhonemeLength ?? seg.postPhonemeLength,
+                pauseLengthScale: result.pauseLengthScale ?? seg.pauseLengthScale,
+              }
             : seg
         )
       )
@@ -561,31 +567,25 @@ export function useMultiAudioPlayer({ app, data, viewUUID }: UseMultiAudioPlayer
     }
   }, [app, currentIndex, localSegments, viewUUID])
 
-  const selectSegment = useCallback(
-    (index: number) => {
-      setIsPlaying(false)
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.currentTime = 0
-      }
-      setCurrentIndex(index)
-      setCurrentTime(0)
-      // Panel stays open, draft is re-initialized in the currentIndex effect
-    },
-    []
-  )
+  const selectSegment = useCallback((index: number) => {
+    setIsPlaying(false)
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+    }
+    setCurrentIndex(index)
+    setCurrentTime(0)
+    // Panel stays open, draft is re-initialized in the currentIndex effect
+  }, [])
 
-  const playSegment = useCallback(
-    (index: number) => {
-      setCurrentIndex(index)
-      setCurrentTime(0)
-      // Panel stays open
-      setTimeout(() => {
-        audioRef.current?.play().catch(console.error)
-      }, 50)
-    },
-    []
-  )
+  const playSegment = useCallback((index: number) => {
+    setCurrentIndex(index)
+    setCurrentTime(0)
+    // Panel stays open
+    setTimeout(() => {
+      audioRef.current?.play().catch(console.error)
+    }, 50)
+  }, [])
 
   const togglePlay = useCallback(async () => {
     const audio = audioRef.current

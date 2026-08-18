@@ -48,14 +48,19 @@ export function saveLocalSnapshot(viewUUID: string | undefined, segments: AudioS
 
   try {
     localStorage.setItem(playerSnapshotFullKey(viewUUID), JSON.stringify({ segments }))
-    localStorage.setItem(playerSnapshotSlimKey(viewUUID), JSON.stringify({ segments: toSlimSnapshotSegments(segments) }))
+    localStorage.setItem(
+      playerSnapshotSlimKey(viewUUID),
+      JSON.stringify({ segments: toSlimSnapshotSegments(segments) })
+    )
   } catch (error) {
     try {
-      localStorage.setItem(playerSnapshotSlimKey(viewUUID), JSON.stringify({ segments: toSlimSnapshotSegments(segments) }))
+      localStorage.setItem(
+        playerSnapshotSlimKey(viewUUID),
+        JSON.stringify({ segments: toSlimSnapshotSegments(segments) })
+      )
     } catch (fallbackError) {
       console.warn('[playerStateRecovery] Failed to save local snapshot:', fallbackError)
     }
     console.warn('[playerStateRecovery] Failed to save full local snapshot:', error)
   }
 }
-

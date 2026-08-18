@@ -5,7 +5,7 @@
  * CLI引数パース・環境変数パース・help文生成を自動化する。
  */
 
-import { z } from 'zod/v4'
+import type { z } from 'zod/v4'
 
 // オプションの型
 type OptionType = 'string' | 'number' | 'boolean' | 'string[]'
@@ -34,10 +34,7 @@ export type ConfigDefs = Record<string, OptionDef>
 /**
  * CLI引数を設定定義からパースする
  */
-export function parseCliFromDefs(
-  defs: ConfigDefs,
-  argv: string[],
-): Record<string, unknown> {
+export function parseCliFromDefs(defs: ConfigDefs, argv: string[]): Record<string, unknown> {
   const config: Record<string, unknown> = {}
 
   // CLIフラグ → 設定キーのマッピングを構築
@@ -107,10 +104,7 @@ export function parseCliFromDefs(
 /**
  * 環境変数を設定定義からパースする
  */
-export function parseEnvFromDefs(
-  defs: ConfigDefs,
-  env: Record<string, string | undefined>,
-): Record<string, unknown> {
+export function parseEnvFromDefs(defs: ConfigDefs, env: Record<string, string | undefined>): Record<string, unknown> {
   const config: Record<string, unknown> = {}
 
   for (const [key, def] of Object.entries(defs)) {
@@ -153,7 +147,7 @@ export function parseEnvFromDefs(
  */
 export function parseConfigFileFromDefs(
   defs: ConfigDefs,
-  fileContent: Record<string, unknown>,
+  fileContent: Record<string, unknown>
 ): Record<string, unknown> {
   const config: Record<string, unknown> = {}
 
@@ -213,10 +207,7 @@ export function getDefaultsFromDefs(defs: ConfigDefs): Record<string, unknown> {
 /**
  * 設定定義からhelp文を生成する
  */
-export function generateHelp(
-  defs: ConfigDefs,
-  opts?: { usage?: string; examples?: string[] },
-): string {
+export function generateHelp(defs: ConfigDefs, opts?: { usage?: string; examples?: string[] }): string {
   const lines: string[] = []
 
   if (opts?.usage) {
@@ -242,13 +233,12 @@ export function generateHelp(
     lines.push(`  ${groupName}:`)
 
     for (const { def } of entries) {
-      const flag = def.type === 'boolean'
-        ? def.cli
-        : `${def.cli} ${def.valueName || '<value>'}`
+      const flag = def.type === 'boolean' ? def.cli : `${def.cli} ${def.valueName || '<value>'}`
 
-      const defaultStr = def.default !== undefined
-        ? ` (default: ${Array.isArray(def.default) ? def.default.join(',') : def.default})`
-        : ''
+      const defaultStr =
+        def.default !== undefined
+          ? ` (default: ${Array.isArray(def.default) ? def.default.join(',') : def.default})`
+          : ''
 
       const line = `  ${flag.padEnd(28)}${def.description}${defaultStr}`
       lines.push(line)
@@ -288,10 +278,7 @@ export function validateConfig<T>(schema: z.ZodType<T>, config: Record<string, u
  * CLIフラグ名（-- なし）をキーとして、デフォルト値と説明コメントを含む。
  * 内部用のオプション（configFile等）は除外する。
  */
-export function generateConfigTemplate(
-  defs: ConfigDefs,
-  opts?: { exclude?: string[] },
-): Record<string, unknown> {
+export function generateConfigTemplate(defs: ConfigDefs, opts?: { exclude?: string[] }): Record<string, unknown> {
   const template: Record<string, unknown> = {}
   const excludeSet = new Set(opts?.exclude ?? [])
 

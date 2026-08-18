@@ -29,6 +29,31 @@
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["packages/player-ui/**", "examples/browser/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "noAutofocus": "warn",
+            "noLabelWithoutControl": "warn",
+            "noStaticElementInteractions": "warn",
+            "noSvgWithoutTitle": "warn",
+            "useAriaPropsSupportedByRole": "warn",
+            "useButtonType": "warn",
+            "useKeyWithClickEvents": "warn",
+            "useMediaCaption": "warn"
+          },
+          "correctness": {
+            "useExhaustiveDependencies": "warn"
+          },
+          "suspicious": {
+            "noArrayIndexKey": "warn"
+          }
+        }
+      }
+    }
+  ],
   "javascript": {
     "formatter": {
       "quoteStyle": "single",

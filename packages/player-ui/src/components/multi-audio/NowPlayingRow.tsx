@@ -35,9 +35,11 @@ export function NowPlayingRow({
     <div className="flex items-center gap-2">
       <button
         type="button"
-        className={`flex min-w-0 items-center gap-2 rounded-lg border px-2 py-1 text-left transition-colors ${isSpeakerPanelOpen
-          ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-bg))]'
-          : 'border-[var(--ui-border)] bg-[var(--ui-button-bg)] hover:border-[var(--ui-accent)]'}`}
+        className={`flex min-w-0 items-center gap-2 rounded-lg border px-2 py-1 text-left transition-colors ${
+          isSpeakerPanelOpen
+            ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-bg))]'
+            : 'border-[var(--ui-border)] bg-[var(--ui-button-bg)] hover:border-[var(--ui-accent)]'
+        }`}
         onClick={onToggleSpeakerPanel}
         title="スピーカー・詳細"
       >
@@ -49,12 +51,18 @@ export function NowPlayingRow({
               className="h-full w-full object-cover object-[center_top]"
             />
           ) : (
-            <span className="text-xs font-semibold text-[var(--ui-text-secondary)]">{currentSegment?.speakerName?.charAt(0) || '?'}</span>
+            <span className="text-xs font-semibold text-[var(--ui-text-secondary)]">
+              {currentSegment?.speakerName?.charAt(0) || '?'}
+            </span>
           )}
         </span>
-        <span className="max-w-28 truncate text-xs font-medium text-[var(--ui-text)]">{currentSegment?.speakerName}</span>
+        <span className="max-w-28 truncate text-xs font-medium text-[var(--ui-text)]">
+          {currentSegment?.speakerName}
+        </span>
         <span className="text-[var(--ui-text-secondary)]">
-          <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" fill="currentColor" /></svg>
+          <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current">
+            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z" fill="currentColor" />
+          </svg>
         </span>
       </button>
 
@@ -65,7 +73,9 @@ export function NowPlayingRow({
           </div>
         )}
         <div className={`${enterClass}`}>
-          {currentSegment && <span className="block truncate text-sm text-[var(--ui-text)]">{currentSegment.text}</span>}
+          {currentSegment && (
+            <span className="block truncate text-sm text-[var(--ui-text)]">{currentSegment.text}</span>
+          )}
         </div>
       </div>
 

@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { type Context, Hono, type Next } from 'hono'
@@ -130,6 +131,19 @@ function validateHost(config: BaseServerConfig) {
 }
 
 /**
+ * 2つの文字列を定数時間で比較する
+ *
+ * timingSafeEqual は長さの異なる Buffer で例外を投げるため、
+ * 先に SHA-256 でハッシュ化して固定長（32バイト）に揃えてから比較する。
+ * これによりキーの長さ自体も比較時間に影響しない。
+ */
+function safeCompare(a: string, b: string): boolean {
+  const hashA = createHash('sha256').update(a, 'utf8').digest()
+  const hashB = createHash('sha256').update(b, 'utf8').digest()
+  return timingSafeEqual(hashA, hashB)
+}
+
+/**
  * APIキー検証ミドルウェア
  */
 function validateApiKey(config: BaseServerConfig) {
@@ -143,7 +157,7 @@ function validateApiKey(config: BaseServerConfig) {
     const bearerToken = authorization?.startsWith('Bearer ') ? authorization.slice(7).trim() : undefined
     const providedKey = xApiKey ?? bearerToken
 
-    if (providedKey !== config.apiKey) {
+    if (providedKey === undefined || !safeCompare(providedKey, config.apiKey)) {
       console.log('Rejected request with invalid API key')
       return c.json(unauthorizedError('Unauthorized: Invalid API key'), { status: 401 })
     }

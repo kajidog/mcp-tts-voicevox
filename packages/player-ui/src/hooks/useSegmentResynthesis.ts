@@ -1,6 +1,6 @@
 import type { App } from '@modelcontextprotocol/ext-apps'
-import { useCallback } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
+import { useCallback } from 'react'
 import type { AccentPhrase, AudioQuery, AudioSegment } from '../types'
 import { resynthesizeSegmentOnServer } from './playerToolClient'
 
@@ -145,7 +145,10 @@ export function useSegmentResynthesis({
                 pauseLengthScale: applyToSameSpeaker ? draft.pauseLengthScale : (seg.pauseLengthScale ?? 1.0),
                 // 話者変更時は旧話者のaccentPhrasesを渡さない（ピッチ値が旧話者用で棒読みになるため）
                 // generateQuery() で新話者用のアクセント句を生成させる
-                accentPhrases: (bulkSwitchSpeaker && speakerChanged) ? undefined : (seg.audioQuery?.accent_phrases ?? seg.accentPhrases),
+                accentPhrases:
+                  bulkSwitchSpeaker && speakerChanged
+                    ? undefined
+                    : (seg.audioQuery?.accent_phrases ?? seg.accentPhrases),
                 persistState: false,
               })
               if (result) return { index: i, data: result }
@@ -189,16 +192,25 @@ export function useSegmentResynthesis({
                 ...value,
                 audioBase64: d.audioBase64,
                 speaker: bulkSwitchSpeaker && speakerChanged ? (d.speaker ?? draft.speaker) : value.speaker,
-                speakerName: bulkSwitchSpeaker && speakerChanged ? (d.speakerName ?? value.speakerName) : value.speakerName,
+                speakerName:
+                  bulkSwitchSpeaker && speakerChanged ? (d.speakerName ?? value.speakerName) : value.speakerName,
                 kana: d.kana ?? value.kana,
                 audioQuery: d.audioQuery ?? value.audioQuery,
                 accentPhrases: d.accentPhrases ?? value.accentPhrases,
                 speedScale: applyToSameSpeaker ? (d.speedScale ?? draft.speedScale) : value.speedScale,
-                intonationScale: applyToSameSpeaker ? (d.intonationScale ?? draft.intonationScale) : value.intonationScale,
+                intonationScale: applyToSameSpeaker
+                  ? (d.intonationScale ?? draft.intonationScale)
+                  : value.intonationScale,
                 volumeScale: applyToSameSpeaker ? (d.volumeScale ?? draft.volumeScale) : value.volumeScale,
-                prePhonemeLength: applyToSameSpeaker ? (d.prePhonemeLength ?? draft.prePhonemeLength) : value.prePhonemeLength,
-                postPhonemeLength: applyToSameSpeaker ? (d.postPhonemeLength ?? draft.postPhonemeLength) : value.postPhonemeLength,
-                pauseLengthScale: applyToSameSpeaker ? (d.pauseLengthScale ?? draft.pauseLengthScale) : value.pauseLengthScale,
+                prePhonemeLength: applyToSameSpeaker
+                  ? (d.prePhonemeLength ?? draft.prePhonemeLength)
+                  : value.prePhonemeLength,
+                postPhonemeLength: applyToSameSpeaker
+                  ? (d.postPhonemeLength ?? draft.postPhonemeLength)
+                  : value.postPhonemeLength,
+                pauseLengthScale: applyToSameSpeaker
+                  ? (d.pauseLengthScale ?? draft.pauseLengthScale)
+                  : value.pauseLengthScale,
               }
             }
 

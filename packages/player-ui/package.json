@@ -15,7 +15,10 @@
     "build": "vite build",
     "build:dev": "NODE_ENV=development vite build",
     "watch": "vite build --watch",
-    "dev": "vite"
+    "dev": "vite",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.7.4",
@@ -23,6 +26,7 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
     "@kajidog/voicevox-client": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@tailwindcss/vite": "^4.3.0",

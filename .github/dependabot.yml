@@ -1,0 +1,38 @@
+version: 2
+
+updates:
+  # pnpm workspace: Dependabot needs one entry per package directory.
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /apps/mcp-tts
+      - /packages/voicevox-client
+      - /packages/mcp-core
+      - /packages/player-ui
+      - /examples
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # The MCP SDK moves fast and its updates are worth reviewing alone.
+      mcp:
+        patterns:
+          - '@modelcontextprotocol/*'
+      # Everything else lands as one PR per package directory.
+      minor-and-patch:
+        exclude-patterns:
+          - '@modelcontextprotocol/*'
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns:
+          - '*'

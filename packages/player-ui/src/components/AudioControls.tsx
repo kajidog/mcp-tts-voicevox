@@ -88,10 +88,7 @@ export function AudioControls({ audioSrc, autoPlay, onEnded }: AudioControlsProp
           {isPlaying ? <PauseIcon /> : <PlayIcon />}
         </button>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div
-            className="h-2 cursor-pointer rounded-full bg-[var(--ui-progress-bg)]"
-            onClick={handleProgressClick}
-          >
+          <div className="h-2 cursor-pointer rounded-full bg-[var(--ui-progress-bg)]" onClick={handleProgressClick}>
             <div
               className="h-full rounded-full bg-[var(--ui-accent)] transition-[width] duration-150"
               style={{ width: `${progress}%` }}

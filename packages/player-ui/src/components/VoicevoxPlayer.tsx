@@ -80,7 +80,9 @@ export function VoicevoxPlayer() {
           const state = await fetchPlayerViewState(createdApp, viewUUID)
           if (!state) {
             setStatus('error')
-            setErrorMsg('このプレーヤーのデータは失われました。もう一度読み上げを実行すると、新しいプレーヤーが開きます。')
+            setErrorMsg(
+              'このプレーヤーのデータは失われました。もう一度読み上げを実行すると、新しいプレーヤーが開きます。'
+            )
             return
           }
           setMultiPlayerData({
@@ -120,7 +122,11 @@ export function VoicevoxPlayer() {
   }, [app])
 
   if (appError) {
-    return <div className={`${statusBox} border-[var(--ui-danger)] text-[var(--ui-danger)]`}>Connection error: {appError.message}</div>
+    return (
+      <div className={`${statusBox} border-[var(--ui-danger)] text-[var(--ui-danger)]`}>
+        Connection error: {appError.message}
+      </div>
+    )
   }
 
   if (status === 'connecting') {

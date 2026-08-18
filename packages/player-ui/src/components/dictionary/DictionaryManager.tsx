@@ -83,13 +83,13 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
     const keyword = filter.trim().toLowerCase()
     if (!keyword) return words
     return words.filter(
-      (word) => word.surface.toLowerCase().includes(keyword) || word.pronunciation.toLowerCase().includes(keyword),
+      (word) => word.surface.toLowerCase().includes(keyword) || word.pronunciation.toLowerCase().includes(keyword)
     )
   }, [filter, words])
 
   const selectedWord = useMemo(
     () => words.find((word) => word.wordUuid === selectedWordUuid) ?? null,
-    [words, selectedWordUuid],
+    [words, selectedWordUuid]
   )
 
   const runAction = async (action: () => Promise<void>) => {
@@ -266,7 +266,7 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
       const nextWords = await addDictionaryWord(app, payload)
       syncWords(nextWords)
       const created = sortWords(nextWords).find(
-        (word) => word.surface === payload.surface && word.pronunciation === payload.pronunciation,
+        (word) => word.surface === payload.surface && word.pronunciation === payload.pronunciation
       )
       if (created) setSelectedWordUuid(created.wordUuid)
     })
@@ -291,9 +291,7 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
   const handleAccentChange = (newAccent: number) => {
     setForm((prev) => ({ ...prev, accentType: newAccent }))
     if (accentInfo && accentInfo.moraTexts.length > 0) {
-      setAccentInfo((prev) =>
-        prev ? { ...prev, notation: generateNotation(prev.moraTexts, newAccent) } : prev,
-      )
+      setAccentInfo((prev) => (prev ? { ...prev, notation: generateNotation(prev.moraTexts, newAccent) } : prev))
     }
   }
 
@@ -334,10 +332,11 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
         <div className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
-            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${isFormOpen && selectedWordUuid === null
-              ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_10%,var(--ui-bg))] font-medium text-[var(--ui-accent)]'
-              : 'border-[var(--ui-border)] bg-[var(--ui-button-bg)] text-[var(--ui-text-secondary)] hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)]'
-              }`}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+              isFormOpen && selectedWordUuid === null
+                ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_10%,var(--ui-bg))] font-medium text-[var(--ui-accent)]'
+                : 'border-[var(--ui-border)] bg-[var(--ui-button-bg)] text-[var(--ui-text-secondary)] hover:border-[var(--ui-accent)] hover:text-[var(--ui-accent)]'
+            }`}
             onClick={setNewMode}
             disabled={isBusy}
             title="新しい単語を登録"
@@ -379,10 +378,11 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
                     <button
                       key={word.wordUuid}
                       type="button"
-                      className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${isSelected
-                        ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_15%,var(--ui-bg))]'
-                        : 'border-[var(--ui-border)] bg-[var(--ui-surface)] hover:border-[var(--ui-accent)] hover:bg-[color-mix(in_oklab,var(--ui-accent)_5%,var(--ui-bg))]'
-                        }`}
+                      className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+                        isSelected
+                          ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_15%,var(--ui-bg))]'
+                          : 'border-[var(--ui-border)] bg-[var(--ui-surface)] hover:border-[var(--ui-accent)] hover:bg-[color-mix(in_oklab,var(--ui-accent)_5%,var(--ui-bg))]'
+                      }`}
                       onClick={() => selectWord(word)}
                       disabled={isBusy}
                     >
@@ -392,10 +392,11 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
                         <span className="text-[var(--ui-text-secondary)]">{word.pronunciation}</span>
                       </span>
                       <span
-                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${isSelected
-                          ? 'bg-[var(--ui-accent)] text-white'
-                          : 'bg-[var(--ui-border)] text-[var(--ui-text-secondary)]'
-                          }`}
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          isSelected
+                            ? 'bg-[var(--ui-accent)] text-white'
+                            : 'bg-[var(--ui-border)] text-[var(--ui-text-secondary)]'
+                        }`}
                       >
                         {priorityLabel(word.priority)}
                       </span>
@@ -484,9 +485,7 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-[var(--ui-text)]">アクセント</label>
                   {accentInfo && (
-                    <span className="font-mono text-[11px] text-[var(--ui-text-secondary)]">
-                      {accentInfo.notation}
-                    </span>
+                    <span className="font-mono text-[11px] text-[var(--ui-text-secondary)]">{accentInfo.notation}</span>
                   )}
                   {!accentInfo && form.pronunciation && (
                     <span className="font-mono text-[11px] text-[var(--ui-text-secondary)]">
@@ -516,10 +515,11 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
                             {/* 平板 (Heiban) button */}
                             <div className="flex shrink-0 items-center justify-center gap-1">
                               <span
-                                className={`inline-flex shrink-0 items-center justify-center rounded-md border px-1 text-[11px] leading-none py-1.5 transition-colors ${form.accentType === 0
-                                  ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_18%,var(--ui-bg))] text-[var(--ui-accent)] font-semibold'
-                                  : 'border-[var(--ui-border)] text-[var(--ui-text-secondary)] hover:border-[var(--ui-accent)] hover:bg-[color-mix(in_oklab,var(--ui-accent)_10%,var(--ui-bg))]'
-                                  } cursor-pointer`}
+                                className={`inline-flex shrink-0 items-center justify-center rounded-md border px-1 text-[11px] leading-none py-1.5 transition-colors ${
+                                  form.accentType === 0
+                                    ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_18%,var(--ui-bg))] text-[var(--ui-accent)] font-semibold'
+                                    : 'border-[var(--ui-border)] text-[var(--ui-text-secondary)] hover:border-[var(--ui-accent)] hover:bg-[color-mix(in_oklab,var(--ui-accent)_10%,var(--ui-bg))]'
+                                } cursor-pointer`}
                                 style={{ width: '32px' }}
                                 onClick={() => handleAccentChange(0)}
                               >
@@ -534,15 +534,13 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
                               const isAccentMora = form.accentType === pos
                               const moraWidth = t.length >= 2 ? 48 : 32
                               return (
-                                <div
-                                  key={pos}
-                                  className="flex shrink-0 items-center justify-center gap-1"
-                                >
+                                <div key={pos} className="flex shrink-0 items-center justify-center gap-1">
                                   <span
-                                    className={`inline-flex shrink-0 items-center justify-center rounded-md border px-1 text-xs leading-none py-1.5 transition-colors ${isAccentMora
-                                      ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_18%,var(--ui-bg))] text-[var(--ui-accent)] font-semibold'
-                                      : 'border-[var(--ui-border)] text-[var(--ui-text)] hover:border-[var(--ui-accent)] hover:bg-[color-mix(in_oklab,var(--ui-accent)_10%,var(--ui-bg))]'
-                                      } cursor-pointer`}
+                                    className={`inline-flex shrink-0 items-center justify-center rounded-md border px-1 text-xs leading-none py-1.5 transition-colors ${
+                                      isAccentMora
+                                        ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_18%,var(--ui-bg))] text-[var(--ui-accent)] font-semibold'
+                                        : 'border-[var(--ui-border)] text-[var(--ui-text)] hover:border-[var(--ui-accent)] hover:bg-[color-mix(in_oklab,var(--ui-accent)_10%,var(--ui-bg))]'
+                                    } cursor-pointer`}
                                     style={{ width: `${moraWidth}px` }}
                                     onClick={() => handleAccentChange(pos)}
                                   >
@@ -596,23 +594,22 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
                             </div>
 
                             {/* Dummy mora blocks */}
-                            {(form.pronunciation ? form.pronunciation.split('') : ['ア', 'ッ', 'プ', 'ス']).map((t, i) => {
-                              const pos = i + 1
-                              const moraWidth = t.length >= 2 ? 48 : 32
-                              return (
-                                <div
-                                  key={pos}
-                                  className="flex shrink-0 items-center justify-center gap-1"
-                                >
-                                  <span
-                                    className="inline-flex shrink-0 items-center justify-center rounded-md border border-[var(--ui-border)] text-[var(--ui-text)] px-1 text-xs leading-none py-1.5"
-                                    style={{ width: `${moraWidth}px` }}
-                                  >
-                                    {t}
-                                  </span>
-                                </div>
-                              )
-                            })}
+                            {(form.pronunciation ? form.pronunciation.split('') : ['ア', 'ッ', 'プ', 'ス']).map(
+                              (t, i) => {
+                                const pos = i + 1
+                                const moraWidth = t.length >= 2 ? 48 : 32
+                                return (
+                                  <div key={pos} className="flex shrink-0 items-center justify-center gap-1">
+                                    <span
+                                      className="inline-flex shrink-0 items-center justify-center rounded-md border border-[var(--ui-border)] text-[var(--ui-text)] px-1 text-xs leading-none py-1.5"
+                                      style={{ width: `${moraWidth}px` }}
+                                    >
+                                      {t}
+                                    </span>
+                                  </div>
+                                )
+                              }
+                            )}
                           </div>
                           <div className="w-full">
                             <input
@@ -680,9 +677,7 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
               </div>
 
               {/* 注意書き — 枠なし控えめテキストのみ */}
-              {notice && (
-                <p className="text-[11px] leading-relaxed text-[var(--ui-text-secondary)]">{notice}</p>
-              )}
+              {notice && <p className="text-[11px] leading-relaxed text-[var(--ui-text-secondary)]">{notice}</p>}
 
               {/* アクションボタン */}
               <div className="flex flex-wrap items-center gap-2 pt-0.5">
@@ -706,7 +701,6 @@ export function DictionaryManager({ app, initialData }: DictionaryManagerProps) 
                   </button>
                 )}
               </div>
-
             </div>
           </div>
         )}

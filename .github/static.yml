@@ -24,8 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # No `version:` here on purpose — the action reads `packageManager`
-      # from package.json, and specifying both is a hard error.
+      # pnpm version comes from the root package.json "packageManager" field.
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
@@ -36,13 +35,13 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build packages
-        run: pnpm -r run build
+        run: pnpm -r build
 
       - name: Build browser example
-        run: cd examples && pnpm vite build
+        run: pnpm --filter voicevox-mcp-examples build
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

@@ -1,6 +1,6 @@
 import type { AccentPhrase, AudioQuery, Mora } from '@kajidog/voicevox-client'
 
-export type { Mora, AccentPhrase, AudioQuery }
+export type { AccentPhrase, AudioQuery, Mora }
 
 export interface SpeakerInfo {
   id: number

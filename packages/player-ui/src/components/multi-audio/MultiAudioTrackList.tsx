@@ -1,5 +1,5 @@
-import { type MutableRefObject, useRef, useState, useCallback } from 'react'
-import { DragHandleIcon, DeleteIcon, EqualizerIcon, PlayIcon } from '../../icons'
+import { type MutableRefObject, useCallback, useRef, useState } from 'react'
+import { DeleteIcon, DragHandleIcon, EqualizerIcon, PlayIcon } from '../../icons'
 import type { AudioSegment } from '../../types'
 
 interface MultiAudioTrackListProps {
@@ -135,14 +135,21 @@ export function MultiAudioTrackList({
               onDrop={(e) => handleDrop(e, index)}
               onDragEnd={handleDragEnd}
             >
-              {showInsertTop && <div className="absolute left-2 right-2 top-0 h-0.5 rounded-full bg-[var(--ui-accent)]" />}
+              {showInsertTop && (
+                <div className="absolute left-2 right-2 top-0 h-0.5 rounded-full bg-[var(--ui-accent)]" />
+              )}
               <div
-                className={`group/track flex items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors ${isActive
-                  ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-bg))]'
-                  : 'border-[var(--ui-border)] bg-[var(--ui-surface)] hover:border-[var(--ui-accent)]'} ${dragIndex === index ? 'opacity-40' : ''}`}
+                className={`group/track flex items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors ${
+                  isActive
+                    ? 'border-[var(--ui-accent)] bg-[color-mix(in_oklab,var(--ui-accent)_12%,var(--ui-bg))]'
+                    : 'border-[var(--ui-border)] bg-[var(--ui-surface)] hover:border-[var(--ui-accent)]'
+                } ${dragIndex === index ? 'opacity-40' : ''}`}
                 onClick={() => onSelectSegment(index)}
               >
-                <span className="cursor-grab text-[var(--ui-text-secondary)] active:cursor-grabbing" onMouseDown={(e) => e.stopPropagation()}>
+                <span
+                  className="cursor-grab text-[var(--ui-text-secondary)] active:cursor-grabbing"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
                   <DragHandleIcon />
                 </span>
                 <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-[var(--ui-border)] bg-[var(--ui-tag-bg)]">
@@ -153,10 +160,14 @@ export function MultiAudioTrackList({
                       className="h-full w-full object-cover object-[center_top]"
                     />
                   ) : (
-                    <span className="text-xs font-semibold text-[var(--ui-text-secondary)]">{segment.speakerName?.charAt(0) || '?'}</span>
+                    <span className="text-xs font-semibold text-[var(--ui-text-secondary)]">
+                      {segment.speakerName?.charAt(0) || '?'}
+                    </span>
                   )}
                 </span>
-                <span className="max-w-28 shrink-0 truncate text-xs font-medium text-[var(--ui-text)]">{segment.speakerName}</span>
+                <span className="max-w-28 shrink-0 truncate text-xs font-medium text-[var(--ui-text)]">
+                  {segment.speakerName}
+                </span>
                 <span className="min-w-0 flex-1 truncate text-xs text-[var(--ui-text-secondary)]">{segment.text}</span>
                 <span className="flex h-6 w-6 items-center justify-center text-[var(--ui-text-secondary)]">
                   {isSaving ? (
@@ -191,7 +202,9 @@ export function MultiAudioTrackList({
                   </button>
                 )}
               </div>
-              {showInsertBottom && <div className="absolute left-2 right-2 bottom-0 h-0.5 rounded-full bg-[var(--ui-accent)]" />}
+              {showInsertBottom && (
+                <div className="absolute left-2 right-2 bottom-0 h-0.5 rounded-full bg-[var(--ui-accent)]" />
+              )}
             </div>
           )
         })}
@@ -282,7 +295,9 @@ export function MultiAudioTrackList({
             onClick={() => setShowAddForm(true)}
             title="トラックを追加"
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor" /></svg>
+            <svg viewBox="0 0 24 24" className="h-4 w-4">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor" />
+            </svg>
             トラックを追加
           </button>
         )}
