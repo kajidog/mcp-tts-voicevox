@@ -2,27 +2,32 @@ import { handleError, VoicevoxError, VoicevoxErrorCode } from './error.js'
 import type { AccentPhrase, AudioQuery, Speaker, SpeakerInfo, UserDictionaryWord } from './types.js'
 
 /**
- * APIリクエストのリトライ設定
+ * APIリクエストのリトライ・タイムアウト設定
  */
 export interface VoicevoxApiRetryOptions {
   /** リトライ回数（初回リクエストを除く。0でリトライ無効、デフォルト: 2） */
   retryCount?: number
   /** リトライの初期ディレイ（ミリ秒）。指数バックオフで増加する（デフォルト: 250） */
   retryDelayMs?: number
+  /** 1リクエストあたりのタイムアウト（ミリ秒、デフォルト: 30000） */
+  timeoutMs?: number
 }
 
 const DEFAULT_RETRY_COUNT = 2
 const DEFAULT_RETRY_DELAY_MS = 250
+const DEFAULT_TIMEOUT_MS = 30000
 
 export class VoicevoxApi {
   private readonly baseUrl: string
   private readonly retryCount: number
   private readonly retryDelayMs: number
+  private readonly timeoutMs: number
 
   constructor(baseUrl: string, retryOptions: VoicevoxApiRetryOptions = {}) {
     this.baseUrl = this.normalizeUrl(baseUrl)
     this.retryCount = Math.max(0, retryOptions.retryCount ?? DEFAULT_RETRY_COUNT)
     this.retryDelayMs = Math.max(0, retryOptions.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS)
+    this.timeoutMs = Math.max(1, retryOptions.timeoutMs ?? DEFAULT_TIMEOUT_MS)
   }
 
   /**
@@ -275,7 +280,7 @@ export class VoicevoxApi {
         const init: RequestInit = {
           method: method.toUpperCase(),
           headers,
-          signal: AbortSignal.timeout(30000),
+          signal: AbortSignal.timeout(this.timeoutMs),
         }
 
         if (data !== null) {

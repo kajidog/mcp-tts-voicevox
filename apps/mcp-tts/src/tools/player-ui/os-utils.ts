@@ -110,10 +110,6 @@ end run`
   })
 }
 
-export function normalizeOutputDirectory(rawPath: string): string {
-  return resolve(rawPath)
-}
-
 export function resolveParentDirectory(directoryPath: string): string {
   return dirname(resolve(directoryPath))
 }

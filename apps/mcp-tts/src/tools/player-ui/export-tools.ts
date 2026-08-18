@@ -3,17 +3,18 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import * as z from 'zod'
+import { resolveAllowedOutputPath } from '../output-path.js'
 import { registerAppToolIfEnabled } from '../registration.js'
 import { createErrorResponse } from '../utils.js'
 import type { PlayerUIToolContext } from './context.js'
 import {
   canChooseDirectoryDialog,
   canOpenExplorer,
-  normalizeOutputDirectory,
   openDirectoryInExplorer,
   sanitizeFilePart,
   showDirectoryPicker,
 } from './os-utils.js'
+import { decodeWavBase64 } from './wav.js'
 
 export function registerPlayerExportTools(context: PlayerUIToolContext): void {
   const { deps, shared } = context
@@ -96,7 +97,14 @@ export function registerPlayerExportTools(context: PlayerUIToolContext): void {
       title: 'Export Tracks (Player)',
       description: 'Save player tracks as wav files and open the target folder in file explorer.',
       inputSchema: {
-        outputDir: z.string().optional().describe('Output directory path (optional)'),
+        outputDir: z
+          .string()
+          .optional()
+          .describe(
+            config.allowedOutputDirs?.length
+              ? `Output directory path (optional; must be under: ${config.allowedOutputDirs.join(', ')})`
+              : 'Output directory path (optional)'
+          ),
         segments: z
           .array(
             z.object({
@@ -131,7 +139,14 @@ export function registerPlayerExportTools(context: PlayerUIToolContext): void {
         }
 
         const rawTarget = outputDir?.trim() || config.playerExportDir
-        const targetDir = normalizeOutputDirectory(rawTarget)
+        // 許可ディレクトリが設定されている場合のみ書き込み先を検証する（未設定なら素通し）
+        const targetDir = resolveAllowedOutputPath(rawTarget, {
+          allowedDirs: config.allowedOutputDirs,
+          label: 'outputDir',
+        })
+
+        // 1ファイルでも WAV でなければ何も書き出さずに失敗させる
+        const decoded = segments.map((seg, i) => decodeWavBase64(seg.audioBase64, `track ${i + 1}`))
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
         const sessionDir = join(targetDir, `voicevox-${timestamp}`)
@@ -145,7 +160,7 @@ export function registerPlayerExportTools(context: PlayerUIToolContext): void {
           const textPart = sanitizeFilePart(seg.text, `segment-${i + 1}`)
           const fileName = `${indexPart}-${speakerPart}-${textPart}.wav`
           const filePath = join(sessionDir, fileName)
-          await writeFile(filePath, Buffer.from(seg.audioBase64, 'base64'))
+          await writeFile(filePath, decoded[i])
           files.push(filePath)
         }
 

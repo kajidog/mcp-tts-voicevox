@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Version or publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Changesets needs history to work out what has already shipped.
+          fetch-depth: 0
+
+      # pnpm version comes from the root package.json "packageManager" field.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # mcp-tts's tsup build copies player-ui's HTML into its dist, so the
+      # whole workspace has to be built before anything is published.
+      - name: Build
+        run: pnpm -r build
+
+      # With changesets pending, this opens/updates a "Version Packages" PR.
+      # When that PR is merged and no changesets remain, it publishes to npm
+      # and pushes a git tag per released package.
+      - name: Create release PR or publish
+        uses: changesets/action@v1
+        with:
+          # `pnpm run` is required: bare `pnpm version` is pnpm's built-in
+          # npm-compatible command, not the root "version" script.
+          version: pnpm run version
+          publish: pnpm run release
+          commit: 'chore: version packages'
+          title: 'chore: version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -19,6 +19,16 @@ services:
     environment:
       VOICEVOX_URL: http://voicevox-engine:50021
       VOICEVOX_DISABLED_TOOLS: speak
+      # セキュリティ注意:
+      # この構成は 3000 番を認証なしで公開します。LAN など信頼できない
+      # ネットワークに晒す場合は必ず MCP_API_KEY を設定してください
+      # （Host ヘッダーは非ブラウザのクライアントが自由に詐称できるため、
+      #  MCP_ALLOWED_HOSTS だけでは防御になりません）。
+      # MCP_API_KEY: change-me
+      #
+      # ファイル書き込み先を制限する（未設定なら任意のパスに書き込み可能）。
+      # synthesize_file とプレイヤーのトラック書き出しの両方に適用されます。
+      # VOICEVOX_ALLOWED_OUTPUT_DIRS: /app/voicevox-player-exports
     depends_on:
       - voicevox-engine
     restart: unless-stopped

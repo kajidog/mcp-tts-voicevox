@@ -2,6 +2,7 @@ import { type ChildProcess, execSync, type SpawnOptions, spawn } from 'node:chil
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import type { PlaybackStrategy } from './types.js'
+import { buildWindowsPlaybackArgs } from './windows-command.js'
 
 /**
  * Node.js環境用再生戦略
@@ -166,12 +167,8 @@ export class NodePlaybackStrategy implements PlaybackStrategy {
           break
         case 'win32': {
           command = 'powershell'
-          const escapedPath = filePath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-          // シンプルなポーリングでMediaPlayer再生を待機
-          args = [
-            '-c',
-            `Add-Type -AssemblyName presentationCore; $player = New-Object System.Windows.Media.MediaPlayer; $player.Open('${escapedPath}'); $player.Volume = 0.5; Start-Sleep -Milliseconds 300; $player.Play(); if ($player.NaturalDuration.HasTimeSpan) { $ms = [int]($player.NaturalDuration.TimeSpan.TotalMilliseconds) + 500; Start-Sleep -Milliseconds $ms } else { Start-Sleep -Seconds 5 }; $player.Close()`,
-          ]
+          // パスは base64 で渡し PowerShell 側でデコードする（コマンドインジェクション対策）
+          args = buildWindowsPlaybackArgs(filePath)
           break
         }
         case 'linux': {

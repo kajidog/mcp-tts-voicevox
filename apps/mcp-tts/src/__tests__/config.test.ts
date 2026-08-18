@@ -103,6 +103,11 @@ describe('config module', () => {
       expect(result.restrictWaitForEnd).toBe(true)
     })
 
+    it('--allowed-output-dirs をカンマ区切りでパースする', () => {
+      const result = parseCliArgs(['--allowed-output-dirs', '/data/out, /srv/out'])
+      expect(result.allowedOutputDirs).toEqual(['/data/out', '/srv/out'])
+    })
+
     it('--disable-tools を正しくパースする', () => {
       const result = parseCliArgs(['--disable-tools', 'speak,get_speaker_detail'])
       expect(result.disabledTools).toEqual(['speak', 'get_speaker_detail'])
@@ -301,12 +306,25 @@ describe('config module', () => {
       expect(result.playerExportEnabled).toBe(true)
       expect(result.playerExportDir).toContain('voicevox-player-exports')
       expect(result.playerCacheDir).toContain('.voicevox-player-cache')
-      expect(result.playerStateFile).toContain('.voicevox-player-cache/player-state.json')
+      expect(result.playerStateFile).toContain(join('.voicevox-player-cache', 'player-state.json'))
       expect(result.disabledTools).toEqual([])
       expect(result.httpMode).toBe(false)
       expect(result.httpPort).toBe(3000)
       expect(result.httpHost).toBe('0.0.0.0')
       expect(result.apiKey).toBeUndefined()
+      // 既定は未設定＝書き込み先の制限なし（従来の挙動を維持）
+      expect(result.allowedOutputDirs).toBeUndefined()
+    })
+
+    it('VOICEVOX_TIMEOUT_MS でAPIリクエストのタイムアウトを変更できる', () => {
+      expect(getConfig([], {}).timeoutMs).toBe(30000)
+      expect(getConfig([], { VOICEVOX_TIMEOUT_MS: '120000' }).timeoutMs).toBe(120000)
+      expect(getConfig(['--timeout-ms', '90000'], {}).timeoutMs).toBe(90000)
+    })
+
+    it('VOICEVOX_ALLOWED_OUTPUT_DIRS で書き込み先を制限できる', () => {
+      const result = getConfig([], { VOICEVOX_ALLOWED_OUTPUT_DIRS: '/data/out,/srv/out' })
+      expect(result.allowedOutputDirs).toEqual(['/data/out', '/srv/out'])
     })
 
     it('環境変数がデフォルト値を上書きする', () => {
@@ -345,7 +363,8 @@ describe('config module', () => {
     it('player state file 未指定時は player cache dir に追従する', () => {
       const result = getConfig(['--player-cache-dir', '/tmp/cache-dir'], {})
       expect(result.playerCacheDir).toBe('/tmp/cache-dir')
-      expect(result.playerStateFile).toBe('/tmp/cache-dir/player-state.json')
+      // 区切り文字は join に合わせる（Windows では \tmp\cache-dir\player-state.json）
+      expect(result.playerStateFile).toBe(join('/tmp/cache-dir', 'player-state.json'))
     })
 
     it('player state file 指定時は player cache dir より優先する', () => {

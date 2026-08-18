@@ -175,6 +175,8 @@ VOICEVOX Engine と MCP サーバー（HTTP モード、ポート 3000）が起�
 
 **3. Claude Desktop を再起動**
 
+> **セキュリティ注意（Docker）:** `docker-compose.yml` はポート 3000 を**認証なし**で公開します。`MCP_ALLOWED_HOSTS` は防御になりません（ブラウザ以外のクライアントは `Host` ヘッダーを自由に詐称できるため）。ポートに到達できる相手は誰でもサーバーを利用できます。`MCP_API_KEY` を設定して `X-API-Key` で送るか、信頼できるネットワーク / localhost 以外には公開しないでください。あわせて `VOICEVOX_ALLOWED_OUTPUT_DIRS` でファイル書き込み先を制限することも検討してください。
+
 > **制限事項（Docker）:** Docker コンテナには音声デバイスがないため、`voicevox_speak` ツール（サーバー側再生）はデフォルトで無効化されています。代わりに `voicevox_speak_player` を使用してください。`voicevox_speak_player` はクライアント側（Claude Desktop 内）で音声を再生するため、サーバーに音声デバイスがなくても動作します。詳細は [UI オーディオプレーヤー](#ui-オーディオプレーヤーmcp-apps) をご覧ください。
 
 ---
@@ -238,6 +240,7 @@ Claude から呼び出せるメインの機能です。
 | `VOICEVOX_DEFAULT_SPEED_SCALE` | 再生速度 | `1.0` |
 | `VOICEVOX_RETRY_COUNT` | API リクエスト失敗時のリトライ回数（0 で無効） | `2` |
 | `VOICEVOX_RETRY_DELAY_MS` | リトライの初期ディレイ（ミリ秒、指数バックオフ） | `250` |
+| `VOICEVOX_TIMEOUT_MS` | VOICEVOX APIリクエスト1回あたりのタイムアウト（ミリ秒）。長文合成や低速エンジンでは大きくする | `30000` |
 
 ### 再生オプション
 
@@ -296,6 +299,12 @@ export VOICEVOX_DISABLED_TOOLS=synthesize_file
 | `VOICEVOX_PLAYER_AUDIO_CACHE_MAX_MB` | 音声キャッシュ上限サイズ MB（`0`: ディスクキャッシュ無効、`-1`: 無制限） | `512` |
 | `VOICEVOX_PLAYER_STATE_FILE` | プレーヤー状態 JSON の保存パス | `<VOICEVOX_PLAYER_CACHE_DIR>/player-state.json` |
 
+### ファイル出力設定
+
+| 環境変数 | 説明 | デフォルト |
+|---------|------|-----------|
+| `VOICEVOX_ALLOWED_OUTPUT_DIRS` | ファイルを書き出すツール（`voicevox_synthesize_file`、プレイヤーのトラック書き出し）が書き込めるディレクトリ（カンマ区切り）。この外のパスはエラーで拒否されます。未設定なら**制限なし**。HTTP で公開する運用では設定を推奨 | _(未設定)_ |
+
 ### サーバー設定
 
 | 環境変数 | 説明 | デフォルト |
@@ -349,6 +358,7 @@ npx @kajidog/mcp-tts-voicevox --disable-groups player
 | `--restrict-immediate` | immediate を制限 |
 | `--restrict-wait-for-start` | waitForStart を制限 |
 | `--restrict-wait-for-end` | waitForEnd を制限 |
+| `--allowed-output-dirs <dirs>` | ファイル書き出し先として許可するディレクトリ（カンマ区切り。未設定なら制限なし） |
 | `--disable-tools <tools>` | ツールを個別に無効化（カンマ区切り） |
 | `--disable-groups <groups>` | ツールグループを無効化: `player`, `dictionary`, `file`, `apps` |
 | `--auto-play` / `--no-auto-play` | UI プレイヤーで自動再生 |

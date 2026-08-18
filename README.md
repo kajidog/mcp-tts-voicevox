@@ -175,6 +175,8 @@ This starts the VOICEVOX Engine and the MCP server (HTTP mode on port 3000).
 
 **3. Restart Claude Desktop**
 
+> **Security (Docker):** `docker-compose.yml` publishes port 3000 **without authentication**. `MCP_ALLOWED_HOSTS` is not a defense here — non-browser clients can send any `Host` header they like — so anyone who can reach the port can use the server. Set `MCP_API_KEY` (and send it as `X-API-Key`), or keep the port bound to a trusted network / localhost only. Consider also setting `VOICEVOX_ALLOWED_OUTPUT_DIRS` to limit where file-writing tools may write.
+
 > **Limitations (Docker):** The Docker container has no audio device, so the `voicevox_speak` tool (server-side playback) is disabled by default. Use `voicevox_speak_player` instead — it plays audio on the client side (in Claude Desktop) and works without any audio device on the server. See [UI Audio Player](#ui-audio-player-mcp-apps) for details.
 
 ---
@@ -238,6 +240,7 @@ The main feature callable from Claude.
 | `VOICEVOX_DEFAULT_SPEED_SCALE` | Playback speed | `1.0` |
 | `VOICEVOX_RETRY_COUNT` | Retries for failed API requests (0 disables) | `2` |
 | `VOICEVOX_RETRY_DELAY_MS` | Initial retry delay in ms (exponential backoff) | `250` |
+| `VOICEVOX_TIMEOUT_MS` | Timeout for a single VOICEVOX API request in ms. Raise it for long text or a slow engine | `30000` |
 
 ### Playback Options
 
@@ -296,6 +299,12 @@ Built-in groups for `VOICEVOX_DISABLED_GROUPS` / `--disable-groups`:
 | `VOICEVOX_PLAYER_AUDIO_CACHE_MAX_MB` | Audio cache size cap in MB (`0`: disable disk cache, `-1`: unlimited) | `512` |
 | `VOICEVOX_PLAYER_STATE_FILE` | Path of persisted player state JSON | `<VOICEVOX_PLAYER_CACHE_DIR>/player-state.json` |
 
+### File Output Settings
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VOICEVOX_ALLOWED_OUTPUT_DIRS` | Comma-separated directories that file-writing tools (`voicevox_synthesize_file`, player track export) may write into. Paths outside them are rejected with an error. Unset means **no restriction** — recommended to set when the server is exposed over HTTP | _(unset)_ |
+
 ### Server Settings
 
 | Variable | Description | Default |
@@ -349,6 +358,7 @@ npx @kajidog/mcp-tts-voicevox --disable-groups player
 | `--restrict-immediate` | Restrict immediate |
 | `--restrict-wait-for-start` | Restrict waitForStart |
 | `--restrict-wait-for-end` | Restrict waitForEnd |
+| `--allowed-output-dirs <dirs>` | Directories that file-writing tools may write into (comma-separated; unset = no restriction) |
 | `--disable-tools <tools>` | Disable tools (comma-separated tool names) |
 | `--disable-groups <groups>` | Disable tool groups: `player`, `dictionary`, `file`, `apps` |
 | `--auto-play` / `--no-auto-play` | Auto-play in UI player |
