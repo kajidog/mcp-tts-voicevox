@@ -152,7 +152,9 @@ function sliceAccentPhrase(source: AccentPhrase, start: number, end: number): Ac
   const sliced: AccentPhrase = {
     ...source,
     moras,
-    accent: Math.min(Math.max(source.accent - start, 1), moras.length),
+    // accent 0 は平板型を表すのでそのまま維持する。
+    // それ以外は切り出し後の位置に付け替える（範囲外は端に丸める）。
+    accent: source.accent === 0 ? 0 : Math.min(Math.max(source.accent - start, 1), moras.length),
   }
   if (end !== source.moras.length) {
     sliced.pause_mora = undefined
@@ -260,7 +262,7 @@ export function regroupAccentPhrasesByNotation(
  * 逆に1つのアクセント句が複数フレーズにまたがっていた場合は分割する。
  *
  * bracketCharIndex === null（[] 省略）のフレーズ:
- *   - defaultAccentPhrases が渡された場合 → そのアクセント値（VOICEVOX自動判定）を使用
+ *   - defaultAccentPhrases が渡された場合 → その区切りとアクセント値（VOICEVOX自動判定）に戻す
  *   - defaultAccentPhrases が未指定の場合 → accentPhrases のアクセント値をそのまま維持
  *   いずれの場合も VOICEVOX が決めたアクセント句の区切りをそのまま残す。
  */
@@ -284,11 +286,11 @@ export function applyNotationAccents(
     const parsed = parsedPhrases[i]
 
     if (parsed.bracketCharIndex === null) {
+      // [] 省略は「VOICEVOX の自動判定に戻す」意味なので、アクセント句の区切りごと
+      // デフォルト側を採用する。区切り数が合うときだけ accent を写す方式だと、
+      // 結合済みのアクセント句（[] 付き編集の結果）を戻せなくなる。
       const defaults = defaultGroups?.[i]
-      const useDefaults = defaults !== undefined && defaults.length === group.length
-      for (const [j, phrase] of group.entries()) {
-        result.push(useDefaults ? { ...phrase, accent: defaults[j].accent } : phrase)
-      }
+      result.push(...(defaults ?? group))
       return
     }
 

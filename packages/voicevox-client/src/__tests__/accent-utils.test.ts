@@ -536,3 +536,54 @@ describe('applyNotationAccents: 読点（pause_mora）を含む notation', () =>
     expect(result[1].accent).toBe(2)
   })
 })
+
+describe('applyNotationAccents: 平板型(accent=0)の維持', () => {
+  it('フレーズ分割で平板型が頭高型に変わらない', () => {
+    const parsed = parseNotation('テスト,ロク')
+    const accentPhrases = [makeAccentPhrase(['テ', 'ス', 'ト', 'ロ', 'ク'], 0)]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result).toHaveLength(2)
+    expect(result[0].accent).toBe(0)
+    expect(result[1].accent).toBe(0)
+  })
+
+  it('notation より長い余り部分でも平板型を維持する', () => {
+    const parsed = parseNotation('テスト')
+    const accentPhrases = [makeAccentPhrase(['テ', 'ス', 'ト', 'ロ', 'ク'], 0)]
+    const result = applyNotationAccents(parsed, accentPhrases)
+    expect(result).toHaveLength(2)
+    expect(result[1].moras.map((m) => m.text).join('')).toBe('ロク')
+    expect(result[1].accent).toBe(0)
+  })
+})
+
+describe('applyNotationAccents: [] 省略時のデフォルト復元', () => {
+  it('既存とデフォルトで区切りが違ってもデフォルトに戻せる', () => {
+    // [] 付き編集で結合されたアクセント句が base になっているケース。
+    // 括弧を外したらデフォルト（VOICEVOX の分割とアクセント）に戻る必要がある。
+    const parsed = parseNotation('アクセントシテエノ')
+    const edited = [makeAccentPhrase(['ア', 'ク', 'セ', 'ン', 'ト', 'シ', 'テ', 'エ', 'ノ'], 6)]
+    const defaults = [
+      makeAccentPhrase(['ア', 'ク', 'セ', 'ン', 'ト'], 1),
+      makeAccentPhrase(['シ', 'テ', 'エ', 'ノ'], 2),
+    ]
+    const result = applyNotationAccents(parsed, edited, defaults)
+    expect(result).toHaveLength(2)
+    expect(result[0].moras.map((m) => m.text).join('')).toBe('アクセント')
+    expect(result[0].accent).toBe(1)
+    expect(result[1].moras.map((m) => m.text).join('')).toBe('シテエノ')
+    expect(result[1].accent).toBe(2)
+  })
+
+  it('[] ありのフレーズはデフォルトに戻さず括弧位置を優先する', () => {
+    const parsed = parseNotation('アクセント[シ]テエノ')
+    const edited = [makeAccentPhrase(['ア', 'ク', 'セ', 'ン', 'ト', 'シ', 'テ', 'エ', 'ノ'], 1)]
+    const defaults = [
+      makeAccentPhrase(['ア', 'ク', 'セ', 'ン', 'ト'], 1),
+      makeAccentPhrase(['シ', 'テ', 'エ', 'ノ'], 2),
+    ]
+    const result = applyNotationAccents(parsed, edited, defaults)
+    expect(result).toHaveLength(1)
+    expect(result[0].accent).toBe(6)
+  })
+})
