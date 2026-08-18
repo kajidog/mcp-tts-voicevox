@@ -66,6 +66,15 @@ const voicevoxConfigDefs: ConfigDefs = {
     default: 250,
     valueName: '<ms>',
   },
+  timeoutMs: {
+    cli: '--timeout-ms',
+    env: 'VOICEVOX_TIMEOUT_MS',
+    description: 'Timeout for a single VOICEVOX API request in milliseconds',
+    group: 'Voicevox Configuration',
+    type: 'number',
+    default: 30000,
+    valueName: '<ms>',
+  },
   useStreaming: {
     cli: '--use-streaming',
     env: 'VOICEVOX_USE_STREAMING',
@@ -129,6 +138,15 @@ const voicevoxConfigDefs: ConfigDefs = {
     group: 'Restriction Options',
     type: 'boolean',
     default: false,
+  },
+  allowedOutputDirs: {
+    cli: '--allowed-output-dirs',
+    env: 'VOICEVOX_ALLOWED_OUTPUT_DIRS',
+    description:
+      'Comma-separated list of directories that file-writing tools (synthesize_file, player track export) may write into. Unset means no restriction',
+    group: 'Restriction Options',
+    type: 'string[]',
+    valueName: '<dirs>',
   },
   disabledTools: {
     cli: '--disable-tools',
@@ -248,6 +266,7 @@ export interface ServerConfig extends BaseServerConfig {
   defaultSpeedScale: number
   retryCount: number
   retryDelayMs: number
+  timeoutMs: number
   useStreaming?: boolean
   defaultPostPhonemeLength?: number
 
@@ -260,6 +279,9 @@ export interface ServerConfig extends BaseServerConfig {
   restrictImmediate: boolean
   restrictWaitForStart: boolean
   restrictWaitForEnd: boolean
+
+  // 書き込み先ディレクトリ制限（未設定 = 無制限）
+  allowedOutputDirs?: string[]
 
   // UIプレイヤー設定
   playerDomain: string

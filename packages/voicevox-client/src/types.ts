@@ -22,6 +22,8 @@ export interface VoicevoxConfig {
   retryCount?: number
   /** リトライの初期ディレイ（ミリ秒、指数バックオフ、デフォルト: 250） */
   retryDelayMs?: number
+  /** APIリクエスト1回あたりのタイムアウト（ミリ秒、デフォルト: 30000） */
+  timeoutMs?: number
   /** 先読みする音声の最大件数（READY + GENERATING の上限、デフォルト: 2） */
   prefetchSize?: number
   /** デフォルトの再生オプション */

@@ -72,6 +72,7 @@ interface VoicevoxConfig {
   defaultSpeaker?: number;               // Default speaker ID (default: 1)
   defaultSpeedScale?: number;            // Default playback speed (default: 1.0)
   defaultPlaybackOptions?: PlaybackOptions;  // Default playback options
+  timeoutMs?: number;                    // Per-request timeout in ms (default: 30000)
 }
 ```
 

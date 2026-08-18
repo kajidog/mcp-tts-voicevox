@@ -103,6 +103,11 @@ describe('config module', () => {
       expect(result.restrictWaitForEnd).toBe(true)
     })
 
+    it('--allowed-output-dirs をカンマ区切りでパースする', () => {
+      const result = parseCliArgs(['--allowed-output-dirs', '/data/out, /srv/out'])
+      expect(result.allowedOutputDirs).toEqual(['/data/out', '/srv/out'])
+    })
+
     it('--disable-tools を正しくパースする', () => {
       const result = parseCliArgs(['--disable-tools', 'speak,get_speaker_detail'])
       expect(result.disabledTools).toEqual(['speak', 'get_speaker_detail'])
@@ -307,6 +312,19 @@ describe('config module', () => {
       expect(result.httpPort).toBe(3000)
       expect(result.httpHost).toBe('0.0.0.0')
       expect(result.apiKey).toBeUndefined()
+      // 既定は未設定＝書き込み先の制限なし（従来の挙動を維持）
+      expect(result.allowedOutputDirs).toBeUndefined()
+    })
+
+    it('VOICEVOX_TIMEOUT_MS でAPIリクエストのタイムアウトを変更できる', () => {
+      expect(getConfig([], {}).timeoutMs).toBe(30000)
+      expect(getConfig([], { VOICEVOX_TIMEOUT_MS: '120000' }).timeoutMs).toBe(120000)
+      expect(getConfig(['--timeout-ms', '90000'], {}).timeoutMs).toBe(90000)
+    })
+
+    it('VOICEVOX_ALLOWED_OUTPUT_DIRS で書き込み先を制限できる', () => {
+      const result = getConfig([], { VOICEVOX_ALLOWED_OUTPUT_DIRS: '/data/out,/srv/out' })
+      expect(result.allowedOutputDirs).toEqual(['/data/out', '/srv/out'])
     })
 
     it('環境変数がデフォルト値を上書きする', () => {

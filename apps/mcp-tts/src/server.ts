@@ -13,25 +13,51 @@ import type { ToolDeps } from './tools/types.js'
 const config = getConfig()
 
 /**
- * McpServer を作成しツールを登録するファクトリ関数
- * HTTPモードではセッションごとに新しいインスタンスが必要
+ * VoicevoxClient はプロセス内で 1 つだけ持つ。
+ *
+ * ステートレス HTTP モードでは createServer() がリクエストごとに呼ばれるため、
+ * ここでクライアントを作ってしまうと speak を実行した QueueService と
+ * stop_speaker が触る QueueService が別インスタンスになり、再生を止められない。
+ * 再生キュー・再生中プロセスはプロセス単位の状態なので、client も
+ * プロセス単位で共有する。
  */
-export function createServer(): McpServer {
+let sharedClient: VoicevoxClient | null = null
+
+export function getVoicevoxClient(): VoicevoxClient {
+  if (!sharedClient) {
+    sharedClient = new VoicevoxClient({
+      url: config.voicevoxUrl,
+      defaultSpeaker: config.defaultSpeaker,
+      defaultSpeedScale: config.defaultSpeedScale,
+      retryCount: config.retryCount,
+      retryDelayMs: config.retryDelayMs,
+      timeoutMs: config.timeoutMs,
+      useStreaming: config.useStreaming,
+      defaultPostPhonemeLength: config.defaultPostPhonemeLength,
+    })
+  }
+  return sharedClient
+}
+
+/**
+ * 共有クライアントを破棄する（テスト用）
+ */
+export function resetVoicevoxClient(): void {
+  sharedClient = null
+}
+
+/**
+ * McpServer を作成しツールを登録するファクトリ関数
+ * HTTPモードではリクエストごとに新しい McpServer が必要だが、
+ * VoicevoxClient（＝再生キュー）は共有インスタンスを使う。
+ *
+ * @param voicevoxClient テスト用に差し替える場合のみ指定する
+ */
+export function createServer(voicevoxClient: VoicevoxClient = getVoicevoxClient()): McpServer {
   const server = new McpServer({
     name: 'mcp-tts-voicevox',
     version: '0.8.1',
     description: 'A Voicevox server that converts text to speech for playback and saving.',
-  })
-
-  // Voicevoxクライアント初期化
-  const voicevoxClient = new VoicevoxClient({
-    url: config.voicevoxUrl,
-    defaultSpeaker: config.defaultSpeaker,
-    defaultSpeedScale: config.defaultSpeedScale,
-    retryCount: config.retryCount,
-    retryDelayMs: config.retryDelayMs,
-    useStreaming: config.useStreaming,
-    defaultPostPhonemeLength: config.defaultPostPhonemeLength,
   })
 
   // 共通依存オブジェクト

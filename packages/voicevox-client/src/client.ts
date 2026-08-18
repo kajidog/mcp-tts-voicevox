@@ -87,6 +87,7 @@ export class VoicevoxClient {
     this.api = new VoicevoxApi(config.url, {
       retryCount: config.retryCount,
       retryDelayMs: config.retryDelayMs,
+      timeoutMs: config.timeoutMs,
     })
     this.queueService = new QueueService(this.api, {
       useStreaming: config.useStreaming,
