@@ -306,7 +306,7 @@ describe('config module', () => {
       expect(result.playerExportEnabled).toBe(true)
       expect(result.playerExportDir).toContain('voicevox-player-exports')
       expect(result.playerCacheDir).toContain('.voicevox-player-cache')
-      expect(result.playerStateFile).toContain('.voicevox-player-cache/player-state.json')
+      expect(result.playerStateFile).toContain(join('.voicevox-player-cache', 'player-state.json'))
       expect(result.disabledTools).toEqual([])
       expect(result.httpMode).toBe(false)
       expect(result.httpPort).toBe(3000)
@@ -363,7 +363,8 @@ describe('config module', () => {
     it('player state file 未指定時は player cache dir に追従する', () => {
       const result = getConfig(['--player-cache-dir', '/tmp/cache-dir'], {})
       expect(result.playerCacheDir).toBe('/tmp/cache-dir')
-      expect(result.playerStateFile).toBe('/tmp/cache-dir/player-state.json')
+      // 区切り文字は join に合わせる（Windows では \tmp\cache-dir\player-state.json）
+      expect(result.playerStateFile).toBe(join('/tmp/cache-dir', 'player-state.json'))
     })
 
     it('player state file 指定時は player cache dir より優先する', () => {
