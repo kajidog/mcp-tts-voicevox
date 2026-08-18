@@ -18,17 +18,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Changesets needs history to work out what has already shipped.
           fetch-depth: 0
 
       # pnpm version comes from the root package.json "packageManager" field.
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'pnpm'
@@ -48,8 +48,10 @@ jobs:
       - name: Create release PR or publish
         uses: changesets/action@v1
         with:
-          version: pnpm version
-          publish: pnpm release
+          # `pnpm run` is required: bare `pnpm version` is pnpm's built-in
+          # npm-compatible command, not the root "version" script.
+          version: pnpm run version
+          publish: pnpm run release
           commit: 'chore: version packages'
           title: 'chore: version packages'
         env:

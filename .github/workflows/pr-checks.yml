@@ -2,32 +2,88 @@ name: PR Checks
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  check:
+  quality:
+    name: Lint, typecheck & build
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
 
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v6
+      # pnpm version comes from the root package.json "packageManager" field.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v7
-      with:
-        node-version: '20'
-        cache: 'pnpm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'pnpm'
 
-    - name: Install dependencies
-      run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
-    - name: Build packages with tsc (CI-compatible)
-      run: pnpm build:tsc
+      # Root-level single pass: biome.json's `includes` already covers every
+      # package, so `pnpm -r lint` would re-check the same files.
+      - name: Lint
+        run: pnpm lint
 
-    - name: Run linter
-      run: pnpm lint
+      # The real distribution build: tsgo for the libraries, vite for
+      # player-ui, tsup for the published server bundle.
+      - name: Build (production toolchain)
+        run: pnpm -r build
 
-    - name: Run tests
-      run: pnpm test
+      - name: Verify player-ui HTML was bundled into the server
+        run: test -s apps/mcp-tts/dist/mcp-app.html
+
+      # Must run *after* the build: packages import each other through their
+      # `exports` (dist/*.d.ts), so an unbuilt workspace fails to resolve.
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+      - name: Build with tsc (fallback toolchain)
+        run: pnpm -r build:tsc
+
+  test:
+    name: Test (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # node-playback-strategy branches on platform (ffplay/afplay/
+        # PowerShell), so all three runners are worth covering.
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ['20']
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # mcp-tts's tests import the two libraries through their `exports`
+      # (dist), so they have to exist before vitest can resolve them.
+      # player-ui / mcp-tts themselves are not needed to run tests.
+      - name: Build workspace libraries
+        run: pnpm --filter @kajidog/voicevox-client --filter @kajidog/mcp-core build
+
+      - name: Test
+        run: pnpm -r test
