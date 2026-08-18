@@ -4,20 +4,22 @@ import type { VoicevoxConfig } from '../types'
 
 // APIのモック
 vi.mock('../api', () => ({
-  VoicevoxApi: vi.fn().mockImplementation(() => ({
-    generateQuery: vi.fn().mockResolvedValue({
-      accent_phrases: [],
-      speedScale: 1.0,
-      pitchScale: 0.0,
-      intonationScale: 1.0,
-      volumeScale: 1.0,
-      prePhonemeLength: 0.1,
-      postPhonemeLength: 0.1,
-      outputSamplingRate: 24000,
-      outputStereo: false,
-    }),
-    synthesize: vi.fn().mockResolvedValue(new ArrayBuffer(1024)),
-  })),
+  VoicevoxApi: vi.fn(function () {
+    return {
+      generateQuery: vi.fn().mockResolvedValue({
+        accent_phrases: [],
+        speedScale: 1.0,
+        pitchScale: 0.0,
+        intonationScale: 1.0,
+        volumeScale: 1.0,
+        prePhonemeLength: 0.1,
+        postPhonemeLength: 0.1,
+        outputSamplingRate: 24000,
+        outputStereo: false,
+      }),
+      synthesize: vi.fn().mockResolvedValue(new ArrayBuffer(1024)),
+    }
+  }),
 }))
 
 // QueueServiceのモック
@@ -25,21 +27,23 @@ const mockEnqueueQuery = vi.fn()
 const mockClearQueue = vi.fn()
 
 vi.mock('../queue/queue-service', () => ({
-  QueueService: vi.fn().mockImplementation(() => ({
-    enqueueQuery: mockEnqueueQuery,
-    enqueueText: vi.fn(),
-    startPlayback: vi.fn(),
-    clearQueue: mockClearQueue,
-    cleanup: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    getQueue: vi.fn().mockReturnValue([]),
-    getFileManager: vi.fn().mockReturnValue({
-      saveTempAudioFile: vi.fn(),
-      saveAudioFile: vi.fn(),
-    }),
-    isStreamingEnabled: vi.fn().mockReturnValue(true),
-  })),
+  QueueService: vi.fn(function () {
+    return {
+      enqueueQuery: mockEnqueueQuery,
+      enqueueText: vi.fn(),
+      startPlayback: vi.fn(),
+      clearQueue: mockClearQueue,
+      cleanup: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      getQueue: vi.fn().mockReturnValue([]),
+      getFileManager: vi.fn().mockReturnValue({
+        saveTempAudioFile: vi.fn(),
+        saveAudioFile: vi.fn(),
+      }),
+      isStreamingEnabled: vi.fn().mockReturnValue(true),
+    }
+  }),
 }))
 
 describe('Playback Options Behavior Tests', () => {

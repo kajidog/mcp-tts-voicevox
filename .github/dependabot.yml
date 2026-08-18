@@ -1,15 +1,13 @@
 version: 2
 
 updates:
-  # pnpm workspace: Dependabot needs one entry per package directory.
+  # pnpm workspace: one entry for the root only. Dependabot reads
+  # pnpm-workspace.yaml and covers every member manifest from here.
+  # Listing the package directories individually makes it update a
+  # sub-package's package.json without touching the root pnpm-lock.yaml,
+  # and every such PR then fails CI with ERR_PNPM_OUTDATED_LOCKFILE.
   - package-ecosystem: npm
-    directories:
-      - /
-      - /apps/mcp-tts
-      - /packages/voicevox-client
-      - /packages/mcp-core
-      - /packages/player-ui
-      - /examples
+    directory: /
     schedule:
       interval: weekly
       day: monday
@@ -19,7 +17,7 @@ updates:
       mcp:
         patterns:
           - '@modelcontextprotocol/*'
-      # Everything else lands as one PR per package directory.
+      # Everything else lands as one PR for the whole workspace.
       minor-and-patch:
         exclude-patterns:
           - '@modelcontextprotocol/*'

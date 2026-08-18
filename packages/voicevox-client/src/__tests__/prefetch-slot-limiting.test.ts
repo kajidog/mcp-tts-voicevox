@@ -21,18 +21,22 @@ const mockGenerateQuery = vi.fn()
 const mockSynthesize = vi.fn()
 
 vi.mock('../api', () => ({
-  VoicevoxApi: vi.fn().mockImplementation(() => ({
-    generateQuery: mockGenerateQuery,
-    synthesize: mockSynthesize,
-  })),
+  VoicevoxApi: vi.fn(function () {
+    return {
+      generateQuery: mockGenerateQuery,
+      synthesize: mockSynthesize,
+    }
+  }),
 }))
 
 vi.mock('../queue/file-manager', () => ({
-  AudioFileManager: vi.fn().mockImplementation(() => ({
-    saveTempAudioFile: vi.fn().mockResolvedValue('/tmp/mock.wav'),
-    deleteTempFile: vi.fn().mockResolvedValue(undefined),
-    releaseAllBlobUrls: vi.fn(),
-  })),
+  AudioFileManager: vi.fn(function () {
+    return {
+      saveTempAudioFile: vi.fn().mockResolvedValue('/tmp/mock.wav'),
+      deleteTempFile: vi.fn().mockResolvedValue(undefined),
+      releaseAllBlobUrls: vi.fn(),
+    }
+  }),
 }))
 
 let playbackCallbacks: {
@@ -41,7 +45,7 @@ let playbackCallbacks: {
 } = {}
 
 vi.mock('../playback/index', () => ({
-  PlaybackService: vi.fn().mockImplementation((options: any) => {
+  PlaybackService: vi.fn(function (options: any) {
     playbackCallbacks = options?.callbacks || {}
     return {
       play: vi.fn().mockImplementation(() => new Promise(() => {})), // never resolves

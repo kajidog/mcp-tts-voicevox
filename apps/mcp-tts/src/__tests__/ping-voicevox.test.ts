@@ -4,16 +4,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockCheckHealth = vi.fn()
 
 vi.mock('@kajidog/voicevox-client', () => ({
-  VoicevoxClient: vi.fn().mockImplementation(() => ({
-    checkHealth: mockCheckHealth,
-    speak: vi.fn(),
-    generateQuery: vi.fn(),
-    generateAudioFile: vi.fn(),
-    enqueueAudioGeneration: vi.fn(),
-    clearQueue: vi.fn(),
-    getSpeakers: vi.fn(),
-    getSpeakerInfo: vi.fn(),
-  })),
+  VoicevoxClient: vi.fn(function () {
+    return {
+      checkHealth: mockCheckHealth,
+      speak: vi.fn(),
+      generateQuery: vi.fn(),
+      generateAudioFile: vi.fn(),
+      enqueueAudioGeneration: vi.fn(),
+      clearQueue: vi.fn(),
+      getSpeakers: vi.fn(),
+      getSpeakerInfo: vi.fn(),
+    }
+  }),
 }))
 
 // configモジュールをモック
