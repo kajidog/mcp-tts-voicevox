@@ -59,10 +59,10 @@ VOICEVOX を使用した MCP テキスト読み上げサーバー
 
 | ツール | 説明 |
 |--------|------|
-| `speak_player` | 新しいプレーヤーセッションを作成して UI を表示。`viewUUID` を返します。 |
-| `resynthesize_player` | 既存プレーヤーの全セグメントを更新します（毎回新しい `viewUUID` を生成）。 |
-| `get_player_state` | AI チューニング用にプレーヤーの現在状態をページ単位で取得します（読み取り専用）。 |
-| `open_dictionary_ui` | ユーザー辞書管理 UI を開きます。 |
+| `voicevox_speak_player` | 新しいプレーヤーセッションを作成して UI を表示。`viewUUID` を返します。 |
+| `voicevox_resynthesize_player` | 既存プレーヤーの全セグメントを更新します（毎回新しい `viewUUID` を生成）。 |
+| `voicevox_get_player_state` | AI チューニング用にプレーヤーの現在状態をページ単位で取得します（読み取り専用）。 |
+| `voicevox_open_dictionary_ui` | ユーザー辞書管理 UI を開きます。 |
 
 ## クイックスタート
 
@@ -190,10 +190,14 @@ Claude から呼び出せるメインの機能です。
 | パラメータ | 説明 | デフォルト |
 |-----------|------|-----------|
 | `text` | 読み上げるテキスト（改行で複数セグメント） | 必須 |
+| `phrases` | インラインアクセント表記（`text` より優先） | _(未設定)_ |
 | `speaker` | 話者 ID | 1 |
 | `speedScale` | 再生速度 | 1.0 |
 | `immediate` | 即時再生（キューをクリア） | true |
+| `waitForStart` | 再生開始まで待機 | false |
 | `waitForEnd` | 再生完了まで待機 | false |
+
+> `immediate` / `waitForStart` / `waitForEnd` は、対応する `--restrict-*` オプションを設定するとツールのスキーマから外れます。
 
 **使用例：**
 
@@ -209,18 +213,47 @@ Claude から呼び出せるメインの機能です。
 
 // 再生完了まで待機（同期処理）
 { "text": "このメッセージを読み終えてから次へ", "waitForEnd": true }
+
+// インライン表記でアクセントを指定（`,` でフレーズ区切り、`[` でアクセント位置）
+{ "text": "こんにちは世界", "phrases": "コン[ニ]チワ,セ[カ]イ" }
 ```
+
+### インラインアクセント表記
+
+`phrases`（およびユーザー辞書ツールの読み）では、カタカナにアクセント記号を埋め込んだ表記が使えます。
+
+- `,` はアクセント句の区切り — `コン[ニ]チワ,セ[カ]イ`
+- `[` はその直後の音でピッチが下がる位置を示す — `コン[ニ]チワ` なら `ニ` にアクセント
+- ブラケットを省略したフレーズは、VOICEVOX が推定したアクセントをそのまま使います
+
+`phrases` を指定する場合も `text` は必須です（`text` には元のテキストを渡し、実際に読み上げられるのは表記の内容です）。
+
+`voicevox_get_accent_phrases` は同じ表記でテキストの読みとアクセントを返すので、推定結果を確認 → ブラケットを直す → `phrases` に渡す、という流れで調整できます。
 
 <details>
 <summary>その他のツール</summary>
 
 | ツール | 説明 |
 |--------|------|
-| `voicevox_speak_player` | UI 音声プレイヤー付き読み上げ（`--disable-tools` で無効化可） |
+| `voicevox_speak_player` | UI 音声プレイヤー付き読み上げ（[プレーヤー MCP ツール一覧](#プレーヤー-mcp-ツール一覧)を参照） |
 | `voicevox_ping` | VOICEVOX Engine への接続確認 |
 | `voicevox_get_speakers` | 利用可能な話者一覧を取得 |
 | `voicevox_stop_speaker` | 再生停止とキューのクリア |
 | `voicevox_synthesize_file` | 音声ファイルを生成 |
+
+ユーザー辞書ツール（グループ `dictionary`）:
+
+| ツール | 説明 |
+|--------|------|
+| `voicevox_get_accent_phrases` | テキストの読みとアクセント位置をインライン表記で取得 |
+| `voicevox_get_user_dictionary` | ユーザー辞書の単語一覧を取得（絞り込み・ページング対応） |
+| `voicevox_add_user_dictionary_word` | 単語を追加（読みはインラインアクセント表記に対応） |
+| `voicevox_update_user_dictionary_word` | 単語を更新（省略した項目は現在の値を維持） |
+| `voicevox_delete_user_dictionary_word` | UUID を指定して単語を削除 |
+| `voicevox_add_user_dictionary_words` | 複数の単語をまとめて追加 |
+| `voicevox_update_user_dictionary_words` | 複数の単語をまとめて更新 |
+
+各ツールは `--disable-tools` / `VOICEVOX_DISABLED_TOOLS` で個別に、`--disable-groups` / `VOICEVOX_DISABLED_GROUPS` でグループ単位で無効化できます。
 
 </details>
 
@@ -627,9 +660,10 @@ curl http://localhost:50021/speakers
 
 | パッケージ | 説明 |
 |-----------|------|
-| `@kajidog/mcp-tts-voicevox` | MCP サーバー本体 |
+| `@kajidog/mcp-tts-voicevox` | MCP サーバー本体（`apps/mcp-tts`） |
 | [`@kajidog/voicevox-client`](https://www.npmjs.com/package/@kajidog/voicevox-client) | 汎用 VOICEVOX クライアントライブラリ（独立使用可能） |
-| `@kajidog/player-ui` | ブラウザ再生用の React 音声プレイヤー UI |
+| `@kajidog/mcp-core` | MCP サーバー共通基盤（設定スキーマ、HTTP/stdio 起動）。非公開でサーバーにバンドルされます |
+| `@kajidog/player-ui` | ブラウザ再生用の React 音声プレイヤー UI。単一 HTML にバンドルされる非公開パッケージ |
 
 ---
 
@@ -646,15 +680,24 @@ pnpm install
 
 ### コマンド
 
+パッケージマネージャーは **pnpm** です（npm / yarn は非対応）。
+
 | コマンド | 説明 |
 |---------|------|
 | `pnpm build` | 全パッケージをビルド |
 | `pnpm test` | テスト実行 |
-| `pnpm lint` | Lint 実行 |
-| `pnpm dev` | 開発サーバー起動 |
-| `pnpm dev:stdio` | Stdio モードで開発 |
-| `pnpm dev:bun` | Bun で開発サーバー起動 |
-| `pnpm dev:bun:http` | Bun で HTTP 開発サーバー起動 |
+| `pnpm lint` | Lint 実行（ワークスペース全体を Biome で 1 回だけチェック） |
+| `pnpm typecheck` | 全パッケージの型チェック |
+| `pnpm changeset` | ユーザー影響のある変更に changeset を追加 |
+
+開発サーバーはサーバーパッケージ側のスクリプトなので、フィルタを付けて実行します。
+
+| コマンド | 説明 |
+|---------|------|
+| `pnpm --filter @kajidog/mcp-tts-voicevox dev` | 開発サーバー起動（stdio） |
+| `pnpm --filter @kajidog/mcp-tts-voicevox dev:http` | HTTP モードで開発サーバー起動 |
+| `pnpm --filter @kajidog/mcp-tts-voicevox dev:bun` | Bun で開発サーバー起動 |
+| `pnpm --filter @kajidog/mcp-tts-voicevox dev:bun:http` | Bun で HTTP 開発サーバー起動 |
 
 </details>
 

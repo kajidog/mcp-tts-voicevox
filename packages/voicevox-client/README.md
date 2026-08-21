@@ -1,6 +1,9 @@
 # @kajidog/voicevox-client
 
-A TypeScript client library for VOICEVOX text-to-speech synthesis engine.
+A TypeScript client library for the VOICEVOX text-to-speech engine.
+
+ESM only, with **zero runtime dependencies** — it uses the platform's `fetch` and
+`crypto.randomUUID`. Runs on Node.js >= 18 and in the browser.
 
 ## Installation
 
@@ -50,7 +53,10 @@ const speakers = await client.getSpeakers();
 - **Speaker Management**: Get information about available speakers and voices
 - **Flexible Input**: Support for single text, text arrays, and speech segments
 - **Advanced Playback Control**: Immediate playback, synchronous/asynchronous control
-- **Lightweight**: No external audio dependencies - uses platform-native tools
+- **Prefetching**: Look-ahead synthesis of queued items for gapless playback
+- **Retry & Timeout**: Configurable retry with exponential backoff and a per-request timeout
+- **User Dictionary**: Read and edit the VOICEVOX user dictionary, with inline accent notation
+- **Lightweight**: No runtime dependencies - uses platform-native tools
 
 ## API Reference
 
@@ -68,11 +74,21 @@ new VoicevoxClient(config: VoicevoxConfig)
 
 ```typescript
 interface VoicevoxConfig {
-  url: string;                           // VOICEVOX engine URL
-  defaultSpeaker?: number;               // Default speaker ID (default: 1)
-  defaultSpeedScale?: number;            // Default playback speed (default: 1.0)
+  url: string;                    // VOICEVOX engine URL (required)
+  defaultSpeaker: number;         // Default speaker ID (required)
+  defaultSpeedScale?: number;     // Default playback speed (default: 1.0)
+  defaultVolumeScale?: number;    // Default volume (0.0 - 2.0, default: 1.0)
+  defaultPitchScale?: number;     // Default pitch (-0.15 - 0.15, default: 0.0)
+  defaultPrePhonemeLength?: number;   // Silence before each segment (seconds)
+  defaultPostPhonemeLength?: number;  // Silence after each segment (seconds)
+  maxSegmentLength?: number;      // Max characters per split segment (default: 150)
+  retryCount?: number;            // Retries per failed API request (0 disables, default: 2)
+  retryDelayMs?: number;          // Initial retry delay, exponential backoff (default: 250)
+  timeoutMs?: number;             // Per-request timeout in ms (default: 30000)
+  prefetchSize?: number;          // Max look-ahead items to synthesize (default: 2)
   defaultPlaybackOptions?: PlaybackOptions;  // Default playback options
-  timeoutMs?: number;                    // Per-request timeout in ms (default: 30000)
+  useStreaming?: boolean;         // true: ffplay streaming, false: temp file playback,
+                                  // undefined: env var / auto-detect
 }
 ```
 
@@ -86,7 +102,19 @@ Convert text to speech and play it.
 speak(
   input: string | string[] | SpeechSegment[],
   options?: SpeakOptions
-): Promise<string>
+): Promise<SpeakResult>
+```
+
+**SpeakResult:**
+
+```typescript
+interface SpeakResult {
+  status: 'queued' | 'playing' | 'played' | 'error';
+  mode: 'streaming' | 'file';
+  textPreview: string;
+  segmentCount: number;
+  errorMessage?: string;  // Set when status is 'error'
+}
 ```
 
 **SpeakOptions:**
@@ -170,13 +198,14 @@ Add text or query to the audio generation queue.
 enqueueAudioGeneration(
   input: string | string[] | SpeechSegment[] | AudioQuery,
   options?: SpeakOptions
-): Promise<string>
+): Promise<SpeakResult>
 ```
 
 ##### Other Methods
 
 - `getSpeakers(): Promise<Speaker[]>` - Get list of available speakers
 - `getSpeakerInfo(uuid: string): Promise<SpeakerInfo>` - Get speaker details
+- `checkHealth(): Promise<{ connected: boolean; version?: string; url: string }>` - Check the engine connection
 - `clearQueue(): Promise<void>` - Clear the playback queue
 - `startPlayback(): void` - Start queue playback
 - `pausePlayback(): void` - Pause queue playback
@@ -184,6 +213,70 @@ enqueueAudioGeneration(
 - `getQueueLength(): number` - Get number of items in queue
 - `isQueueEmpty(): boolean` - Check if queue is empty
 - `isPlaying(): boolean` - Check if currently playing
+- `getQueueService(): QueueService` - Access the underlying queue service
+
+##### User Dictionary
+
+All dictionary methods return the full dictionary after the change, as
+`NormalizedDictionaryWord[]` (`{ wordUuid, surface, pronunciation, accentType, notation, priority }`).
+
+- `getDictionary(): Promise<NormalizedDictionaryWord[]>`
+- `addDictionaryWord(input: DictionaryWordInput): Promise<NormalizedDictionaryWord[]>`
+- `addDictionaryWords(inputs: DictionaryWordInput[]): Promise<NormalizedDictionaryWord[]>`
+- `updateDictionaryWord(input: DictionaryWordUpdateInput): Promise<NormalizedDictionaryWord[]>`
+- `updateDictionaryWords(inputs: DictionaryWordUpdateInput[]): Promise<NormalizedDictionaryWord[]>`
+- `deleteDictionaryWord(wordUuid: string): Promise<NormalizedDictionaryWord[]>`
+- `getAccentNotation(text, speaker?): Promise<{ notation: string; accentPhrases: AccentPhrase[] }>`
+
+```typescript
+interface DictionaryWordInput {
+  surface: string;         // The text to match
+  pronunciation: string;   // Katakana, with optional inline accent notation
+  accentType?: number;     // Derived from the notation when omitted
+  priority?: number;
+  wordType?: string;
+}
+
+// DictionaryWordUpdateInput is the same, with a required `wordUuid`
+// and every other field optional (omitted fields keep their value).
+```
+
+## Inline Accent Notation
+
+Pronunciations are exchanged as katakana with an inline accent marker: `,`
+separates accent phrases and `[` marks where the pitch drops after.
+
+```typescript
+// Read back what the engine estimates for a text
+const { notation } = await client.getAccentNotation('こんにちは世界');
+// -> "コン[ニ]チワ,セ[カ]イ"
+
+// Register a word with an explicit accent
+await client.addDictionaryWord({
+  surface: 'VOICEVOX',
+  pronunciation: 'ボイス[ボッ]クス',
+});
+```
+
+The notation helpers are exported for building your own queries:
+
+```typescript
+import {
+  accentPhrasesToNotation,  // AccentPhrase[] -> notation string
+  parseNotation,            // notation string -> ParsedPhrase[]
+  applyNotationAccents,     // apply parsed accents onto an AudioQuery's accent phrases
+} from '@kajidog/voicevox-client';
+
+const query = await client.generateQuery('こんにちは世界');
+query.accent_phrases = applyNotationAccents(
+  parseNotation('コン[ニ]チワ,セ[カ]イ'),
+  query.accent_phrases,
+  query.accent_phrases
+);
+await client.enqueueAudioGeneration(query);
+```
+
+Phrases whose brackets are omitted keep the engine's own accent estimation.
 
 ## Playback Options
 
@@ -244,32 +337,36 @@ For streaming playback (optional):
 
 ## Environment Variables
 
-- `VOICEVOX_URL`: VOICEVOX engine URL (default: `http://localhost:50021`)
-- `VOICEVOX_DEFAULT_SPEAKER`: Default speaker ID (default: `1`)
-- `VOICEVOX_DEFAULT_SPEED_SCALE`: Default playback speed (default: `1.0`)
+The engine URL and the default speaker are constructor options, not environment
+variables. Only the playback defaults are read from the environment (Node.js only),
+and an explicit option always wins over them:
+
 - `VOICEVOX_DEFAULT_IMMEDIATE`: Start playback immediately (default: `true`)
 - `VOICEVOX_DEFAULT_WAIT_FOR_START`: Wait for playback start (default: `false`)
 - `VOICEVOX_DEFAULT_WAIT_FOR_END`: Wait for playback end (default: `false`)
-- `VOICEVOX_STREAMING_PLAYBACK`: Enable streaming playback (default: `true`)
+- `VOICEVOX_STREAMING_PLAYBACK`: Enable streaming playback when `useStreaming` is unset (default: auto-detect)
 
 ## Development
 
 This package is part of the MCP VOICEVOX project. For development:
 
+The monorepo uses **pnpm**; run these from the repository root or with a filter.
+
 ```bash
-# Install dependencies
-npm install
+# Install dependencies (repository root)
+pnpm install
 
 # Build the package
-npm run build
+pnpm --filter @kajidog/voicevox-client build
 
-# Run tests (includes audio playback mocking)
-npm test
+# Run tests (audio playback is mocked)
+pnpm --filter @kajidog/voicevox-client test
 
 # Type checking and linting
-npm run lint
+pnpm --filter @kajidog/voicevox-client typecheck
+pnpm lint
 ```
 
 ## License
 
-MIT License
+ISC
