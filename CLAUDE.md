@@ -76,7 +76,7 @@ To change a compiler option for everyone, edit `tsconfig.base.json`.
 
 - **`index.ts`** - Entry point with runtime detection (Node.js/Bun via `mcp-core`'s `isBun`/`isNodejs`), CLI arg parsing, auto-starts stdio or HTTP server. Reads `package.json` via `readFileSync` (no `require` for JSON).
 - **`config.ts`** - VOICEVOX-specific config built on `mcp-core`'s schema helpers. Priority: CLI args > env vars > config file (`.voicevoxrc.json`) > defaults. Add new options to the declarative config defs — CLI/env/config-file parsing and help text are auto-generated.
-- **`server.ts`** - MCP tool registration via `server.registerTool()`. Tools: `ping_voicevox`, `speak`, `generate_query`, `synthesize_file`, `stop_speaker`, `get_speakers`, plus player/dictionary tools. Uses `registerToolIfEnabled()` for conditional registration. Dynamic schema via `buildSpeakInputSchema()`.
+- **`server.ts`** - MCP tool registration via `server.registerTool()`. Tools are registered unprefixed and exposed with the `voicevox_` prefix (`addToolPrefix` in `tools/registration.ts`; internal `_*` player tools stay unprefixed): `ping`, `speak`, `stop_speaker`, `get_speakers`, `synthesize_file`, plus player and dictionary tools. Uses `registerToolIfEnabled()` for conditional registration. Dynamic schema via `buildSpeakInputSchema()`.
 - **`tool-groups.ts`** - Tool grouping for `--disable-groups` / conditional registration.
 - **`stdio.ts`** - Minimal stdio transport wrapper.
 - **`tools/`** - Tool implementations (`speak`, `synthesize`, `speakers`, `dictionary`, `player`, `player-ui`). Per-session player state lives in `tools/player/session-state.ts`.

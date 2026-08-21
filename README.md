@@ -59,10 +59,10 @@ Export behavior by environment:
 
 | Tool | Description |
 |------|-------------|
-| `speak_player` | Create a new player session and display the UI. Returns `viewUUID`. |
-| `resynthesize_player` | Update all segments for an existing player (new `viewUUID` each call). |
-| `get_player_state` | Read the current player state (paginated) for AI tuning. |
-| `open_dictionary_ui` | Open the user dictionary manager UI. |
+| `voicevox_speak_player` | Create a new player session and display the UI. Returns `viewUUID`. |
+| `voicevox_resynthesize_player` | Update all segments for an existing player (new `viewUUID` each call). |
+| `voicevox_get_player_state` | Read the current player state (paginated) for AI tuning. |
+| `voicevox_open_dictionary_ui` | Open the user dictionary manager UI. |
 
 ## Quick Start
 
@@ -190,10 +190,14 @@ The main feature callable from Claude.
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `text` | Text to speak (multiple segments separated by newlines) | Required |
+| `phrases` | Inline accent notation (takes priority over `text`) | _(unset)_ |
 | `speaker` | Speaker ID | 1 |
 | `speedScale` | Playback speed | 1.0 |
 | `immediate` | Immediate playback (clears queue) | true |
+| `waitForStart` | Wait for playback to start | false |
 | `waitForEnd` | Wait for playback completion | false |
+
+> `immediate` / `waitForStart` / `waitForEnd` disappear from the tool schema when the matching `--restrict-*` option is set.
 
 **Examples:**
 
@@ -209,18 +213,47 @@ The main feature callable from Claude.
 
 // Wait for completion (synchronous processing)
 { "text": "Wait for this to finish before continuing", "waitForEnd": true }
+
+// Control the accent with inline notation (`,` separates phrases, `[` marks the accent)
+{ "text": "こんにちは世界", "phrases": "コン[ニ]チワ,セ[カ]イ" }
 ```
+
+### Inline Accent Notation
+
+`phrases` (and the pronunciation field of the user dictionary tools) accepts katakana with an inline accent marker:
+
+- `,` separates accent phrases — `コン[ニ]チワ,セ[カ]イ`
+- `[` marks where the pitch drops after; `コン[ニ]チワ` means the accent falls on `ニ`
+- Omitting the brackets for a phrase keeps VOICEVOX's own accent estimation for it
+
+`text` stays required even when `phrases` is given — pass the plain text there and the notation is what gets spoken.
+
+`voicevox_get_accent_phrases` returns the same notation for a given text, so you can read the estimated accent, tweak the bracket, and feed it back into `phrases`.
 
 <details>
 <summary>Other Tools</summary>
 
 | Tool | Description |
 |------|-------------|
-| `voicevox_speak_player` | Speak with UI audio player (disable with `--disable-tools`) |
+| `voicevox_speak_player` | Speak with UI audio player (see [Player MCP Tools](#player-mcp-tools)) |
 | `voicevox_ping` | Check VOICEVOX Engine connection |
 | `voicevox_get_speakers` | Get list of available speakers |
 | `voicevox_stop_speaker` | Stop playback and clear queue |
 | `voicevox_synthesize_file` | Generate audio file |
+
+User dictionary tools (group `dictionary`):
+
+| Tool | Description |
+|------|-------------|
+| `voicevox_get_accent_phrases` | Get reading and accent positions of a text as inline notation |
+| `voicevox_get_user_dictionary` | List user dictionary words (filter + pagination) |
+| `voicevox_add_user_dictionary_word` | Add a word (pronunciation accepts inline accent notation) |
+| `voicevox_update_user_dictionary_word` | Update a word (omitted fields keep their value) |
+| `voicevox_delete_user_dictionary_word` | Delete a word by UUID |
+| `voicevox_add_user_dictionary_words` | Add multiple words at once |
+| `voicevox_update_user_dictionary_words` | Update multiple words at once |
+
+Any tool can be turned off individually with `--disable-tools` / `VOICEVOX_DISABLED_TOOLS`, or by group with `--disable-groups` / `VOICEVOX_DISABLED_GROUPS`.
 
 </details>
 
@@ -627,9 +660,10 @@ curl http://localhost:50021/speakers
 
 | Package | Description |
 |---------|-------------|
-| `@kajidog/mcp-tts-voicevox` | MCP server |
+| `@kajidog/mcp-tts-voicevox` | MCP server (`apps/mcp-tts`) |
 | [`@kajidog/voicevox-client`](https://www.npmjs.com/package/@kajidog/voicevox-client) | General-purpose VOICEVOX client library (can be used independently) |
-| `@kajidog/player-ui` | React-based audio player UI for browser playback |
+| `@kajidog/mcp-core` | Shared MCP infrastructure (config schema, HTTP/stdio launcher). Not published — bundled into the server |
+| `@kajidog/player-ui` | React-based audio player UI, bundled into a single HTML file. Not published |
 
 ---
 
@@ -646,15 +680,24 @@ pnpm install
 
 ### Commands
 
+The package manager is **pnpm** (npm / yarn are not supported).
+
 | Command | Description |
 |---------|-------------|
 | `pnpm build` | Build all packages |
 | `pnpm test` | Run tests |
-| `pnpm lint` | Run lint |
-| `pnpm dev` | Start dev server |
-| `pnpm dev:stdio` | Dev with stdio mode |
-| `pnpm dev:bun` | Start dev server with Bun |
-| `pnpm dev:bun:http` | Start HTTP dev server with Bun |
+| `pnpm lint` | Run lint (single Biome pass over the whole workspace) |
+| `pnpm typecheck` | Type-check every package |
+| `pnpm changeset` | Add a changeset for a user-facing change |
+
+Dev servers live in the server package, so run them with a filter:
+
+| Command | Description |
+|---------|-------------|
+| `pnpm --filter @kajidog/mcp-tts-voicevox dev` | Start dev server (stdio) |
+| `pnpm --filter @kajidog/mcp-tts-voicevox dev:http` | Start dev server in HTTP mode |
+| `pnpm --filter @kajidog/mcp-tts-voicevox dev:bun` | Start dev server with Bun |
+| `pnpm --filter @kajidog/mcp-tts-voicevox dev:bun:http` | Start HTTP dev server with Bun |
 
 </details>
 

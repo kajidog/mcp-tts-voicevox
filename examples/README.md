@@ -9,19 +9,21 @@ voicevox-clientパッケージの動作確認用サンプルスクリプト集�
 
 ## セットアップ
 
+依存関係はワークスペース全体で管理しているため、リポジトリのルートで pnpm を実行します（npm / yarn は非対応）。
+
 ```bash
+pnpm install
 cd examples
-npm install
 ```
 
 ## スクリプト一覧
 
-### 基本テスト (basic.ts)
+### 基本テスト (basic/index.ts)
 
 シンプルなテキスト読み上げの動作確認。
 
 ```bash
-npm run basic
+pnpm basic
 ```
 
 確認内容:
@@ -29,12 +31,12 @@ npm run basic
 - 話者の指定
 - 速度の変更
 
-### キューテスト (queue.ts)
+### キューテスト (queue/index.ts)
 
 複数テキストの連続再生とキュー動作の確認。
 
 ```bash
-npm run queue
+pnpm queue
 ```
 
 確認内容:
@@ -44,12 +46,12 @@ npm run queue
 - 長短テキストの混在処理
 - 音声パラメータ（音高、抑揚、音量など）の個別設定テスト
 
-### プリフェッチテスト (prefetch.ts)
+### プリフェッチテスト (prefetch/index.ts)
 
 音声生成の先読み（プリフェッチ）機能の確認。
 
 ```bash
-npm run prefetch
+pnpm prefetch
 ```
 
 確認内容:
@@ -57,12 +59,12 @@ npm run prefetch
 - 一括追加時の並列生成
 - 待ち時間の測定
 
-### ファイル生成テスト (file-generation.ts)
+### ファイル生成テスト (file-generation/index.ts)
 
 WAVファイル生成機能の確認。
 
 ```bash
-npm run file
+pnpm file
 ```
 
 確認内容:
@@ -70,13 +72,24 @@ npm run file
 - クエリ経由でのファイル生成
 - 話者/速度の変更
 
+### ファイル再生テスト (file-playback/index.ts)
+
+ストリーミングを使わず、一時ファイル経由で再生するモードの確認。
+
+```bash
+pnpm file-playback
+```
+
+確認内容:
+- `useStreaming: false` での再生
+- 再生モードの判定
 
 ### ブラウザテスト (browser/)
 
 ブラウザ上でvoicevox-clientを使用した音声再生のデモ。
 
 ```bash
-npm run browser
+pnpm browser
 ```
 
 ブラウザで http://localhost:5173 を開いて動作確認できます。
