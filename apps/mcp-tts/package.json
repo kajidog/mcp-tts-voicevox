@@ -72,7 +72,7 @@
   },
   "dependencies": {
     "@kajidog/voicevox-client": "workspace:*",
-    "@modelcontextprotocol/ext-apps": "^1.7.5",
+    "@modelcontextprotocol/ext-apps": "^2.0.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "zod": "^4.4.3"
   },
