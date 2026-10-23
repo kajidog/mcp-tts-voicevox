@@ -50,10 +50,10 @@ jobs:
         with:
           # `pnpm run` is required: bare `pnpm version` is pnpm's built-in
           # npm-compatible command, not the root "version" script.
-          version: pnpm run version
-          publish: pnpm run release
-          commit: 'chore: version packages'
-          title: 'chore: version packages'
+          version-script: pnpm run version
+          publish-script: pnpm run release
+          commit-message: 'chore: version packages'
+          pr-title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
