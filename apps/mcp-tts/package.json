@@ -68,7 +68,7 @@
   "homepage": "https://github.com/kajidog/mcp-tts-voicevox#readme",
   "license": "ISC",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   },
   "dependencies": {
     "@kajidog/voicevox-client": "workspace:*",
@@ -84,7 +84,7 @@
     "tsup": "^8.5.1",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "peerDependencies": {
     "typescript": ">=4.5.0"

@@ -5,6 +5,9 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "build": "pnpm -r build",
     "build:tsc": "pnpm -r build:tsc",

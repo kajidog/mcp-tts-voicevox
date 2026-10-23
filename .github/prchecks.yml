@@ -28,7 +28,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -60,7 +60,7 @@ jobs:
         # node-playback-strategy branches on platform (ffplay/afplay/
         # PowerShell), so all three runners are worth covering.
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: ['20']
+        node: ['24', '26']
 
     steps:
       - uses: actions/checkout@v4

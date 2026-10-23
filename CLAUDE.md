@@ -49,9 +49,9 @@ VOICEVOX MCP server for text-to-speech. Four workspace packages with strict sepa
 its output (`noExternal: ['@kajidog/mcp-core']` in `tsup.config.ts`) and copies
 the built `player-ui` HTML to `dist/mcp-app.html`.
 
-**Supported runtimes differ on purpose.** `mcp-tts` requires Node >= 20 (its tsup
-`target` matches), while `voicevox-client` stays at >= 18 because it also ships to
-browsers and must not gratuitously narrow its consumer range.
+**Supported Node.js runtime: >= 24.** Both published packages and the workspace
+require Node 24 or newer. The server bundle targets Node 24, Docker uses Node 24,
+and CI tests Node 24 and 26. `voicevox-client` also supports browsers.
 
 ### Module System: ESM Only
 
@@ -110,9 +110,9 @@ To change a compiler option for everyone, edit `tsconfig.base.json`.
 
 ### Testing
 
-Tests use **Vitest** (v4). All API calls are mocked — no VOICEVOX engine needed.
+Tests use **Vitest** (v5). All API calls are mocked — no VOICEVOX engine needed.
 
-> Two v4 behaviours to keep in mind when writing mocks:
+> Two behaviours introduced in v4 still apply when writing mocks:
 > - A mock used with `new` must be given a **`function` or a class**, never an
 >   arrow — `vi.fn(() => ({ … }))` throws `is not a constructor`. Biome's
 >   `complexity/useArrowFunction` would rewrite those back into arrows, so the

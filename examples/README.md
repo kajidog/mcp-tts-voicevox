@@ -4,7 +4,7 @@ voicevox-clientパッケージの動作確認用サンプルスクリプト集�
 
 ## 前提条件
 
-- Node.js 20以上
+- Node.js 24以上
 - VOICEVOXエンジンが起動していること（デフォルト: http://localhost:50021）
 
 ## セットアップ

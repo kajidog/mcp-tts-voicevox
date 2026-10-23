@@ -1,4 +1,4 @@
-FROM node:22-slim AS base
+FROM node:24-slim AS base
 
 RUN npm install -g pnpm@10
 
@@ -27,7 +27,7 @@ RUN pnpm --filter @kajidog/voicevox-client build:tsc && \
 RUN pnpm deploy --filter @kajidog/mcp-tts-voicevox --prod --legacy /app/deploy
 
 # --- 本番用イメージ ---
-FROM node:22-slim AS production
+FROM node:24-slim AS production
 
 WORKDIR /app
 
