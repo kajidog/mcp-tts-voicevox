@@ -5,6 +5,9 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "build": "pnpm -r build",
     "build:tsc": "pnpm -r build:tsc",
@@ -17,7 +20,7 @@
     "release": "changeset publish"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.11",
-    "@changesets/cli": "^3.0.1"
+    "@biomejs/biome": "^2.5.15",
+    "@changesets/cli": "^3.0.3"
   }
 }

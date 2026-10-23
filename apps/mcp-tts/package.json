@@ -68,21 +68,21 @@
   "homepage": "https://github.com/kajidog/mcp-tts-voicevox#readme",
   "license": "ISC",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   },
   "dependencies": {
     "@kajidog/voicevox-client": "workspace:*",
     "@modelcontextprotocol/ext-apps": "^1.7.5",
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.11",
+    "@biomejs/biome": "^2.5.15",
     "@kajidog/mcp-core": "workspace:*",
     "@kajidog/player-ui": "workspace:*",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.6.5",
     "tsup": "^8.5.1",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vitest": "^5.0.0"
   },

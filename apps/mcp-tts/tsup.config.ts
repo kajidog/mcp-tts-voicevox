@@ -11,7 +11,7 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   platform: 'node',
-  target: 'node20',
+  target: 'node24',
   noExternal: ['@kajidog/mcp-core'],
   external: [
     '@kajidog/voicevox-client',

@@ -66,12 +66,12 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.0.0"
   },
   "dependencies": {},
   "devDependencies": {
-    "@biomejs/biome": "^2.5.11",
-    "@types/node": "^26.4.0",
+    "@biomejs/biome": "^2.5.15",
+    "@types/node": "^26.6.5",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0"

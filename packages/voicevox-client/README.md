@@ -3,7 +3,7 @@
 A TypeScript client library for the VOICEVOX text-to-speech engine.
 
 ESM only, with **zero runtime dependencies** — it uses the platform's `fetch` and
-`crypto.randomUUID`. Runs on Node.js >= 18 and in the browser.
+`crypto.randomUUID`. Runs on Node.js >= 24 and in the browser.
 
 ## Installation
 
